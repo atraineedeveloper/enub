@@ -1,18 +1,18 @@
 function calculateSemesterGroup(entryYear) {
-  // Obtener el año y mes actual
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth();
+  // Semestres administrativos comienzan en agosto y febrero.
+  // Suponemos ingreso en agosto del año dado; cada semestre dura 6 meses.
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0 = enero
 
-  // console.log(currentMonth);
+  // Meses transcurridos desde agosto del año de ingreso.
+  const monthsElapsed = Math.max(
+    0,
+    (currentYear - entryYear) * 12 + (currentMonth - 7)
+  );
 
-  // Determinar el año escolar actual
-  // const schoolYear = currentMonth >= 7 ? currentYear : currentYear - 1; // Si es agosto o después, estamos en el segundo semestre
-
-  // Calcular el número de años desde el ingreso
-  const yearsElapsed = currentYear - entryYear;
-
-  // Determinar el grado actual
-  const grade = yearsElapsed * 2 + (currentMonth >= 7 ? 1 : 0);
+  // Cada bloque de 6 meses avanza un semestre (grado); arrancamos en 1.
+  const grade = 1 + Math.floor(monthsElapsed / 6);
 
   return grade;
 }
