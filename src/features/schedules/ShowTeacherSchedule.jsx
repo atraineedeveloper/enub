@@ -1,8 +1,6 @@
 import styled from "styled-components";
-import RowScholarSchedule from "./RowScholarSchedule";
 import Select from "../../ui/Select";
-import calculateSemesterGroup from "../../helpers/calculateSemesterGroup";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import RowTeacherSchedule from "./RowTeacherSchedule";
 import ScheduleTeacherPDF from "../../pdf/Schedules/ScheduleTeacherPDF";
 import capitalizeName from "../../helpers/capitalizeFirstLetter";
@@ -41,10 +39,12 @@ function ShowTeacherSchedule({
   const [filteredSchedulesTeacher, setFilteredSchedulesTeacher] = useState([]);
   const [filteredSchedulesAssignments, setFilteredSchedulesAssignments] =
     useState([]);
+  const [selectedWorkerId, setSelectedWorkerId] = useState(null);
 
   let totalHours = 2;
 
   function selectingWorker(workerId) {
+    setSelectedWorkerId(workerId ? +workerId : null);
     const scheduleTeacherFilter = scheduleTeachers.filter((schedule) => {
       return schedule.worker_id === +workerId;
     });
@@ -59,6 +59,11 @@ function ShowTeacherSchedule({
   const recordExist =
     filteredSchedulesTeacher.length > 0 ||
     filteredSchedulesAssignments.length > 0;
+
+  // Re-aplicar filtros cuando cambian los datos cargados
+  useEffect(() => {
+    if (selectedWorkerId) selectingWorker(selectedWorkerId);
+  }, [scheduleTeachers, scheduleAssignments, selectedWorkerId]);
 
   //******************* Extract Subjects *********************
 

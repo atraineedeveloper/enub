@@ -2,12 +2,15 @@ import { FaTrash, FaPencilAlt } from "react-icons/fa";
 import Modal from "../../ui/Modal";
 import ConfirmDelete from "../../ui/ConfirmDelete";
 import { useDeleteScheduleTeacher } from "./useDeleteScheduleTeacher";
-import { useState } from "react";
 import CreateEditTeacherSchedule from "./CreateEditTeacherSchedule";
 
-function HourScheduleSubjectTeacher({ schedules, weekday, startTime, workers, semesterId }) {
-  const [deleteModal, setDeleteModal] = useState(false);
-  const [editModal, setEditModal] = useState(false);
+function HourScheduleSubjectTeacher({
+  schedules,
+  weekday,
+  startTime,
+  workers,
+  semesterId,
+}) {
   const { isDeleting, deleteScheduleTeachers } = useDeleteScheduleTeacher();
   const activitiesHour = schedules.filter((schedule) => {
     return schedule.weekday === weekday && schedule.start_time === startTime;
@@ -43,8 +46,11 @@ function HourScheduleSubjectTeacher({ schedules, weekday, startTime, workers, se
                   <ConfirmDelete
                     resourceName="actividad"
                     disabled={isDeleting}
-                    onCloseModal={() => setDeleteModal(false)}
-                    onConfirm={() => deleteScheduleTeachers(activity.id)}
+                    onConfirm={() =>
+                      deleteScheduleTeachers(activity.id, {
+                        onSuccess: () => {},
+                      })
+                    }
                   />
                 </Modal.Window>
               </Modal>

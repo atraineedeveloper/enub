@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Select from "../../ui/Select";
 import styled from "styled-components";
 import calculateSemesterGroup from "../../helpers/calculateSemesterGroup";
@@ -61,10 +61,12 @@ function TeacherAssignment({ workers, scheduleTeachers, scheduleAssignments }) {
   const [filteredSchedulesAssignments, setFilteredSchedulesAssignments] =
     useState([]);
   const [currentWorker, setCurrentWorker] = useState([]);
+  const [selectedWorkerId, setSelectedWorkerId] = useState(null);
 
   let totalHours = 2;
 
   function selectingWorker(workerId) {
+    setSelectedWorkerId(workerId ? +workerId : null);
     const scheduleTeacherFilter = scheduleTeachers.filter((schedule) => {
       return schedule.worker_id === +workerId;
     });
@@ -85,6 +87,11 @@ function TeacherAssignment({ workers, scheduleTeachers, scheduleAssignments }) {
 
     // console.log(currentWorker);
   }
+
+  // Re-aplicar filtros cuando cambian los datos cargados
+  useEffect(() => {
+    if (selectedWorkerId) selectingWorker(selectedWorkerId);
+  }, [scheduleTeachers, scheduleAssignments, selectedWorkerId]);
 
   // Extract Subjects
 
