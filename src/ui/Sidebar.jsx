@@ -11,6 +11,13 @@ const StyledSidebar = styled.aside`
   display: flex;
   flex-direction: column;
   gap: 3.2rem;
+  width: 26rem;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  transform: translateX(${(props) => (props.$isOpen ? "0" : "-110%")});
+  opacity: ${(props) => (props.$isOpen ? 1 : 0)};
+  pointer-events: ${(props) => (props.$isOpen ? "auto" : "none")};
+  position: ${(props) => (props.$isOpen ? "relative" : "absolute")};
+  z-index: 11;
 
   @media (max-width: 900px) {
     position: fixed;
@@ -20,10 +27,11 @@ const StyledSidebar = styled.aside`
     border-right: none;
     box-shadow: var(--shadow-lg);
     transform: translateX(${(props) => (props.$isOpen ? "0" : "-100%")});
-    transition: transform 0.2s ease;
     z-index: 11;
     padding: 2.8rem 2.4rem 3.2rem;
     background: var(--color-grey-0);
+    opacity: 1;
+    pointer-events: ${(props) => (props.$isOpen ? "auto" : "none")};
   }
 `;
 

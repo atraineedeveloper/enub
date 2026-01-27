@@ -6,9 +6,10 @@ import styled from "styled-components";
 
 const StyledAppLayout = styled.div`
   display: grid;
-  grid-template-columns: 26rem 1fr;
+  grid-template-columns: ${(props) => (props.$sidebarOpen ? "26rem 1fr" : "1fr")};
   grid-template-rows: auto 1fr;
   min-height: 100vh;
+  position: relative;
 
   @media (max-width: 900px) {
     grid-template-columns: 1fr;
@@ -18,9 +19,12 @@ const StyledAppLayout = styled.div`
 const Main = styled.main`
   background-color: var(--color-grey-50);
   padding: 4rem 4.8rem 6.4rem;
+  grid-column: ${(props) => (props.$sidebarOpen ? "2 / 3" : "1 / -1")};
+  grid-row: 2 / -1;
 
   @media (max-width: 900px) {
     padding: 2.4rem 1.8rem 4.8rem;
+    grid-column: 1 / -1;
   }
 `;
 
@@ -42,11 +46,11 @@ function AppLayout() {
   const handleCloseSidebar = () => setIsSidebarOpen(false);
 
   return (
-    <StyledAppLayout>
+    <StyledAppLayout $sidebarOpen={isSidebarOpen}>
       <Header onToggleSidebar={handleToggleSidebar} />
       <SidebarOverlay $isOpen={isSidebarOpen} onClick={handleCloseSidebar} />
       <Sidebar isOpen={isSidebarOpen} onClose={handleCloseSidebar} />
-      <Main onClick={handleCloseSidebar}>
+      <Main $sidebarOpen={isSidebarOpen} onClick={handleCloseSidebar}>
         <Outlet />
       </Main>
     </StyledAppLayout>

@@ -9,6 +9,7 @@ const StyledHeader = styled.header`
   display: flex;
   align-items: center;
   justify-content: space-between;
+  grid-column: 1 / -1;
 
   @media (max-width: 900px) {
     padding: 1.2rem 1.6rem;
@@ -19,7 +20,7 @@ const StyledHeader = styled.header`
 `;
 
 const MenuButton = styled.button`
-  display: none;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 3.6rem;
@@ -29,10 +30,6 @@ const MenuButton = styled.button`
   background: var(--color-grey-0);
   color: var(--color-grey-700);
   box-shadow: var(--shadow-sm);
-
-  @media (max-width: 900px) {
-    display: inline-flex;
-  }
 `;
 
 function Header({ onToggleSidebar }) {

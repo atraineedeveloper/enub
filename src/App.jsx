@@ -10,6 +10,7 @@ import Subjects from "./pages/Records/Subjects";
 import Groups from "./pages/Records/Groups";
 import Semesters from "./pages/Semesters";
 import ScheduleDashboard from "./pages/ScheduleDashboard";
+import Dashboard from "./pages/Dashboard";
 import StudyPrograms from "./pages/Records/StudyPrograms";
 import { Toaster } from "react-hot-toast";
 import StateRoles from "./pages/Records/StateRoles";
@@ -52,6 +53,7 @@ function App() {
               <Route path="degrees" element={<Degrees />} />
               <Route path="subjects" element={<Subjects />} />
               <Route path="groups" element={<Groups />} />
+              <Route path="dashboard" element={<Dashboard />} />
               <Route path="study-programs" element={<StudyPrograms />} />
               <Route path="state-roles" element={<StateRoles />} />
               <Route path="roles" element={<Roles />} />
