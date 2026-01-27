@@ -75,7 +75,7 @@ const StyledNavLink = styled(NavLink)`
   }
 `;
 
-function MainNav() {
+function MainNav({ onNavigate = () => {} }) {
   const [isOpen, setIsOpen] = useState(false);
   return (
     <nav>
@@ -90,56 +90,56 @@ function MainNav() {
       {isOpen && (
         <NavList>
           <li>
-            <StyledNavLink to="/degrees">
+            <StyledNavLink to="/degrees" onClick={onNavigate}>
               <HiAcademicCap />
               <span>Licenciaturas</span>
             </StyledNavLink>
           </li>
           <li>
-            <StyledNavLink to="/workers">
+            <StyledNavLink to="/workers" onClick={onNavigate}>
               <FaPerson />
               <span>Trabajadores</span>
             </StyledNavLink>
           </li>
           <li>
-            <StyledNavLink to="/subjects">
+            <StyledNavLink to="/subjects" onClick={onNavigate}>
               <HiBookOpen />
               <span>Asignaturas</span>
             </StyledNavLink>
           </li>
           <li>
-            <StyledNavLink to="/groups">
+            <StyledNavLink to="/groups" onClick={onNavigate}>
               <HiOutlineUsers />
               <span>Grupos Escolares</span>
             </StyledNavLink>
           </li>
           <li>
-            <StyledNavLink to="/study-programs">
+            <StyledNavLink to="/study-programs" onClick={onNavigate}>
               <MdLibraryBooks />
               <span>Programas de estudio</span>
             </StyledNavLink>
           </li>
           <li>
-            <StyledNavLink to="/roles">
+            <StyledNavLink to="/roles" onClick={onNavigate}>
               <FaUserGear />
               <span>Roles</span>
             </StyledNavLink>
           </li>
           <li>
-            <StyledNavLink to="/state-roles">
+            <StyledNavLink to="/state-roles" onClick={onNavigate}>
               <RiGovernmentFill />
               <span>Roles Estatales</span>
             </StyledNavLink>
           </li>
           <li>
-            <StyledNavLink to="/others">
+            <StyledNavLink to="/others" onClick={onNavigate}>
               <FaTable />
               <span>Otros datos</span>
             </StyledNavLink>
           </li>
         </NavList>
       )}
-      <NavLink to="/semesters">
+      <NavLink to="/semesters" onClick={onNavigate}>
         <NavLinkHeader>
           <span>Administrar horarios</span>
           <FaCalendar size={26} />
