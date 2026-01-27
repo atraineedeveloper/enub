@@ -13,17 +13,23 @@ export async function getScheduleTeachers() {
   return data;
 }
 
-export async function createScheduleTeachers(newScheduleTeachers) {
-  const { data, error } = await supabase
-    .from("schedule_teachers")
-    .insert([newScheduleTeachers]);
+export async function createEditScheduleTeachers(newScheduleTeachers, id) {
+  let query = supabase.from("schedule_teachers");
+
+  // A) CREATE
+  if (!id) query = query.insert([newScheduleTeachers]);
+
+  // B) EDIT
+  if (id) query = query.update({ ...newScheduleTeachers }).eq("id", id);
+
+  const { data, error } = await query.select();
 
   if (error) {
     console.error(error);
-    throw new Error("Hubo un error al crear el registro");
+    throw new Error("Hubo un error al guardar el registro");
   }
 
-  return data;
+  return data?.[0];
 }
 
 export async function deleteScheduleTeachers(id) {

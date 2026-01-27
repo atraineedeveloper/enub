@@ -33,7 +33,7 @@ const LongRowComplete = styled.div`
   text-align: center;
 `;
 
-function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
+function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours, workers, semesterId }) {
   let hasExtraHours = false;
   const afternoonSchedule = schedulesScholar.filter((schedule) => {
     return schedule.start_time === "17:00:00";
@@ -62,6 +62,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
             schedules={scheduleTeacher}
             weekday="Lunes"
             startTime="07:00:00"
+            workers={workers}
+            semesterId={semesterId}
           />
         </div>
 
@@ -75,6 +77,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
             schedules={scheduleTeacher}
             weekday="Martes"
             startTime="07:00:00"
+            workers={workers}
+            semesterId={semesterId}
           />
         </div>
         <div>
@@ -87,6 +91,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
             schedules={scheduleTeacher}
             weekday="Miercoles"
             startTime="07:00:00"
+            workers={workers}
+            semesterId={semesterId}
           />
         </div>
         <div>
@@ -99,6 +105,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
             schedules={scheduleTeacher}
             weekday="Jueves"
             startTime="07:00:00"
+            workers={workers}
+            semesterId={semesterId}
           />
         </div>
         <div>
@@ -111,6 +119,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
             schedules={scheduleTeacher}
             weekday="Viernes"
             startTime="07:00:00"
+            workers={workers}
+            semesterId={semesterId}
           />
         </div>
       </TableRow>
@@ -130,6 +140,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
             schedules={scheduleTeacher}
             weekday="Lunes"
             startTime="09:20:00"
+            workers={workers}
+            semesterId={semesterId}
           />
         </div>
         <div>
@@ -142,6 +154,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
             schedules={scheduleTeacher}
             weekday="Martes"
             startTime="09:20:00"
+            workers={workers}
+            semesterId={semesterId}
           />
         </div>
         <div>
@@ -154,6 +168,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
             schedules={scheduleTeacher}
             weekday="Miercoles"
             startTime="09:20:00"
+            workers={workers}
+            semesterId={semesterId}
           />
         </div>
         <div>
@@ -166,6 +182,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
             schedules={scheduleTeacher}
             weekday="Jueves"
             startTime="09:20:00"
+            workers={workers}
+            semesterId={semesterId}
           />
         </div>
         <div>
@@ -178,6 +196,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
             schedules={scheduleTeacher}
             weekday="Viernes"
             startTime="09:20:00"
+            workers={workers}
+            semesterId={semesterId}
           />
         </div>
       </TableRow>
@@ -193,6 +213,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
             schedules={scheduleTeacher}
             weekday="Lunes"
             startTime="11:10:00"
+            workers={workers}
+            semesterId={semesterId}
           />
         </div>
         <div>
@@ -205,6 +227,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
             schedules={scheduleTeacher}
             weekday="Martes"
             startTime="11:10:00"
+            workers={workers}
+            semesterId={semesterId}
           />
         </div>
         <div>
@@ -217,6 +241,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
             schedules={scheduleTeacher}
             weekday="Miercoles"
             startTime="11:10:00"
+            workers={workers}
+            semesterId={semesterId}
           />
         </div>
         <div>
@@ -229,6 +255,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
             schedules={scheduleTeacher}
             weekday="Jueves"
             startTime="11:10:00"
+            workers={workers}
+            semesterId={semesterId}
           />
         </div>
         <div>
@@ -241,6 +269,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
             schedules={scheduleTeacher}
             weekday="Viernes"
             startTime="11:10:00"
+            workers={workers}
+            semesterId={semesterId}
           />
         </div>
       </TableRow>
@@ -260,6 +290,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
             schedules={scheduleTeacher}
             weekday="Lunes"
             startTime="13:10:00"
+            workers={workers}
+            semesterId={semesterId}
           />
         </div>
         <div>
@@ -272,6 +304,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
             schedules={scheduleTeacher}
             weekday="Martes"
             startTime="13:10:00"
+            workers={workers}
+            semesterId={semesterId}
           />
         </div>
         <div>
@@ -284,6 +318,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
             schedules={scheduleTeacher}
             weekday="Miercoles"
             startTime="13:10:00"
+            workers={workers}
+            semesterId={semesterId}
           />
         </div>
         <div>
@@ -296,6 +332,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
             schedules={scheduleTeacher}
             weekday="Jueves"
             startTime="13:10:00"
+            workers={workers}
+            semesterId={semesterId}
           />
         </div>
         <div>
@@ -308,6 +346,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
             schedules={scheduleTeacher}
             weekday="Viernes"
             startTime="13:10:00"
+            workers={workers}
+            semesterId={semesterId}
           />
         </div>
       </TableRow>
@@ -328,6 +368,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
                 schedules={scheduleTeacher}
                 weekday="Lunes"
                 startTime="17:00:00"
+                workers={workers}
+                semesterId={semesterId}
               />
             </div>
             <div>
@@ -340,6 +382,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
                 schedules={scheduleTeacher}
                 weekday="Martes"
                 startTime="17:00:00"
+                workers={workers}
+                semesterId={semesterId}
               />
             </div>
             <div>
@@ -352,6 +396,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
                 schedules={scheduleTeacher}
                 weekday="Miercoles"
                 startTime="17:00:00"
+                workers={workers}
+                semesterId={semesterId}
               />
             </div>
             <div>
@@ -364,6 +410,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
                 schedules={scheduleTeacher}
                 weekday="Jueves"
                 startTime="17:00:00"
+                workers={workers}
+                semesterId={semesterId}
               />
             </div>
             <div>
@@ -376,6 +424,8 @@ function RowTeacherSchedule({ schedulesScholar, scheduleTeacher, totalHours }) {
                 schedules={scheduleTeacher}
                 weekday="Viernes"
                 startTime="17:00:00"
+                workers={workers}
+                semesterId={semesterId}
               />
             </div>
           </TableRow>

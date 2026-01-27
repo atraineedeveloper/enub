@@ -36,6 +36,7 @@ function ShowTeacherSchedule({
   workers,
   scheduleTeachers,
   scheduleAssignments,
+  semesterId,
 }) {
   const [filteredSchedulesTeacher, setFilteredSchedulesTeacher] = useState([]);
   const [filteredSchedulesAssignments, setFilteredSchedulesAssignments] =
@@ -138,6 +139,8 @@ function ShowTeacherSchedule({
             totalHours={totalHours}
             schedulesScholar={filteredSchedulesAssignments}
             scheduleTeacher={filteredSchedulesTeacher}
+            workers={workers}
+            semesterId={semesterId}
           />
         )}
       </Table>

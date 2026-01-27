@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Row from "../../ui/Row";
 import Button from "../../ui/Button";
-import CreateTeacherSchedule from "./CreateTeacherSchedule";
+import CreateEditTeacherSchedule from "./CreateEditTeacherSchedule";
 import ShowTeacherSchedule from "./ShowTeacherSchedule";
 import TeacherAssignment from "./TeacherAssignment";
 import Modal from "../../ui/Modal";
@@ -25,7 +25,7 @@ function TeacherSchedule({
           </Button>
         </Modal.Open>
         <Modal.Window name="teacher-schedule-form">
-          <CreateTeacherSchedule
+          <CreateEditTeacherSchedule
             workers={workers}
             semesterId={semesterId}
             onCloseModal={() => setShowCreate(false)}
@@ -43,6 +43,7 @@ function TeacherSchedule({
           workers={workers}
           scheduleTeachers={scheduleTeachers}
           scheduleAssignments={scheduleAssignments}
+          semesterId={semesterId}
         />
       )}
       <Button

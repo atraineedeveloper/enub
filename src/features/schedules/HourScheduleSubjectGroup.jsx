@@ -22,7 +22,7 @@ function HourScheduleSubjectGroup({ schedules, weekday, startTime }) {
     return (
       <>
         {schedulesHour.map((schedule) => (
-          <>
+          <div key={schedule.id}>
             <b>{schedule?.subjects.name.toUpperCase()}</b>
             <br />
             <em>
@@ -31,10 +31,10 @@ function HourScheduleSubjectGroup({ schedules, weekday, startTime }) {
             </em>
             <br />
             <Modal>
-              <Modal.Open opens="scholar-schedule-edit-form">
+              <Modal.Open opens={`scholar-schedule-edit-form-${schedule.id}`}>
                 <FaEdit />
               </Modal.Open>
-              <Modal.Window name="scholar-schedule-edit-form">
+              <Modal.Window name={`scholar-schedule-edit-form-${schedule.id}`}>
                 <CreateEditScholarSchedule
                   scheduleToEdit={schedule}
                   onCloseModal={() => setEditModal(false)}
@@ -43,10 +43,10 @@ function HourScheduleSubjectGroup({ schedules, weekday, startTime }) {
             </Modal>
             &nbsp; &nbsp; &nbsp;
             <Modal>
-              <Modal.Open opens="scholar-schedule-delete-form">
+              <Modal.Open opens={`scholar-schedule-delete-form-${schedule.id}`}>
                 <FaTrash />
               </Modal.Open>
-              <Modal.Window name="scholar-schedule-delete-form">
+              <Modal.Window name={`scholar-schedule-delete-form-${schedule.id}`}>
                 <ConfirmDelete
                   resourceName="horario"
                   disabled={isDeleting}
@@ -55,7 +55,7 @@ function HourScheduleSubjectGroup({ schedules, weekday, startTime }) {
                 />
               </Modal.Window>
             </Modal>
-          </>
+          </div>
         ))}
       </>
     );

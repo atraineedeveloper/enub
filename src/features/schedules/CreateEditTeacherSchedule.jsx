@@ -3,32 +3,54 @@ import Form from "../../ui/Form";
 import Button from "../../ui/Button";
 import FormRow from "../../ui/FormRow";
 import Select from "../../ui/Select";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { useState } from "react";
 import Input from "../../ui/Input";
 import Textarea from "../../ui/Textarea";
-import { createScheduleTeachers } from "../../services/apiScheduleTeachers";
 import capitalizeName from "../../helpers/capitalizeFirstLetter";
+import { useCreateScheduleTeacher } from "./useCreateScheduleTeacher";
+import { useEditScheduleTeacher } from "./useEditScheduleTeacher";
 
-function CreateTeacherSchedule({ workers, semesterId, onCloseModal }) {
-  const queryClient = useQueryClient();
-  const { register, handleSubmit, reset, formState } = useForm();
-  const { errors } = formState;
-  const { mutate, isLoading: isCreating } = useMutation({
-    mutationFn: createScheduleTeachers,
-    onSuccess: () => {
-      toast.success("El registro se creó correctamente");
-      queryClient.invalidateQueries({ queryKey: ["scheduleTeachers"] });
-      reset();
-      onCloseModal?.();
-    },
-    onError: (err) => toast.error(err.message),
+function CreateEditTeacherSchedule({
+  workers,
+  semesterId,
+  onCloseModal,
+  scheduleToEdit = {},
+}) {
+  const { id: editId, semesters, workers: workerData, ...editValues } = scheduleToEdit || {};
+  const isEditSession = Boolean(editId);
+
+  const { isCreating, createScheduleTeacher } = useCreateScheduleTeacher();
+  const { isEditing, editScheduleTeacher } = useEditScheduleTeacher();
+
+  const isWorking = isCreating || isEditing;
+
+  const { register, handleSubmit, reset, formState } = useForm({
+    defaultValues: isEditSession ? editValues : {},
   });
+  const { errors } = formState;
 
   function onSubmit(data) {
-    data.semester_id = semesterId;
-    mutate(data);
+    if (isEditSession) {
+      editScheduleTeacher(
+        { newScheduleData: { ...data, semester_id: semesterId }, id: editId },
+        {
+          onSuccess: () => {
+            reset();
+            onCloseModal?.();
+          },
+        }
+      );
+    } else {
+      createScheduleTeacher(
+        { ...data, semester_id: semesterId },
+        {
+          onSuccess: () => {
+            reset();
+            onCloseModal?.();
+          },
+        }
+      );
+    }
   }
 
   return (
@@ -36,7 +58,7 @@ function CreateTeacherSchedule({ workers, semesterId, onCloseModal }) {
       <FormRow label="Dia de la semana" error={errors?.weekday?.message}>
         <Select
           id="weekday"
-          disabled={isCreating}
+          disabled={isWorking}
           {...register("weekday", {
             required: "Este campo es requerido",
           })}
@@ -52,7 +74,7 @@ function CreateTeacherSchedule({ workers, semesterId, onCloseModal }) {
       <FormRow label="Maestro" error={errors?.worker_id?.message}>
         <Select
           id="worker_id"
-          disabled={isCreating}
+          disabled={isWorking}
           {...register("worker_id", {
             required: "Este campo es requerido",
           })}
@@ -68,6 +90,7 @@ function CreateTeacherSchedule({ workers, semesterId, onCloseModal }) {
       <FormRow label="Actividad" error={errors?.activity?.message}>
         <Textarea
           id="activity"
+          disabled={isWorking}
           {...register("activity", {
             required: "Este campo es requerido",
           })}
@@ -79,7 +102,7 @@ function CreateTeacherSchedule({ workers, semesterId, onCloseModal }) {
       >
         <Select
           id="start_time"
-          disabled={isCreating}
+          disabled={isWorking}
           {...register("start_time", {
             required: "Este campo es requerido",
           })}
@@ -98,7 +121,7 @@ function CreateTeacherSchedule({ workers, semesterId, onCloseModal }) {
       >
         <Select
           id="end_time"
-          disabled={isCreating}
+          disabled={isWorking}
           {...register("end_time", {
             required: "Este campo es requerido",
           })}
@@ -119,10 +142,12 @@ function CreateTeacherSchedule({ workers, semesterId, onCloseModal }) {
         >
           Cancelar
         </Button>
-        <Button>Agregar Actividad Horaria</Button>
+        <Button disabled={isWorking}>
+          {isEditSession ? "Editar Actividad" : "Agregar Actividad"}
+        </Button>
       </FormRow>
     </Form>
   );
 }
 
-export default CreateTeacherSchedule;
+export default CreateEditTeacherSchedule;
