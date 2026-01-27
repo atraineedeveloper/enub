@@ -13,6 +13,7 @@ import TeacherSchedule from "../features/schedules/TeacherSchedule";
 import { useScheduleTeachers } from "../features/schedules/useScheduleTeachers";
 import WorkerSheetSemester from "../pdf/WorkerSheetSemester";
 import { useSemesters } from "../features/semesters/useSemesters";
+import Breadcrumbs from "../ui/Breadcrumbs";
 
 export const SemesterContext = createContext(null);
 
@@ -64,10 +65,18 @@ function ScheduleDashboard() {
     return semester.id === +id;
   });
 
+  const breadcrumbItems = [
+    { label: "Administrar horarios", to: "/semesters" },
+    {
+      label: `Semestre ${currentSemester[0]?.semester || ""}`,
+    },
+  ];
+
   return (
     <SemesterContext.Provider
       value={{ groups: currentGroups, workers: currentWorkers, subjects }}
     >
+      <Breadcrumbs items={breadcrumbItems} />
       <Row>
         <Row>
           <Button onClick={() => setShowScholarSchedule(!showScholarSchedule)}>
