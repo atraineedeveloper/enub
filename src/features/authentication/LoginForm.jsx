@@ -9,12 +9,24 @@ import SpinnerMini from "../../ui/SpinnerMini";
 function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [formError, setFormError] = useState("");
 
-  const { login, isLoading } = useLogin();
+  const { login, isLoading, error: authError } = useLogin();
 
   function handleSubmit(e) {
     e.preventDefault();
-    if (!email || !password) return;
+    if (!email || !password) {
+      setFormError("Ingresa correo y contraseña.");
+      return;
+    }
+
+    const emailRegex = /\S+@\S+\.\S+/;
+    if (!emailRegex.test(email)) {
+      setFormError("El correo no tiene un formato válido.");
+      return;
+    }
+
+    setFormError("");
 
     login(
       { email, password },
@@ -54,6 +66,11 @@ function LoginForm() {
         <Button size="large" disabled={isLoading}>
           {!isLoading ? "Iniciar sesión" : <SpinnerMini />}
         </Button>
+        {(formError || authError) && (
+          <p style={{ color: "var(--color-red-700)", marginTop: "0.8rem" }}>
+            {formError || "El correo o la contraseña son incorrectos."}
+          </p>
+        )}
       </FormRowVertical>
     </Form>
   );
