@@ -1,8 +1,9 @@
 import { Outlet } from "react-router-dom";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import styled from "styled-components";
+import Spinner from "./Spinner";
 
 const StyledAppLayout = styled.div`
   display: grid;
@@ -51,7 +52,9 @@ function AppLayout() {
       <SidebarOverlay $isOpen={isSidebarOpen} onClick={handleCloseSidebar} />
       <Sidebar isOpen={isSidebarOpen} onClose={handleCloseSidebar} />
       <Main $sidebarOpen={isSidebarOpen} onClick={handleCloseSidebar}>
-        <Outlet />
+        <Suspense fallback={<Spinner />}>
+          <Outlet />
+        </Suspense>
       </Main>
     </StyledAppLayout>
   );
