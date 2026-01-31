@@ -1,9 +1,5 @@
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import "../styles/Montserrat-Regular-normal.js";
-import "../styles/Montserrat-Italic-italic.js";
-import "../styles/Montserrat-Bold-bold.js";
-import "../styles/Montserrat-BoldItalic-bolditalic.js";
+import "jspdf-autotable";
 import Button from "../ui/Button";
 import { useRoles } from "../features/roles/useRoles.js";
 import calculateSemesterGroup from "../helpers/calculateSemesterGroup.js";
@@ -60,7 +56,12 @@ function WorkerSheetSemester({
 
   const { isLoading: isLoadingRoles, roles } = useRoles();
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
+    await import("../styles/Montserrat-Regular-normal.js");
+    await import("../styles/Montserrat-Italic-italic.js");
+    await import("../styles/Montserrat-Bold-bold.js");
+    await import("../styles/Montserrat-BoldItalic-bolditalic.js");
+
     const doc = new jsPDF("landscape", "px", "letter");
 
     // Header
