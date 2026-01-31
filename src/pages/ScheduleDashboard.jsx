@@ -22,7 +22,9 @@ function ScheduleDashboard() {
   const [showScholarSchedule, setShowScholarSchedule] = useState(false);
   const [showTeacherSchedule, setShowTeacherSchedule] = useState(false);
 
-  const { isLoading: isLoadingWorkers, workers } = useWorkers();
+  const { isLoading: isLoadingWorkers, workers } = useWorkers({
+    fullDetails: true,
+  });
   const { isLoading: isLoadingSubjects, subjects } = useSubjects();
   const { isLoading: isLoadingGroups, groups } = useGroups();
   const { isLoading: isLoadingScheduleAssignments, scheduleAssignments } =
