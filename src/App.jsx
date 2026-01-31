@@ -4,6 +4,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { lazy, Suspense } from "react";
 import { Toaster } from "react-hot-toast";
 
+import { DarkModeProvider } from "./context/DarkModeContext";
 import GlobalStyles from "./styles/GlobalStyles";
 import ProtectedRoute from "./ui/ProtectedRoute";
 import SpinnerFullPage from "./ui/SpinnerFullPage";
@@ -34,7 +35,7 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
-    <>
+    <DarkModeProvider>
       <GlobalStyles />
       <QueryClientProvider client={queryClient}>
         <ReactQueryDevtools initialIsOpen={false} />
@@ -94,7 +95,7 @@ function App() {
           }}
         />
       </QueryClientProvider>
-    </>
+    </DarkModeProvider>
   );
 }
 

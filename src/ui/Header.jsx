@@ -1,5 +1,6 @@
 import styled from "styled-components";
 import Logout from "../features/authentication/Logout";
+import DarkModeToggle from "./DarkModeToggle";
 import { HiBars3 } from "react-icons/hi2";
 
 const StyledHeader = styled.header`
@@ -32,13 +33,23 @@ const MenuButton = styled.button`
   box-shadow: var(--shadow-sm);
 `;
 
+const IconsContainer = styled.div`
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+`;
+
 function Header({ onToggleSidebar }) {
   return (
     <StyledHeader>
       <MenuButton aria-label="Abrir menú" onClick={onToggleSidebar}>
         <HiBars3 size={22} />
       </MenuButton>
-      <Logout />
+
+      <IconsContainer>
+        <DarkModeToggle />
+        <Logout />
+      </IconsContainer>
     </StyledHeader>
   );
 }

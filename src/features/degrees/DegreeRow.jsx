@@ -1,4 +1,5 @@
 import Table from "../../ui/Table";
+import Button from "../../ui/Button";
 
 function DegreeRow({ degree }) {
   const { code, name } = degree;
@@ -8,7 +9,9 @@ function DegreeRow({ degree }) {
       <Table.Row>
         <p>{code}</p>
         <p>{name}</p>
-        <button>Editar</button>
+        <Button size="medium" variation="primary">
+          Editar
+        </Button>
       </Table.Row>
     </>
   );

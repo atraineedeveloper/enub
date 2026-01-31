@@ -17,7 +17,7 @@ const Grid = styled.div`
 `;
 
 const StatCard = styled.div`
-  background: linear-gradient(135deg, var(--color-brand-50), #fff);
+  background-color: var(--color-grey-0);
   border: 1px solid var(--color-grey-200);
   border-radius: var(--border-radius-md);
   padding: 1.6rem 1.8rem;

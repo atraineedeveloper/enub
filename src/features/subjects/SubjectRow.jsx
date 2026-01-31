@@ -1,4 +1,5 @@
 import Table from "../../ui/Table";
+import Button from "../../ui/Button";
 
 function SubjectRow({ subject }) {
   const {
@@ -21,7 +22,9 @@ function SubjectRow({ subject }) {
         <p>{hours_per_semester}</p>
         <p>{study_programs.year}</p>
         <p>{degrees.code}</p>
-        <button>Editar</button>
+        <Button size="medium" variation="primary">
+          Editar
+        </Button>
       </Table.Row>
     </>
   );
