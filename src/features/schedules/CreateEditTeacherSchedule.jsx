@@ -9,6 +9,7 @@ import Textarea from "../../ui/Textarea";
 import capitalizeName from "../../helpers/capitalizeFirstLetter";
 import { useCreateScheduleTeacher } from "./useCreateScheduleTeacher";
 import { useEditScheduleTeacher } from "./useEditScheduleTeacher";
+import { WEEKDAYS, START_TIMES, END_TIMES } from "../../helpers/constants";
 
 function CreateEditTeacherSchedule({
   workers,
@@ -64,11 +65,11 @@ function CreateEditTeacherSchedule({
           })}
         >
           <option value="">Seleccione...</option>
-          <option value="Lunes">Lunes</option>
-          <option value="Martes">Martes</option>
-          <option value="Miercoles">Miercoles</option>
-          <option value="Jueves">Jueves</option>
-          <option value="Viernes">Viernes</option>
+          {WEEKDAYS.map((day) => (
+            <option key={day.value} value={day.value}>
+              {day.label}
+            </option>
+          ))}
         </Select>
       </FormRow>
       <FormRow label="Maestro" error={errors?.worker_id?.message}>
@@ -108,11 +109,11 @@ function CreateEditTeacherSchedule({
           })}
         >
           <option value="">Seleccione...</option>
-          <option value="07:00:00">7:00</option>
-          <option value="09:20:00">9:20</option>
-          <option value="11:10:00">11:10</option>
-          <option value="13:10:00">13:10</option>
-          <option value="17:00:00">17:00</option>
+          {START_TIMES.map((time) => (
+            <option key={time.value} value={time.value}>
+              {time.label}
+            </option>
+          ))}
         </Select>
       </FormRow>
       <FormRow
@@ -127,11 +128,11 @@ function CreateEditTeacherSchedule({
           })}
         >
           <option value="">Seleccione...</option>
-          <option value="08:50:00">8:50</option>
-          <option value="11:10:00">11:10</option>
-          <option value="13:00:00">13:00</option>
-          <option value="15:00:00">15:00</option>
-          <option value="19:00:00">19:00</option>
+          {END_TIMES.map((time) => (
+            <option key={time.value} value={time.value}>
+              {time.label}
+            </option>
+          ))}
         </Select>
       </FormRow>
       <FormRow>

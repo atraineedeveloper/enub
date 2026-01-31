@@ -40,7 +40,7 @@ export async function deleteScheduleTeachers(id) {
 
   if (error) {
     console.error(error);
-    throw new Error("Hubo un error al eleminar el registro");
+    throw new Error("Hubo un error al eliminar el registro");
   }
 
   return data;
