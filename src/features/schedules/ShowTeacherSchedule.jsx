@@ -1,6 +1,6 @@
 import styled from "styled-components";
 import Select from "../../ui/Select";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import RowTeacherSchedule from "./RowTeacherSchedule";
 import ScheduleTeacherPDF from "../../pdf/Schedules/ScheduleTeacherPDF";
 import capitalizeName from "../../helpers/capitalizeFirstLetter";
@@ -30,6 +30,23 @@ const TableHeader = styled.header`
   padding: 1.6rem 2.4rem;
 `;
 
+const groupData = (array, key) => {
+  return array.reduce((result, currentValue) => {
+    // Obtén el valor de la propiedad por la que vamos a agrupar
+    const groupKey = currentValue[key];
+
+    // Si el grupo aún no existe, créalo
+    if (!result[groupKey]) {
+      result[groupKey] = [];
+    }
+
+    // Agrega el elemento actual al grupo correspondiente
+    result[groupKey].push(currentValue);
+
+    return result;
+  }, {});
+};
+
 function ShowTeacherSchedule({
   workers,
   scheduleTeachers,
@@ -40,8 +57,6 @@ function ShowTeacherSchedule({
   const [filteredSchedulesAssignments, setFilteredSchedulesAssignments] =
     useState([]);
   const [selectedWorkerId, setSelectedWorkerId] = useState(null);
-
-  let totalHours = 2;
 
   function selectingWorker(workerId) {
     setSelectedWorkerId(workerId ? +workerId : null);
@@ -67,56 +82,49 @@ function ShowTeacherSchedule({
 
   //******************* Extract Subjects *********************
 
-  const groupData = (array, key) => {
-    return array.reduce((result, currentValue) => {
-      // Obtén el valor de la propiedad por la que vamos a agrupar
-      const groupKey = currentValue[key];
-
-      // Si el grupo aún no existe, créalo
-      if (!result[groupKey]) {
-        result[groupKey] = [];
-      }
-
-      // Agrega el elemento actual al grupo correspondiente
-      result[groupKey].push(currentValue);
-
-      return result;
-    }, {});
-  };
-
-  const groupedSubjects = groupData(filteredSchedulesAssignments, "subject_id");
+  const groupedSubjects = useMemo(
+    () => groupData(filteredSchedulesAssignments, "subject_id"),
+    [filteredSchedulesAssignments]
+  );
 
   // Extract Teacher Schedules
 
-  const countTeacherSchedules = filteredSchedulesTeacher.reduce((acc, item) => {
-    const trimmedAcitivity = item.activity.trim();
+  const uniqueTeacherSchedule = useMemo(() => {
+    const countTeacherSchedules = filteredSchedulesTeacher.reduce(
+      (acc, item) => {
+        const trimmedAcitivity = item.activity.trim();
 
-    if (acc[trimmedAcitivity]) {
-      acc[trimmedAcitivity]++;
-    } else {
-      acc[trimmedAcitivity] = 1;
-    }
-    return acc;
-  }, {});
+        if (acc[trimmedAcitivity]) {
+          acc[trimmedAcitivity]++;
+        } else {
+          acc[trimmedAcitivity] = 1;
+        }
+        return acc;
+      },
+      {}
+    );
 
-  const uniqueTeacherSchedule = Object.keys(countTeacherSchedules).map(
-    (schedule) => {
+    return Object.keys(countTeacherSchedules).map((schedule) => {
       return {
         name: schedule,
         quantity: countTeacherSchedules[schedule],
       };
-    }
-  );
+    });
+  }, [filteredSchedulesTeacher]);
 
   // Sumar horas de asignaturas impartidas
 
-  Object.keys(groupedSubjects).map(
-    (subject) => (totalHours += groupedSubjects[subject].length * 2)
-  );
+  const totalHours = useMemo(() => {
+    let total = 2;
+    Object.keys(groupedSubjects).forEach(
+      (subject) => (total += groupedSubjects[subject].length * 2)
+    );
 
-  uniqueTeacherSchedule.map(
-    (schedule) => (totalHours += schedule.quantity * 2)
-  );
+    uniqueTeacherSchedule.forEach(
+      (schedule) => (total += schedule.quantity * 2)
+    );
+    return total;
+  }, [groupedSubjects, uniqueTeacherSchedule]);
 
   console.log(totalHours);
 
