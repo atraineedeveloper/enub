@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState, useMemo } from "react";
 import Select from "../../ui/Select";
 import styled from "styled-components";
 import calculateSemesterGroup from "../../helpers/calculateSemesterGroup";
@@ -56,101 +56,96 @@ const LongRow = styled.div`
   }
 `;
 
+// Extract Subjects
+const groupData = (array, key) => {
+  return array.reduce((result, currentValue) => {
+    // Obtén el valor de la propiedad por la que vamos a agrupar
+    const groupKey = currentValue[key];
+
+    // Si el grupo aún no existe, créalo
+    if (!result[groupKey]) {
+      result[groupKey] = [];
+    }
+
+    // Agrega el elemento actual al grupo correspondiente
+    result[groupKey].push(currentValue);
+
+    return result;
+  }, {});
+};
+
 function TeacherAssignment({ workers, scheduleTeachers, scheduleAssignments }) {
-  const [filteredSchedulesTeacher, setFilteredSchedulesTeacher] = useState([]);
-  const [filteredSchedulesAssignments, setFilteredSchedulesAssignments] =
-    useState([]);
-  const [currentWorker, setCurrentWorker] = useState([]);
   const [selectedWorkerId, setSelectedWorkerId] = useState(null);
 
-  let totalHours = 2;
-
-  function selectingWorker(workerId) {
+  const handleWorkerChange = (workerId) => {
     setSelectedWorkerId(workerId ? +workerId : null);
-    const scheduleTeacherFilter = scheduleTeachers.filter((schedule) => {
-      return schedule.worker_id === +workerId;
-    });
-
-    const scheduleAssignmentsFilter = scheduleAssignments.filter((schedule) => {
-      return schedule.worker_id === +workerId;
-    });
-
-    // console.log(scheduleTeacherFilter, scheduleAssignmentsFilter);
-
-    setFilteredSchedulesTeacher(scheduleTeacherFilter);
-    setFilteredSchedulesAssignments(scheduleAssignmentsFilter);
-    const workerFounded = workers.filter((worker) => {
-      return worker.id === +workerId;
-    });
-
-    setCurrentWorker(workerFounded);
-
-    // console.log(currentWorker);
-  }
-
-  // Re-aplicar filtros cuando cambian los datos cargados
-  useEffect(() => {
-    if (selectedWorkerId) selectingWorker(selectedWorkerId);
-  }, [scheduleTeachers, scheduleAssignments, selectedWorkerId]);
-
-  // Extract Subjects
-
-  const groupData = (array, key) => {
-    return array.reduce((result, currentValue) => {
-      // Obtén el valor de la propiedad por la que vamos a agrupar
-      const groupKey = currentValue[key];
-
-      // Si el grupo aún no existe, créalo
-      if (!result[groupKey]) {
-        result[groupKey] = [];
-      }
-
-      // Agrega el elemento actual al grupo correspondiente
-      result[groupKey].push(currentValue);
-
-      return result;
-    }, {});
   };
 
-  const groupedSubjects = groupData(filteredSchedulesAssignments, "subject_id");
+  const filteredSchedulesTeacher = useMemo(() => {
+    if (!selectedWorkerId) return [];
+    return scheduleTeachers.filter(
+      (schedule) => schedule.worker_id === selectedWorkerId
+    );
+  }, [scheduleTeachers, selectedWorkerId]);
+
+  const filteredSchedulesAssignments = useMemo(() => {
+    if (!selectedWorkerId) return [];
+    return scheduleAssignments.filter(
+      (schedule) => schedule.worker_id === selectedWorkerId
+    );
+  }, [scheduleAssignments, selectedWorkerId]);
+
+  const currentWorker = useMemo(() => {
+    if (!selectedWorkerId) return [];
+    return workers.filter((worker) => worker.id === selectedWorkerId);
+  }, [workers, selectedWorkerId]);
+
+  const groupedSubjects = useMemo(
+    () => groupData(filteredSchedulesAssignments, "subject_id"),
+    [filteredSchedulesAssignments]
+  );
 
   // Extract Teacher Schedules
 
-  const countTeacherSchedules = filteredSchedulesTeacher.reduce((acc, item) => {
-    const trimmedAcitivity = item.activity.trim();
+  const countTeacherSchedules = useMemo(() => {
+    return filteredSchedulesTeacher.reduce((acc, item) => {
+      const trimmedAcitivity = item.activity.trim();
 
-    if (acc[trimmedAcitivity]) {
-      acc[trimmedAcitivity]++;
-    } else {
-      acc[trimmedAcitivity] = 1;
-    }
-    return acc;
-  }, {});
+      if (acc[trimmedAcitivity]) {
+        acc[trimmedAcitivity]++;
+      } else {
+        acc[trimmedAcitivity] = 1;
+      }
+      return acc;
+    }, {});
+  }, [filteredSchedulesTeacher]);
 
-  const uniqueTeacherSchedule = Object.keys(countTeacherSchedules).map(
-    (schedule) => {
+  const uniqueTeacherSchedule = useMemo(() => {
+    return Object.keys(countTeacherSchedules).map((schedule) => {
       return {
         name: schedule,
         quantity: countTeacherSchedules[schedule],
       };
-    }
-  );
-
-  // console.log(countTeacherSchedules, uniqueTeacherSchedule);
+    });
+  }, [countTeacherSchedules]);
 
   // Sumar horas de asignaturas impartidas
 
-  Object.keys(groupedSubjects).map(
-    (subject) => (totalHours += groupedSubjects[subject].length * 2)
-  );
+  const totalHours = useMemo(() => {
+    let total = 2;
+    Object.keys(groupedSubjects).forEach(
+      (subject) => (total += groupedSubjects[subject].length * 2)
+    );
 
-  uniqueTeacherSchedule.map(
-    (schedule) => (totalHours += schedule.quantity * 2)
-  );
+    uniqueTeacherSchedule.forEach(
+      (schedule) => (total += schedule.quantity * 2)
+    );
+    return total;
+  }, [groupedSubjects, uniqueTeacherSchedule]);
 
   return (
     <>
-      <Select id="worker_id" onChange={(e) => selectingWorker(e.target.value)}>
+      <Select id="worker_id" onChange={(e) => handleWorkerChange(e.target.value)}>
         <option value="">Seleccione trabajador</option>
         {workers.map((worker) => (
           <option key={worker.id} value={worker.id}>
