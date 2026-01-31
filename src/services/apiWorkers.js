@@ -3,9 +3,7 @@ import supabase from "./supabase";
 export async function getWorkersFull() {
   const { data, error } = await supabase
     .from("workers")
-    .select(
-      "*, date_of_admissions(*), sustenance_plazas(*), schedule_teachers(*), schedule_assignments(*, subjects(*), groups(*, degrees(*)))"
-    );
+    .select("*, date_of_admissions(*), sustenance_plazas(*)");
 
   if (error) {
     console.error(error);

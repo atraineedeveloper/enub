@@ -36,7 +36,12 @@ const groupData = (array, key) => {
   }, {});
 };
 
-function WorkerSheetSemester({ workers, semester }) {
+function WorkerSheetSemester({
+  workers,
+  semester,
+  scheduleAssignments = [],
+  scheduleTeachers = [],
+}) {
   const activeWorkers = workers.filter((worker) => {
     return worker.status === 1;
   });
@@ -234,23 +239,24 @@ function WorkerSheetSemester({ workers, semester }) {
       }, */
       head: [columns],
       body: teacherWorkers.map((worker) => {
-
         // Extract the subjects from current semester
-        const currentSemesterSchedules = worker.schedule_assignments.filter(
-          (schedule) => schedule.semester_id === semester[0].id)
+        const currentSemesterSchedules = scheduleAssignments.filter(
+          (schedule) => schedule.worker_id === worker.id
+        );
 
         // console.log(currentSemesterSchedules);
-        
+
         const groupedSubjects = groupData(
           currentSemesterSchedules,
           "subject_id"
         );
-        
+
         let numHours = 0;
         let totalHours = 2;
 
-        const currentSemesterTeacherSchedules = worker.schedule_teachers.filter(
-          (schedule) => schedule.semester_id === semester[0].id);
+        const currentSemesterTeacherSchedules = scheduleTeachers.filter(
+          (schedule) => schedule.worker_id === worker.id
+        );
 
         const countTeacherSchedules = currentSemesterTeacherSchedules.reduce(
           (acc, item) => {
@@ -403,15 +409,23 @@ function WorkerSheetSemester({ workers, semester }) {
       }, */
       head: [columns],
       body: administrativeWorkers.map((worker) => {
+        const currentSemesterSchedules = scheduleAssignments.filter(
+          (schedule) => schedule.worker_id === worker.id
+        );
+
         const groupedSubjects = groupData(
-          worker.schedule_assignments,
+          currentSemesterSchedules,
           "subject_id"
         );
 
         let numHours = 0;
         let totalHours = 2;
 
-        const countTeacherSchedules = worker.schedule_teachers.reduce(
+        const currentSemesterTeacherSchedules = scheduleTeachers.filter(
+          (schedule) => schedule.worker_id === worker.id
+        );
+
+        const countTeacherSchedules = currentSemesterTeacherSchedules.reduce(
           (acc, item) => {
             const trimmedAcitivity = item.activity.trim();
 
@@ -562,15 +576,23 @@ function WorkerSheetSemester({ workers, semester }) {
       }, */
       head: [columns],
       body: hiringWorkers.map((worker) => {
+        const currentSemesterSchedules = scheduleAssignments.filter(
+          (schedule) => schedule.worker_id === worker.id
+        );
+
         const groupedSubjects = groupData(
-          worker.schedule_assignments,
+          currentSemesterSchedules,
           "subject_id"
         );
 
         let numHours = 0;
         let totalHours = 2;
 
-        const countTeacherSchedules = worker.schedule_teachers.reduce(
+        const currentSemesterTeacherSchedules = scheduleTeachers.filter(
+          (schedule) => schedule.worker_id === worker.id
+        );
+
+        const countTeacherSchedules = currentSemesterTeacherSchedules.reduce(
           (acc, item) => {
             const trimmedAcitivity = item.activity.trim();
 

@@ -104,7 +104,12 @@ function ScheduleDashboard() {
               scheduleAssignments={scheduleAssignmentsBySemester}
             />
           )}
-          <WorkerSheetSemester semester={currentSemester} workers={workers} />
+          <WorkerSheetSemester
+            semester={currentSemester}
+            workers={workers}
+            scheduleAssignments={scheduleAssignmentsBySemester}
+            scheduleTeachers={scheduleTeachersBySemester}
+          />
         </Row>
       </Row>
     </SemesterContext.Provider>
