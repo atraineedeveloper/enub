@@ -10,6 +10,7 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.png", "enub.jpg", "setab.jpeg"],
       manifest: {
+        lang: "es-MX",
         name: "Enub - Sistema de Gestión Escolar",
         short_name: "Enub",
         description: "Sistema de gestión escolar y administrativa",
