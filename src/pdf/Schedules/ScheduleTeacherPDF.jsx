@@ -154,10 +154,18 @@ function ScheduleTeacherPDF({ schedulesScholar, scheduleTeacher, totalHours }) {
     }
 
     const columns = ["", "LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES"];
+    const mondayFirstBlock =
+      (horarioTutoria40Hours ? `${horarioTutoria40Hours}\n` : "") +
+      `${filterHourGroup(
+        schedulesScholar,
+        "Lunes",
+        "07:00:00"
+      )}${filterHourActivity(scheduleTeacher, "Lunes", "07:00:00")}`;
+
     const data = [
       [
         "7:00 - 8:50",
-        horarioTutoria40Hours,
+        mondayFirstBlock,
         `${filterHourGroup(
           schedulesScholar,
           "Martes",
