@@ -4,6 +4,7 @@ import Form from "../../ui/Form";
 import Button from "../../ui/Button";
 import FormRow from "../../ui/FormRow";
 import { useEditWorker } from "./useEditWorker";
+import { useCreateWorker } from "./useCreateWorker";
 import Select from "../../ui/Select";
 import Textarea from "../../ui/Textarea";
 import styled from "styled-components";
@@ -110,6 +111,8 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
   const { id: editId, ...editValues } = workerToEdit;
   const isEditSession = Boolean(editId);
   const { isEditing, editWorker } = useEditWorker();
+  const { isCreating, createWorker } = useCreateWorker();
+  const isWorking = isEditing || isCreating;
   const fileInputRef = useRef(null);
   const [newPicturePreviewUrl, setNewPicturePreviewUrl] = useState("");
   const currentProfilePictureUrl = workerToEdit.profile_picture
@@ -199,7 +202,34 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
           },
         }
       );
+      return;
     }
+
+    const selectedProfilePicture = data.profile_picture_file?.[0];
+
+    delete data.date_of_admissions;
+    delete data.schedule_assignments;
+    delete data.schedule_teachers;
+    delete data.sustenance_plazas;
+    delete data.profile_picture_file;
+    delete data.remove_profile_picture;
+
+    createWorker(
+      {
+        newWorker: { ...data },
+        options: {
+          profilePictureFile: selectedProfilePicture ?? null,
+          removeCurrentProfilePicture: false,
+          currentProfilePicture: null,
+        },
+      },
+      {
+        onSuccess: () => {
+          reset();
+          onCloseModal?.();
+        },
+      }
+    );
   }
 
   return (
@@ -223,7 +253,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
             <PhotoActionButton
               type="button"
               onClick={openFilePicker}
-              disabled={isEditing}
+              disabled={isWorking}
               title={hasPictureVisible ? "Editar imagen" : "Subir imagen"}
               aria-label={hasPictureVisible ? "Editar imagen" : "Subir imagen"}
             >
@@ -234,7 +264,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
               <PhotoActionButton
                 type="button"
                 onClick={handleRemovePicture}
-                disabled={isEditing}
+                disabled={isWorking}
                 title="Eliminar imagen"
                 aria-label="Eliminar imagen"
               >
@@ -246,7 +276,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
               <PhotoActionButton
                 type="button"
                 onClick={handleRestorePicture}
-                disabled={isEditing}
+                disabled={isWorking}
                 title="Restaurar imagen"
                 aria-label="Restaurar imagen"
               >
@@ -259,7 +289,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
             type="file"
             id="profile_picture_file"
             accept="image/*"
-            disabled={isEditing}
+            disabled={isWorking}
             {...profilePictureField}
             ref={(event) => {
               profilePictureField.ref(event);
@@ -282,7 +312,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
         <Input
           type="text"
           id="name"
-          disabled={isEditing}
+          disabled={isWorking}
           {...register("name", {
             required: "Este campo es requerido",
           })}
@@ -292,7 +322,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
         <Input
           type="text"
           id="street"
-          disabled={isEditing}
+          disabled={isWorking}
           {...register("street", {
             required: "Este campo es requerido",
           })}
@@ -302,7 +332,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
         <Input
           type="text"
           id="neighborhood"
-          disabled={isEditing}
+          disabled={isWorking}
           {...register("neighborhood", {
             required: "Este campo es requerido",
           })}
@@ -312,7 +342,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
         <Input
           type="text"
           id="post_code"
-          disabled={isEditing}
+          disabled={isWorking}
           {...register("post_code", {
             required: "Este campo es requerido",
           })}
@@ -322,7 +352,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
         <Input
           type="text"
           id="city"
-          disabled={isEditing}
+          disabled={isWorking}
           {...register("city", {
             required: "Este campo es requerido",
           })}
@@ -332,7 +362,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
         <Input
           type="text"
           id="state"
-          disabled={isEditing}
+          disabled={isWorking}
           {...register("state", {
             required: "Este campo es requerido",
           })}
@@ -342,7 +372,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
         <Input
           type="text"
           id="phone"
-          disabled={isEditing}
+          disabled={isWorking}
           {...register("phone", {
             required: "Este campo es requerido",
           })}
@@ -352,7 +382,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
         <Input
           type="text"
           id="email"
-          disabled={isEditing}
+          disabled={isWorking}
           {...register("email")}
         />
       </FormRow>
@@ -360,7 +390,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
         <Input
           type="text"
           id="RFC"
-          disabled={isEditing}
+          disabled={isWorking}
           {...register("RFC", {
             required: "Este campo es requerido",
           })}
@@ -370,7 +400,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
         <Input
           type="text"
           id="specialty"
-          disabled={isEditing}
+          disabled={isWorking}
           {...register("specialty", {
             required: "Este campo es requerido",
           })}
@@ -379,7 +409,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
       <FormRow label="Tipo de Trabajador" error={errors?.type_worker?.message}>
         <Select
           id="type_worker"
-          disabled={isEditing}
+          disabled={isWorking}
           {...register("type_worker", {
             required: "Este campo es requerido",
           })}
@@ -396,19 +426,19 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
       >
         <Textarea
           id="function_performed"
-          disabled={isEditing}
+          disabled={isWorking}
           {...register("function_performed")}
         />
       </FormRow>
       <FormRow label="Observaciones" error={errors?.observations?.message}>
         <Textarea
           id="observations"
-          disabled={isEditing}
+          disabled={isWorking}
           {...register("observations")}
         />
       </FormRow>
       <FormRow label="Estatus" error={errors?.status?.message}>
-        <Select id="status" disabled={isEditing} {...register("status")}>
+        <Select id="status" disabled={isWorking} {...register("status")}>
           <option value="">Seleccione...</option>
           <option value="1">Activo</option>
           <option value="0">Inactivo</option>
@@ -419,10 +449,11 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
           variation="secondary"
           type="reset"
           onClick={() => onCloseModal?.()}
+          disabled={isWorking}
         >
           Cancelar
         </Button>
-        <Button>
+        <Button disabled={isWorking}>
           {isEditSession ? "Actualizar trabajador" : "Añadir Trabajador"}
         </Button>
       </FormRow>
