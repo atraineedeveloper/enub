@@ -2,8 +2,8 @@ import styled from "styled-components";
 import Table from "../../ui/Table";
 import Modal from "../../ui/Modal";
 import CreateEditWorkerForm from "./CreateEditWorkerForm";
-import { useState } from "react";
 import Button from "../../ui/Button";
+import { getProfilePicturePublicUrl } from "../../services/apiWorkers";
 
 const Img = styled.img`
   display: block;
@@ -17,15 +17,13 @@ const Img = styled.img`
 
 function WorkerRow({ worker }) {
   const { profile_picture, name, type_worker, status } = worker;
-  const [showEditForm, setShowEditForm] = useState(false);
+  const profilePictureUrl = getProfilePicturePublicUrl(profile_picture);
 
   return (
     <>
       <Table.Row>
         {profile_picture ? (
-          <Img
-            src={`https://xqaarjwmyclltbkaedvo.supabase.co/storage/v1/object/public/profile_pictures/${profile_picture}`}
-          />
+          <Img src={profilePictureUrl} alt={`Foto de ${name}`} />
         ) : (
           <p></p>
         )}
@@ -38,7 +36,6 @@ function WorkerRow({ worker }) {
           </Modal.Open>
           <Modal.Window name="worker-form">
             <CreateEditWorkerForm
-              onCloseModal={() => showEditForm(false)}
               workerToEdit={worker}
             />
           </Modal.Window>

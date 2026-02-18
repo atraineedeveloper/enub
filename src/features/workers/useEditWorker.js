@@ -6,7 +6,8 @@ export function useEditWorker() {
   const queryClient = useQueryClient();
 
   const { mutate: editWorker, isLoading: isEditing } = useMutation({
-    mutationFn: ({ newWorker, id }) => createEditWorkers(newWorker, id),
+    mutationFn: ({ newWorker, id, options }) =>
+      createEditWorkers(newWorker, id, options),
     onSuccess: () => {
       toast.success("El registro se actualizó con éxito");
       queryClient.invalidateQueries({ queryKey: ["workers"] });
