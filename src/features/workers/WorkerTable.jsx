@@ -13,7 +13,7 @@ import Pagination from "../../ui/Pagination";
 import SearchBar from "../../ui/SearchBar";
 
 function WorkerTable() {
-  const { isLoading, workers, error } = useWorkers();
+  const { isLoading, workers, error } = useWorkers({ fullDetails: true });
   const [searchTerm, setSearchTerm] = useState("");
   const filtered = (workers ?? []).filter((worker) =>
     worker.name.toLowerCase().includes(searchTerm.toLowerCase())

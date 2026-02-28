@@ -1,5 +1,5 @@
 import Input from "../../ui/Input";
-import { useForm } from "react-hook-form";
+import { useFieldArray, useForm } from "react-hook-form";
 import Form from "../../ui/Form";
 import Button from "../../ui/Button";
 import FormRow from "../../ui/FormRow";
@@ -13,6 +13,8 @@ import {
   HiOutlineTrash,
   HiOutlineArrowUturnLeft,
   HiOutlineArrowUpTray,
+  HiOutlinePlus,
+  HiOutlineXMark,
 } from "react-icons/hi2";
 import { getProfilePicturePublicUrl } from "../../services/apiWorkers";
 import { useEffect, useRef, useState } from "react";
@@ -107,6 +109,62 @@ const HiddenInput = styled.input`
   display: none;
 `;
 
+const PlazasContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+`;
+
+const PlazaRow = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 0.8rem;
+  align-items: center;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const PlazaActionButton = styled.button`
+  width: 3rem;
+  height: 3rem;
+  border: 1px solid var(--color-grey-300);
+  border-radius: 999px;
+  background-color: var(--color-grey-0);
+  display: grid;
+  place-items: center;
+
+  &:hover {
+    background-color: var(--color-grey-100);
+  }
+`;
+
+const AddPlazaButton = styled.button`
+  border: 1px dashed var(--color-grey-400);
+  border-radius: var(--border-radius-sm);
+  background-color: var(--color-grey-0);
+  padding: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 1.3rem;
+  font-weight: 600;
+  width: fit-content;
+
+  &:hover {
+    background-color: var(--color-grey-100);
+  }
+`;
+
+function normalizeSustenanceTypeForForm(value = "") {
+  const normalizedValue = value.trim().toLowerCase();
+  if (normalizedValue === "estatal") return "Estatal";
+  if (normalizedValue === "federal") return "Federal";
+  return "";
+}
+
 function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
   const { id: editId, ...editValues } = workerToEdit;
   const isEditSession = Boolean(editId);
@@ -119,10 +177,30 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
     ? getProfilePicturePublicUrl(workerToEdit.profile_picture)
     : "";
 
-  const { register, handleSubmit, reset, formState, watch, setValue } = useForm({
-    defaultValues: isEditSession ? editValues : {},
-  });
+  const { register, handleSubmit, reset, control, formState, watch, setValue } =
+    useForm({
+      defaultValues: isEditSession
+        ? {
+            ...editValues,
+            sustenance_plazas:
+              editValues.sustenance_plazas?.length > 0
+                ? editValues.sustenance_plazas.map((plaza) => ({
+                    ...plaza,
+                    sustenance: normalizeSustenanceTypeForForm(
+                      plaza?.sustenance ?? ""
+                    ),
+                  }))
+                : [{ sustenance: "", payment_key: "", plaza: "" }],
+          }
+        : {
+            sustenance_plazas: [{ sustenance: "", payment_key: "", plaza: "" }],
+          },
+    });
   const { errors } = formState;
+  const { fields: plazaFields, append, remove } = useFieldArray({
+    control,
+    name: "sustenance_plazas",
+  });
   const profilePictureField = register("profile_picture_file", {
     validate: (fileList) => {
       const selectedFile = fileList?.[0];
@@ -179,6 +257,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
       delete data.date_of_admissions;
       delete data.schedule_assignments;
       delete data.schedule_teachers;
+      const sustenancePlazas = data.sustenance_plazas ?? [];
       delete data.sustenance_plazas;
       delete data.profile_picture_file;
       delete data.remove_profile_picture;
@@ -193,6 +272,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
               selectedProfilePicture || removeCurrentProfilePicture
             ),
             currentProfilePicture: workerToEdit.profile_picture ?? null,
+            sustenancePlazas,
           },
         },
         {
@@ -210,6 +290,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
     delete data.date_of_admissions;
     delete data.schedule_assignments;
     delete data.schedule_teachers;
+    const sustenancePlazas = data.sustenance_plazas ?? [];
     delete data.sustenance_plazas;
     delete data.profile_picture_file;
     delete data.remove_profile_picture;
@@ -221,6 +302,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
           profilePictureFile: selectedProfilePicture ?? null,
           removeCurrentProfilePicture: false,
           currentProfilePicture: null,
+          sustenancePlazas,
         },
       },
       {
@@ -419,6 +501,59 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
           <option value="Administrativo">Administrativo y de Apoyo</option>
           <option value="Contratacion">Contratación</option>
         </Select>
+      </FormRow>
+      <FormRow
+        label="Plazas"
+        error={
+          errors?.sustenance_plazas?.message ||
+          errors?.sustenance_plazas?.root?.message
+        }
+      >
+        <PlazasContainer>
+          {plazaFields.map((field, index) => (
+            <PlazaRow key={field.id}>
+              <Select
+                disabled={isWorking}
+                {...register(`sustenance_plazas.${index}.sustenance`)}
+              >
+                <option value="">Sostenimiento...</option>
+                <option value="Estatal">Estatal</option>
+                <option value="Federal">Federal</option>
+              </Select>
+              <Input
+                type="text"
+                placeholder="Clave de pago"
+                disabled={isWorking}
+                {...register(`sustenance_plazas.${index}.payment_key`)}
+              />
+              <Input
+                type="text"
+                placeholder="Plaza"
+                disabled={isWorking}
+                {...register(`sustenance_plazas.${index}.plaza`)}
+              />
+              <PlazaActionButton
+                type="button"
+                onClick={() => remove(index)}
+                disabled={isWorking || plazaFields.length === 1}
+                title="Eliminar fila"
+                aria-label="Eliminar fila"
+              >
+                <HiOutlineXMark />
+              </PlazaActionButton>
+            </PlazaRow>
+          ))}
+          <AddPlazaButton
+            type="button"
+            onClick={() =>
+              append({ sustenance: "", payment_key: "", plaza: "" })
+            }
+            disabled={isWorking}
+          >
+            <HiOutlinePlus />
+            Agregar plaza
+          </AddPlazaButton>
+        </PlazasContainer>
       </FormRow>
       <FormRow
         label="Función que desempeña"
