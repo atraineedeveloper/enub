@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import { useState } from "react";
 import Button from "../ui/Button";
 import { useRoles } from "../features/roles/useRoles.js";
 import calculateSemesterGroup from "../helpers/calculateSemesterGroup.js";
@@ -66,6 +67,7 @@ function WorkerSheetSemester({
   scheduleAssignments = [],
   scheduleTeachers = [],
 }) {
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const activeWorkers = workers.filter((worker) => {
     return worker.status === 1;
   });
@@ -119,21 +121,24 @@ function WorkerSheetSemester({
     : "ENCARGADO DEL DESPACHO DE LA DIRECCIÓN DE LA ESCUELA";
 
   const generatePDF = async () => {
-    await import("../styles/Montserrat-Regular-normal.js");
-    await import("../styles/Montserrat-Italic-italic.js");
-    await import("../styles/Montserrat-Bold-bold.js");
-    await import("../styles/Montserrat-BoldItalic-bolditalic.js");
+    if (isGeneratingPdf) return;
+    setIsGeneratingPdf(true);
+    try {
+      await import("../styles/Montserrat-Regular-normal.js");
+      await import("../styles/Montserrat-Italic-italic.js");
+      await import("../styles/Montserrat-Bold-bold.js");
+      await import("../styles/Montserrat-BoldItalic-bolditalic.js");
 
-    const doc = new jsPDF("landscape", "px", "letter");
-    const logoEnub = new Image();
-    logoEnub.src = "/enub.jpg";
+      const doc = new jsPDF("landscape", "px", "letter");
+      const logoEnub = new Image();
+      logoEnub.src = "/enub.jpg";
 
-    const logoSetab = new Image();
-    logoSetab.src = "/setab.jpeg";
-    const drawnPages = new Set();
-    const tableMargins = { top: 96, right: 18, bottom: 112, left: 18 };
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
+      const logoSetab = new Image();
+      logoSetab.src = "/setab.jpeg";
+      const drawnPages = new Set();
+      const tableMargins = { top: 96, right: 18, bottom: 112, left: 18 };
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
 
     function drawWorkerPhotoInCell(data, profilePictureName) {
       if (!profilePictureName) return;
@@ -816,14 +821,21 @@ function WorkerSheetSemester({
       didDrawPage: drawPageHeaderFooter,
     });
 
-    const blobUrl = doc.output("bloburl");
-    const previewWindow = window.open(blobUrl, "_blank");
-    if (!previewWindow) doc.save("Plantilla.pdf");
+      const blobUrl = doc.output("bloburl");
+      const previewWindow = window.open(blobUrl, "_blank");
+      if (!previewWindow) doc.save("Plantilla.pdf");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   if (isLoadingRoles) return <Spinner />;
 
-  return <Button onClick={generatePDF}>Imprimir plantilla académica</Button>;
+  return (
+    <Button onClick={generatePDF} disabled={isGeneratingPdf}>
+      {isGeneratingPdf ? "Generando plantilla..." : "Imprimir plantilla académica"}
+    </Button>
+  );
 }
 
 export default WorkerSheetSemester;
