@@ -221,8 +221,6 @@ function ScheduleGroupPDF({ schedules }) {
     doc.output("dataurlnewwindow");
   };
 
-  // console.log(schedules);
-
   if (isLoadingRoles || isLoadingStateRoles || isLoadingUtilities)
     return <Spinner />;
 

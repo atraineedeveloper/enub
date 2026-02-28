@@ -33,8 +33,6 @@ function ScheduleTeacherPDF({ schedulesScholar, scheduleTeacher, totalHours }) {
     hasExtraHours = true;
   }
 
-  // console.log(schedulesScholar, scheduleTeacher);
-
   schedulesScholar.map((schedule) => {
     if (schedule.groups.degrees.code == "LEPRIM") {
       numberLEPRIM++;

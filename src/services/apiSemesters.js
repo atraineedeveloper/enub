@@ -12,6 +12,11 @@ export async function getSemesters() {
 }
 
 export async function createSemester(newSemester) {
+  if (!newSemester?.semester?.trim())
+    throw new Error("El semestre es requerido");
+  if (!newSemester?.school_year?.trim())
+    throw new Error("El ciclo escolar es requerido");
+
   const { data, error } = await supabase
     .from("semesters")
     .insert([newSemester]);

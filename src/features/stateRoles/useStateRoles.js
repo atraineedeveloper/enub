@@ -9,6 +9,7 @@ export function useStateRoles() {
   } = useQuery({
     queryKey: ["stateRoles"],
     queryFn: getStateRoles,
+    staleTime: 5 * 60 * 1000,
   });
 
   return { isLoading, error, stateRoles };

@@ -9,6 +9,7 @@ export function useSemesters() {
   } = useQuery({
     queryKey: ["semesters"],
     queryFn: getSemesters,
+    staleTime: 5 * 60 * 1000,
   });
 
   return { isLoading, error, semesters };

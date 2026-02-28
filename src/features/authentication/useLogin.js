@@ -14,8 +14,6 @@ export function useLogin() {
       navigate("/dashboard", { replace: true });
     },
     onError: (err) => {
-      console.log(err);
-
       toast.error("El correo o contraseña son incorrectos");
     },
   });

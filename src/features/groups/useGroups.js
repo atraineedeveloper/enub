@@ -9,6 +9,7 @@ export function useGroups() {
   } = useQuery({
     queryKey: ["groups"],
     queryFn: getGroups,
+    staleTime: 30 * 60 * 1000,
   });
 
   return { isLoading, error, groups };

@@ -9,6 +9,7 @@ export function useScheduleAssignments() {
   } = useQuery({
     queryKey: ["scheduleAssignments"],
     queryFn: getScheduleAssignments,
+    staleTime: 30 * 1000,
   });
 
   return { isLoading, error, scheduleAssignments };

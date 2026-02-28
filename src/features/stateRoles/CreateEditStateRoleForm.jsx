@@ -17,8 +17,6 @@ function CreateEditStateRoleForm({ stateRoleToEdit = {} }) {
   const { errors } = formState;
 
   function onSubmit(data) {
-    console.log(data);
-
     if (isEditSession)
       editStateRole(
         { newStateRole: { ...data }, id: editId },

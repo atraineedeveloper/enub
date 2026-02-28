@@ -12,7 +12,9 @@ export async function getRoles() {
 }
 
 export async function createEditRoles(newRole, id) {
-  // 1. Create/edit State Role
+  if (!newRole || typeof newRole !== "object")
+    throw new Error("Los datos del rol no son válidos");
+
   let query = supabase.from("roles");
 
   // A) CREATE

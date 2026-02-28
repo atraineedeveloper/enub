@@ -9,6 +9,7 @@ export function useWorkers({ fullDetails = false } = {}) {
   } = useQuery({
     queryKey: ["workers", fullDetails],
     queryFn: () => (fullDetails ? getWorkersFull() : getWorkers()),
+    staleTime: 5 * 60 * 1000,
   });
 
   return { isLoading, error, workers };

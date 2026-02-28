@@ -10,12 +10,15 @@ import capitalizeName from "../../helpers/capitalizeFirstLetter";
 import { useCreateScheduleTeacher } from "./useCreateScheduleTeacher";
 import { useEditScheduleTeacher } from "./useEditScheduleTeacher";
 import { WEEKDAYS, START_TIMES, END_TIMES } from "../../helpers/constants";
+import { hasWorkerConflict } from "../../helpers/detectScheduleConflict";
 
 function CreateEditTeacherSchedule({
   workers,
   semesterId,
   onCloseModal,
   scheduleToEdit = {},
+  scheduleTeachers = [],
+  scheduleAssignments = [],
 }) {
   const { id: editId, semesters, workers: workerData, ...editValues } = scheduleToEdit || {};
   const isEditSession = Boolean(editId);
@@ -31,6 +34,12 @@ function CreateEditTeacherSchedule({
   const { errors } = formState;
 
   function onSubmit(data) {
+    const allSchedules = [...scheduleTeachers, ...scheduleAssignments];
+    if (hasWorkerConflict(allSchedules, data, editId)) {
+      toast.error("El maestro ya tiene una actividad asignada ese día en ese horario.");
+      return;
+    }
+
     if (isEditSession) {
       editScheduleTeacher(
         { newScheduleData: { ...data, semester_id: semesterId }, id: editId },

@@ -4,6 +4,7 @@ import Sidebar from "./Sidebar";
 import Header from "./Header";
 import styled from "styled-components";
 import Spinner from "./Spinner";
+import ErrorBoundary from "./ErrorBoundary";
 
 const StyledAppLayout = styled.div`
   display: grid;
@@ -53,7 +54,9 @@ function AppLayout() {
       <Sidebar isOpen={isSidebarOpen} onClose={handleCloseSidebar} />
       <Main $sidebarOpen={isSidebarOpen} onClick={handleCloseSidebar}>
         <Suspense fallback={<Spinner />}>
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </Suspense>
       </Main>
     </StyledAppLayout>

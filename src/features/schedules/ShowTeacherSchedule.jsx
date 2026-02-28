@@ -126,8 +126,6 @@ function ShowTeacherSchedule({
     return total;
   }, [groupedSubjects, uniqueTeacherSchedule]);
 
-  console.log(totalHours);
-
   return (
     <>
       <Select id="worker_id" onChange={(e) => selectingWorker(e.target.value)}>

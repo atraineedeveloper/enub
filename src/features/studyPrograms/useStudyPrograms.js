@@ -9,6 +9,7 @@ export function useStudyPrograms() {
   } = useQuery({
     queryKey: ["studyPrograms"],
     queryFn: getStudyPrograms,
+    staleTime: 60 * 60 * 1000,
   });
 
   return { isLoading, error, studyPrograms };

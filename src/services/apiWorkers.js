@@ -80,7 +80,13 @@ export async function createEditWorkers(
     currentProfilePicture = null,
   } = {}
 ) {
-  // 1. Create/edit State Role
+  if (!newWorker || typeof newWorker !== "object")
+    throw new Error("Los datos del trabajador no son válidos");
+  if (!newWorker.name?.trim())
+    throw new Error("El nombre del trabajador es requerido");
+  if (!newWorker.RFC?.trim())
+    throw new Error("El RFC del trabajador es requerido");
+
   let query = supabase.from("workers");
   let uploadedProfilePicture = null;
   const workerToSave = { ...newWorker };

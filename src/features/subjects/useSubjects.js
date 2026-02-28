@@ -9,6 +9,7 @@ export function useSubjects() {
   } = useQuery({
     queryKey: ["subjects"],
     queryFn: getSubjects,
+    staleTime: 30 * 60 * 1000,
   });
 
   return { isLoading, error, subjects };

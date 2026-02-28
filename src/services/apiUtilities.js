@@ -12,7 +12,9 @@ export async function getUtilies() {
 }
 
 export async function createEditUtilies(newUtily, id) {
-  // 1. Create/edit State Role
+  if (!newUtily || typeof newUtily !== "object")
+    throw new Error("Los datos del registro no son válidos");
+
   let query = supabase.from("utilities");
 
   // A) CREATE

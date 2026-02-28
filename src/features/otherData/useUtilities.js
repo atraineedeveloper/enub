@@ -9,6 +9,7 @@ export function useUtilities() {
   } = useQuery({
     queryKey: ["utilities"],
     queryFn: getUtilies,
+    staleTime: 5 * 60 * 1000,
   });
 
   return { isLoading, error, utilities };

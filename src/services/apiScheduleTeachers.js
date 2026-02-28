@@ -14,6 +14,9 @@ export async function getScheduleTeachers() {
 }
 
 export async function createEditScheduleTeachers(newScheduleTeachers, id) {
+  if (!newScheduleTeachers || typeof newScheduleTeachers !== "object")
+    throw new Error("Los datos del horario del maestro no son válidos");
+
   let query = supabase.from("schedule_teachers");
 
   // A) CREATE

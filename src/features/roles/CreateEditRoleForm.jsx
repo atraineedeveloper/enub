@@ -10,8 +10,6 @@ import Select from "../../ui/Select";
 import toast from "react-hot-toast";
 
 function CreateEditRoleForm({ roleToEdit = {}, onCloseModal }) {
-  // console.log(roleToEdit);
-
   const { id: editId, ...editValues } = roleToEdit;
   const { isEditing, editRole } = useEditRole();
   const isEditSession = Boolean(editId);
@@ -27,8 +25,6 @@ function CreateEditRoleForm({ roleToEdit = {}, onCloseModal }) {
   if (isLoadingWorkers) return <Spinner />;
 
   function onSubmit(data) {
-    // console.log(data);
-
     delete data.workers;
 
     if (isEditSession)

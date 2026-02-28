@@ -18,8 +18,6 @@ const TableRow = styled.div`
 `;
 
 function RoleRow({ role }) {
-  console.log(role);
-
   const [editModal, setEditModal] = useState(false);
 
   return (

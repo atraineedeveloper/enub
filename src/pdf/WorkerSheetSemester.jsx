@@ -245,8 +245,6 @@ function WorkerSheetSemester({
           (schedule) => schedule.worker_id === worker.id
         );
 
-        // console.log(currentSemesterSchedules);
-
         const groupedSubjects = groupData(
           currentSemesterSchedules,
           "subject_id"
@@ -298,8 +296,6 @@ function WorkerSheetSemester({
           (schedule) => (totalHours += schedule.quantity * 2)
         );
 
-        // console.log(profilePicture.src);
-
         return [
           worker.id,
           `${worker.name}
@@ -325,8 +321,8 @@ function WorkerSheetSemester({
           worker.specialty,
           Object.keys(groupedSubjects).map(
             (subject) => `
-  ${groupedSubjects[subject][0].subjects.name} 
-  
+  ${groupedSubjects[subject][0].subjects.name}
+
   ${Object.keys(groupData(groupedSubjects[subject], "group_id")).map(
     (group) =>
       ` (${calculateSemesterGroup(
@@ -340,7 +336,7 @@ function WorkerSheetSemester({
           ),
           "",
           `${numHours > 0 ? `NO. DE HORAS: ${numHours}` : ""}
-  
+
   ${totalHours > 2 ? `TOTAL DE HORAS: ${totalHours}` : ""}`,
           "",
           "",
@@ -372,7 +368,6 @@ function WorkerSheetSemester({
                 20,
                 30
               );
-              // console.log(profilePicture.src);
             }
           }
         }
@@ -465,8 +460,6 @@ function WorkerSheetSemester({
           (schedule) => (totalHours += schedule.quantity * 2)
         );
 
-        // console.log(profilePicture.src);
-
         return [
           worker.id,
           `${worker.name}
@@ -539,7 +532,6 @@ function WorkerSheetSemester({
                 20,
                 30
               );
-              // console.log(profilePicture.src);
             }
           }
         }
@@ -632,8 +624,6 @@ function WorkerSheetSemester({
           (schedule) => (totalHours += schedule.quantity * 2)
         );
 
-        // console.log(profilePicture.src);
-
         return [
           worker.id,
           `${worker.name}
@@ -706,7 +696,6 @@ function WorkerSheetSemester({
                 20,
                 30
               );
-              // console.log(profilePicture.src);
             }
           }
         }

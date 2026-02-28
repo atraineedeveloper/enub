@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Spinner from "../../ui/Spinner";
 import Table from "../../ui/Table";
 import { useWorkers } from "./useWorkers";
@@ -6,16 +7,36 @@ import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
 import Row from "../../ui/Row";
 import CreateEditWorkerForm from "./CreateEditWorkerForm";
+import ErrorMessage from "../../ui/ErrorMessage";
+import { usePagination } from "../../hooks/usePagination";
+import Pagination from "../../ui/Pagination";
+import SearchBar from "../../ui/SearchBar";
 
 function WorkerTable() {
-  const { isLoading, workers } = useWorkers();
+  const { isLoading, workers, error } = useWorkers();
+  const [searchTerm, setSearchTerm] = useState("");
+  const filtered = (workers ?? []).filter((worker) =>
+    worker.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  const { currentPage, totalPages, totalCount, paginatedData, setCurrentPage } =
+    usePagination(filtered);
+
+  function handleSearch(e) {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+  }
 
   if (isLoading) return <Spinner />;
+  if (error) return <ErrorMessage message={error.message} />;
 
   return (
     <Row>
       <Row type="horizontal">
-        <div></div>
+        <SearchBar
+          value={searchTerm}
+          onChange={handleSearch}
+          placeholder="Buscar trabajador..."
+        />
         <Modal>
           <Modal.Open opens="create-worker-form">
             <Button>Añadir trabajador</Button>
@@ -35,9 +56,17 @@ function WorkerTable() {
           <div></div>
         </Table.Header>
         <Table.Body
-          data={workers}
+          data={paginatedData}
           render={(worker) => <WorkerRow worker={worker} key={worker.id} />}
         />
+        <Table.Footer>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            onPageChange={setCurrentPage}
+          />
+        </Table.Footer>
       </Table>
     </Row>
   );

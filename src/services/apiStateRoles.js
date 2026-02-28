@@ -12,7 +12,9 @@ export async function getStateRoles() {
 }
 
 export async function createEditStateRoles(newStateRole, id) {
-  // 1. Create/edit State Role
+  if (!newStateRole || typeof newStateRole !== "object")
+    throw new Error("Los datos del rol estatal no son válidos");
+
   let query = supabase.from("state_roles");
 
   // A) CREATE

@@ -12,6 +12,9 @@ export async function getGroups() {
 }
 
 export async function createGroup(newGroup) {
+  if (!newGroup || typeof newGroup !== "object")
+    throw new Error("Los datos del grupo no son válidos");
+
   const { data, error } = await supabase.from("groups").insert([newGroup]);
 
   if (error) {

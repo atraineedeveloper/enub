@@ -1,7 +1,13 @@
+import { useState } from "react";
 import styled from "styled-components";
 import Spinner from "../../ui/Spinner";
 import SemesterRow from "./SemesterRow";
 import { useSemesters } from "./useSemesters";
+import ErrorMessage from "../../ui/ErrorMessage";
+import { usePagination } from "../../hooks/usePagination";
+import Pagination from "../../ui/Pagination";
+import Row from "../../ui/Row";
+import SearchBar from "../../ui/SearchBar";
 
 const Table = styled.div`
   border: 1px solid var(--color-grey-200);
@@ -27,22 +33,64 @@ const TableHeader = styled.header`
   padding: 1.6rem 2.4rem;
 `;
 
+const TableFooter = styled.footer`
+  background-color: var(--color-grey-50);
+  display: flex;
+  justify-content: center;
+  padding: 1.2rem;
+
+  &:not(:has(*)) {
+    display: none;
+  }
+`;
+
 function SemesterTable() {
-  const { isLoading, semesters } = useSemesters();
+  const { isLoading, semesters, error } = useSemesters();
+  const [searchTerm, setSearchTerm] = useState("");
+  const filtered = (semesters ?? []).filter(
+    (sem) =>
+      sem.semester.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sem.school_year.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  const { currentPage, totalPages, totalCount, paginatedData, setCurrentPage } =
+    usePagination(filtered);
+
+  function handleSearch(e) {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+  }
 
   if (isLoading) return <Spinner />;
+  if (error) return <ErrorMessage message={error.message} />;
 
   return (
-    <Table role="table">
-      <TableHeader role="row">
-        <div>Semestre</div>
-        <div>Ciclo Escolar</div>
-        <div></div>
-      </TableHeader>
-      {semesters.map((semester) => (
-        <SemesterRow semester={semester} key={semester.id} />
-      ))}
-    </Table>
+    <Row>
+      <Row type="horizontal">
+        <SearchBar
+          value={searchTerm}
+          onChange={handleSearch}
+          placeholder="Buscar semestre..."
+        />
+      </Row>
+      <Table role="table">
+        <TableHeader role="row">
+          <div>Semestre</div>
+          <div>Ciclo Escolar</div>
+          <div></div>
+        </TableHeader>
+        {paginatedData.map((semester) => (
+          <SemesterRow semester={semester} key={semester.id} />
+        ))}
+        <TableFooter>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            onPageChange={setCurrentPage}
+          />
+        </TableFooter>
+      </Table>
+    </Row>
   );
 }
 

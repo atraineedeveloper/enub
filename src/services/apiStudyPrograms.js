@@ -14,6 +14,10 @@ export async function getStudyPrograms() {
 }
 
 export async function editStudyProgram(newProgram, id) {
+  if (!newProgram || typeof newProgram !== "object")
+    throw new Error("Los datos del plan de estudio no son válidos");
+  if (!id) throw new Error("El identificador del plan de estudio es requerido");
+
   const { data, error } = await supabase
     .from("study_programs")
     .update(newProgram)

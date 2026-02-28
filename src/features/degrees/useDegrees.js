@@ -9,6 +9,7 @@ export function useDegrees() {
   } = useQuery({
     queryKey: ["degrees"],
     queryFn: getDegrees,
+    staleTime: 60 * 60 * 1000,
   });
 
   return { isLoading, error, degrees };

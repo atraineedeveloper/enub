@@ -28,6 +28,8 @@ function TeacherSchedule({
           <CreateEditTeacherSchedule
             workers={workers}
             semesterId={semesterId}
+            scheduleTeachers={scheduleTeachers}
+            scheduleAssignments={scheduleAssignments}
             onCloseModal={() => setShowCreate(false)}
           />
         </Modal.Window>

@@ -15,6 +15,7 @@ import { useEditScheduleAssignment } from "./useEditScheduleAssignments";
 import Spinner from "../../ui/Spinner";
 import { useCreateScheduleAssignments } from "./useCreateScheduleAssignments";
 import { SemesterContext } from "../../pages/ScheduleDashboard";
+import { hasWorkerConflict, hasGroupConflict } from "../../helpers/detectScheduleConflict";
 
 function CreateEditScholarSchedule({
   semesterId,
@@ -27,9 +28,8 @@ function CreateEditScholarSchedule({
   const isWorking = isCreating || isEditing;
 
   const semesterData = useContext(SemesterContext);
-  // console.log(semesterData);
 
-  const { groups, workers, subjects } = semesterData;
+  const { groups, workers, subjects, scheduleAssignments } = semesterData;
 
   const { id: editId, ...editValues } = scheduleToEdit;
   const isEditSession = Boolean(editId);
@@ -64,9 +64,17 @@ function CreateEditScholarSchedule({
   }
 
   function onSubmit(data) {
-    // console.log(data);
-
     data.semester_id = semesterId;
+
+    if (hasWorkerConflict(scheduleAssignments, data, editId)) {
+      toast.error("El maestro ya tiene clase asignada ese día en ese horario.");
+      return;
+    }
+    if (hasGroupConflict(scheduleAssignments, data, editId)) {
+      toast.error("El grupo ya tiene una clase asignada ese día en ese horario.");
+      return;
+    }
+
     if (isEditSession) {
       delete data.groups;
       delete data.semesters;

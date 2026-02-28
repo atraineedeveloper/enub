@@ -14,6 +14,7 @@ import { useScheduleTeachers } from "../features/schedules/useScheduleTeachers";
 import WorkerSheetSemester from "../pdf/WorkerSheetSemester";
 import { useSemesters } from "../features/semesters/useSemesters";
 import Breadcrumbs from "../ui/Breadcrumbs";
+import ErrorMessage from "../ui/ErrorMessage";
 
 export const SemesterContext = createContext(null);
 
@@ -22,16 +23,16 @@ function ScheduleDashboard() {
   const [showScholarSchedule, setShowScholarSchedule] = useState(false);
   const [showTeacherSchedule, setShowTeacherSchedule] = useState(false);
 
-  const { isLoading: isLoadingWorkers, workers } = useWorkers({
+  const { isLoading: isLoadingWorkers, workers, error: errorWorkers } = useWorkers({
     fullDetails: true,
   });
-  const { isLoading: isLoadingSubjects, subjects } = useSubjects();
-  const { isLoading: isLoadingGroups, groups } = useGroups();
-  const { isLoading: isLoadingScheduleAssignments, scheduleAssignments } =
+  const { isLoading: isLoadingSubjects, subjects, error: errorSubjects } = useSubjects();
+  const { isLoading: isLoadingGroups, groups, error: errorGroups } = useGroups();
+  const { isLoading: isLoadingScheduleAssignments, scheduleAssignments, error: errorAssignments } =
     useScheduleAssignments();
-  const { isLoading: isLoadingScheduleTeachers, scheduleTeachers } =
+  const { isLoading: isLoadingScheduleTeachers, scheduleTeachers, error: errorTeachers } =
     useScheduleTeachers();
-  const { isLoading: isLoadingSemesters, semesters } = useSemesters();
+  const { isLoading: isLoadingSemesters, semesters, error: errorSemesters } = useSemesters();
 
   if (
     isLoadingWorkers ||
@@ -42,6 +43,12 @@ function ScheduleDashboard() {
     isLoadingSemesters
   )
     return <Spinner />;
+
+  const anyError =
+    errorWorkers || errorSubjects || errorGroups ||
+    errorAssignments || errorTeachers || errorSemesters;
+
+  if (anyError) return <ErrorMessage message={anyError.message} />;
 
   const currentGroups = groups.filter((group) => {
     // if the group is below eight semester
@@ -76,7 +83,7 @@ function ScheduleDashboard() {
 
   return (
     <SemesterContext.Provider
-      value={{ groups: currentGroups, workers: currentWorkers, subjects }}
+      value={{ groups: currentGroups, workers: currentWorkers, subjects, scheduleAssignments: scheduleAssignmentsBySemester }}
     >
       <Breadcrumbs items={breadcrumbItems} />
       <Row>

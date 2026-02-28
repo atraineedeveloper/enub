@@ -9,6 +9,7 @@ export function useScheduleTeachers() {
   } = useQuery({
     queryKey: ["scheduleTeachers"],
     queryFn: getScheduleTeachers,
+    staleTime: 30 * 1000,
   });
 
   return { isLoading, error, scheduleTeachers };

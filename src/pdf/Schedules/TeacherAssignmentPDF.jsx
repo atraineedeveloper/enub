@@ -34,10 +34,6 @@ function TeacherAssignmentPDF({
     }, {});
   };
 
-  console.log(groupedSubjects, uniqueTeacherSchedule);
-
-  // console.log(currentWorker);
-
   const generatePDF = async () => {
     await import("../../styles/Montserrat-Regular-normal.js");
     await import("../../styles/Montserrat-Italic-italic.js");
