@@ -1,9 +1,8 @@
 import styled from "styled-components";
-import Spinner from "../../ui/Spinner";
 import RowScholarSchedule from "./RowScholarSchedule";
 import Select from "../../ui/Select";
 import calculateSemesterGroup from "../../helpers/calculateSemesterGroup";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import ScheduleGroupPDF from "../../pdf/Schedules/ScheduleGroupPDF";
 
 const Table = styled.div`
@@ -31,17 +30,18 @@ const TableHeader = styled.header`
 `;
 
 function ShowScholarSchedule({ scheduleAssignments, groups }) {
-  const [filteredSchedules, setFilteredSchedules] = useState([]);
-  function selectingGroup(groupId) {
-    const scheduleFilter = scheduleAssignments.filter((schedule) => {
-      return schedule.group_id === +groupId;
-    });
-    setFilteredSchedules(scheduleFilter);
-  }
+  const [selectedGroupId, setSelectedGroupId] = useState("");
+
+  const filteredSchedules = useMemo(() => {
+    if (!selectedGroupId) return [];
+    return scheduleAssignments.filter(
+      (schedule) => schedule.group_id === +selectedGroupId
+    );
+  }, [scheduleAssignments, selectedGroupId]);
 
   return (
     <>
-      <Select id="group_id" onChange={(e) => selectingGroup(e.target.value)}>
+      <Select id="group_id" onChange={(e) => setSelectedGroupId(e.target.value)}>
         <option value="">Seleccione grupo escolar</option>
         {groups.map((group) => (
           <option key={group.id} value={group.id}>

@@ -33,7 +33,7 @@ export async function createEditScheduleAssignments(newScheduleAssignment, id) {
     throw new Error("Los datos del horario no son válidos");
   if (!newScheduleAssignment.worker_id)
     throw new Error("El trabajador del horario es requerido");
-  if (!newScheduleAssignment.semester_id)
+  if (!id && !newScheduleAssignment.semester_id)
     throw new Error("El semestre del horario es requerido");
 
   let query = supabase.from("schedule_assignments");

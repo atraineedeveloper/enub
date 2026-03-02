@@ -38,7 +38,7 @@ function CreateEditScholarSchedule({
     if (isEditSession) {
       selectingGroup(editValues.group_id);
     }
-  }, []);
+  }, [isEditSession, editValues.group_id]);
 
   const { register, handleSubmit, reset, formState } = useForm({
     defaultValues: isEditSession ? editValues : {},
@@ -64,7 +64,13 @@ function CreateEditScholarSchedule({
   }
 
   function onSubmit(data) {
-    data.semester_id = semesterId;
+    const resolvedSemesterId = Number(semesterId || editValues.semester_id);
+    if (!resolvedSemesterId) {
+      toast.error("No se pudo determinar el semestre del horario.");
+      return;
+    }
+
+    data.semester_id = resolvedSemesterId;
 
     if (hasWorkerConflict(scheduleAssignments, data, editId)) {
       toast.error("El maestro ya tiene clase asignada ese día en ese horario.");
