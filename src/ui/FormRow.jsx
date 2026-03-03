@@ -2,7 +2,7 @@ import styled from "styled-components";
 
 const StyledFormRow = styled.div`
   display: grid;
-  align-items: center;
+  align-items: ${({ $alignTop }) => ($alignTop ? "start" : "center")};
   grid-template-columns: 24rem 1fr 1.2fr;
   gap: 2.4rem;
 
@@ -48,9 +48,9 @@ const Error = styled.span`
   color: var(--color-red-700);
 `;
 
-function FormRow({ label, error, children }) {
+function FormRow({ label, error, children, alignTop }) {
   return (
-    <StyledFormRow>
+    <StyledFormRow $alignTop={alignTop}>
       {label && <Label htmlFor={children.props.id}>{label}</Label>}
       {children}
       {error && <Error>{error}</Error>}

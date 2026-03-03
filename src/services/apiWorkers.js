@@ -76,6 +76,35 @@ function validateSustenancePlazas(sustenancePlazas = []) {
   }
 }
 
+async function replaceWorkerDateOfAdmissions(workerId, dateOfAdmissions = []) {
+  const { error: deleteError } = await supabase
+    .from("date_of_admissions")
+    .delete()
+    .eq("worker_id", workerId);
+
+  if (deleteError) {
+    console.error(deleteError);
+    throw new Error("Las fechas de admisión no pudieron actualizarse");
+  }
+
+  if (!dateOfAdmissions.length) return;
+
+  const rowsToInsert = dateOfAdmissions.map((d) => ({
+    type: d.type || null,
+    date_of_admission: d.date_of_admission || null,
+    worker_id: workerId,
+  }));
+
+  const { error: insertError } = await supabase
+    .from("date_of_admissions")
+    .insert(rowsToInsert);
+
+  if (insertError) {
+    console.error(insertError);
+    throw new Error("Las fechas de admisión no pudieron actualizarse");
+  }
+}
+
 async function replaceWorkerSustenancePlazas(workerId, sustenancePlazas = []) {
   const { error: deleteError } = await supabase
     .from("sustenance_plazas")
@@ -146,6 +175,7 @@ export async function createEditWorkers(
     removeCurrentProfilePicture = false,
     currentProfilePicture = null,
     sustenancePlazas = [],
+    dateOfAdmissions = [],
   } = {}
 ) {
   if (!newWorker || typeof newWorker !== "object")
@@ -191,6 +221,7 @@ export async function createEditWorkers(
   }
 
   await replaceWorkerSustenancePlazas(data.id, normalizedSustenancePlazas);
+  await replaceWorkerDateOfAdmissions(data.id, dateOfAdmissions);
 
   const shouldDeleteCurrentProfilePicture =
     currentProfilePicture &&

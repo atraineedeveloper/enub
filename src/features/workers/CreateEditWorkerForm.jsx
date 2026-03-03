@@ -158,6 +158,36 @@ const AddPlazaButton = styled.button`
   }
 `;
 
+const AdmissionsContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  width: min(56rem, 100%);
+  padding: 1rem;
+  border: 1px solid var(--color-grey-200);
+  border-radius: var(--border-radius-sm);
+  background: linear-gradient(
+    180deg,
+    var(--color-grey-0),
+    color-mix(in oklab, var(--color-grey-0) 85%, var(--color-brand-50))
+  );
+`;
+
+const AdmissionRow = styled.div`
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr) auto;
+  gap: 0.8rem;
+  align-items: center;
+
+  @media (max-width: 900px) {
+    grid-template-columns: minmax(0, 1fr) auto;
+
+    & > :first-child {
+      grid-column: 1 / -1;
+    }
+  }
+`;
+
 function normalizeSustenanceTypeForForm(value = "") {
   const normalizedValue = value.trim().toLowerCase();
   if (normalizedValue === "estatal") return "Estatal";
@@ -191,15 +221,27 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
                     ),
                   }))
                 : [{ sustenance: "", payment_key: "", plaza: "" }],
+            date_of_admissions:
+              editValues.date_of_admissions?.length > 0
+                ? editValues.date_of_admissions.map((d) => ({
+                    type: d.type ?? "",
+                    date_of_admission: d.date_of_admission ?? "",
+                  }))
+                : [{ type: "", date_of_admission: "" }],
           }
         : {
             sustenance_plazas: [{ sustenance: "", payment_key: "", plaza: "" }],
+            date_of_admissions: [{ type: "", date_of_admission: "" }],
           },
     });
   const { errors } = formState;
   const { fields: plazaFields, append, remove } = useFieldArray({
     control,
     name: "sustenance_plazas",
+  });
+  const { fields: dateFields, append: appendDate, remove: removeDate } = useFieldArray({
+    control,
+    name: "date_of_admissions",
   });
   const profilePictureField = register("profile_picture_file", {
     validate: (fileList) => {
@@ -254,6 +296,9 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
       const selectedProfilePicture = data.profile_picture_file?.[0];
       const removeCurrentProfilePicture = Boolean(data.remove_profile_picture);
 
+      const dateOfAdmissions = (data.date_of_admissions ?? []).filter(
+        (d) => d.type || d.date_of_admission
+      );
       delete data.date_of_admissions;
       delete data.schedule_assignments;
       delete data.schedule_teachers;
@@ -273,6 +318,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
             ),
             currentProfilePicture: workerToEdit.profile_picture ?? null,
             sustenancePlazas,
+            dateOfAdmissions,
           },
         },
         {
@@ -287,6 +333,9 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
 
     const selectedProfilePicture = data.profile_picture_file?.[0];
 
+    const dateOfAdmissions = (data.date_of_admissions ?? []).filter(
+      (d) => d.type || d.date_of_admission
+    );
     delete data.date_of_admissions;
     delete data.schedule_assignments;
     delete data.schedule_teachers;
@@ -303,6 +352,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
           removeCurrentProfilePicture: false,
           currentProfilePicture: null,
           sustenancePlazas,
+          dateOfAdmissions,
         },
       },
       {
@@ -504,6 +554,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
       </FormRow>
       <FormRow
         label="Plazas"
+        alignTop
         error={
           errors?.sustenance_plazas?.message ||
           errors?.sustenance_plazas?.root?.message
@@ -554,6 +605,46 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
             Agregar plaza
           </AddPlazaButton>
         </PlazasContainer>
+      </FormRow>
+      <FormRow label="Fechas de admisión" alignTop>
+        <AdmissionsContainer>
+          {dateFields.map((field, index) => (
+            <AdmissionRow key={field.id}>
+              <Select
+                disabled={isWorking}
+                {...register(`date_of_admissions.${index}.type`)}
+              >
+                <option value="">Tipo...</option>
+                <option value="SEP">SEP</option>
+                <option value="EDO">EDO</option>
+                <option value="FED">FED</option>
+                <option value="RAMA">RAMA</option>
+              </Select>
+              <Input
+                type="date"
+                disabled={isWorking}
+                {...register(`date_of_admissions.${index}.date_of_admission`)}
+              />
+              <PlazaActionButton
+                type="button"
+                onClick={() => removeDate(index)}
+                disabled={isWorking || dateFields.length === 1}
+                title="Eliminar fila"
+                aria-label="Eliminar fila"
+              >
+                <HiOutlineXMark />
+              </PlazaActionButton>
+            </AdmissionRow>
+          ))}
+          <AddPlazaButton
+            type="button"
+            onClick={() => appendDate({ type: "", date_of_admission: "" })}
+            disabled={isWorking}
+          >
+            <HiOutlinePlus />
+            Agregar fecha
+          </AddPlazaButton>
+        </AdmissionsContainer>
       </FormRow>
       <FormRow
         label="Función que desempeña"
