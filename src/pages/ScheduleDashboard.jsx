@@ -1,6 +1,5 @@
 import { createContext, useState } from "react";
-import Button from "../ui/Button";
-import Row from "../ui/Row";
+import styled from "styled-components";
 import ScholarSchedule from "../features/schedules/ScholarSchedule";
 import { useWorkers } from "../features/workers/useWorkers";
 import Spinner from "../ui/Spinner";
@@ -15,70 +14,77 @@ import WorkerSheetSemester from "../pdf/WorkerSheetSemester";
 import { useSemesters } from "../features/semesters/useSemesters";
 import Breadcrumbs from "../ui/Breadcrumbs";
 import ErrorMessage from "../ui/ErrorMessage";
+import Heading from "../ui/Heading";
 
 export const SemesterContext = createContext(null);
 
+const SemesterHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.6rem;
+  margin-bottom: 2.4rem;
+  flex-wrap: wrap;
+`;
+
+const SemesterMeta = styled.p`
+  font-size: 1.4rem;
+  color: var(--color-grey-500);
+  margin-top: 0.2rem;
+`;
+
+const TabsBar = styled.div`
+  display: flex;
+  gap: 0.4rem;
+  border-bottom: 2px solid var(--color-grey-200);
+  margin-bottom: 2.4rem;
+`;
+
+const Tab = styled.button`
+  padding: 1rem 2rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: ${(props) => (props.$active ? "var(--color-brand-600)" : "var(--color-grey-500)")};
+  border-bottom: 2px solid ${(props) => (props.$active ? "var(--color-brand-600)" : "transparent")};
+  margin-bottom: -2px;
+  transition: color 0.2s ease, border-color 0.2s ease;
+
+  &:hover {
+    color: var(--color-brand-600);
+  }
+`;
+
 function ScheduleDashboard() {
   const { id } = useParams();
-  const [showScholarSchedule, setShowScholarSchedule] = useState(false);
-  const [showTeacherSchedule, setShowTeacherSchedule] = useState(false);
+  const [activeTab, setActiveTab] = useState("scholar");
 
-  const { isLoading: isLoadingWorkers, workers, error: errorWorkers } = useWorkers({
-    fullDetails: true,
-  });
+  const { isLoading: isLoadingWorkers, workers, error: errorWorkers } = useWorkers({ fullDetails: true });
   const { isLoading: isLoadingSubjects, subjects, error: errorSubjects } = useSubjects();
   const { isLoading: isLoadingGroups, groups, error: errorGroups } = useGroups();
-  const { isLoading: isLoadingScheduleAssignments, scheduleAssignments, error: errorAssignments } =
-    useScheduleAssignments();
-  const { isLoading: isLoadingScheduleTeachers, scheduleTeachers, error: errorTeachers } =
-    useScheduleTeachers();
+  const { isLoading: isLoadingScheduleAssignments, scheduleAssignments, error: errorAssignments } = useScheduleAssignments();
+  const { isLoading: isLoadingScheduleTeachers, scheduleTeachers, error: errorTeachers } = useScheduleTeachers();
   const { isLoading: isLoadingSemesters, semesters, error: errorSemesters } = useSemesters();
 
   if (
-    isLoadingWorkers ||
-    isLoadingSubjects ||
-    isLoadingGroups ||
-    isLoadingScheduleAssignments ||
-    isLoadingScheduleTeachers ||
-    isLoadingSemesters
-  )
-    return <Spinner />;
+    isLoadingWorkers || isLoadingSubjects || isLoadingGroups ||
+    isLoadingScheduleAssignments || isLoadingScheduleTeachers || isLoadingSemesters
+  ) return <Spinner />;
 
-  const anyError =
-    errorWorkers || errorSubjects || errorGroups ||
-    errorAssignments || errorTeachers || errorSemesters;
-
+  const anyError = errorWorkers || errorSubjects || errorGroups || errorAssignments || errorTeachers || errorSemesters;
   if (anyError) return <ErrorMessage message={anyError.message} />;
 
-  const currentGroups = groups.filter((group) => {
-    // if the group is below eight semester
-    return calculateSemesterGroup(group.year_of_admission) <= 8;
-  });
-
-  const currentWorkers = workers.filter((worker) => {
-    // if worker is active
-    return worker.status === 1;
-  });
-
-  const scheduleAssignmentsBySemester = scheduleAssignments.filter(
-    (schedule) => {
-      return schedule.semester_id === +id;
-    }
-  );
-
-  const scheduleTeachersBySemester = scheduleTeachers.filter((schedule) => {
-    return schedule.semester_id === +id;
-  });
-
-  const currentSemester = semesters.filter((semester) => {
-    return semester.id === +id;
-  });
+  const currentGroups = groups.filter((g) => calculateSemesterGroup(g.year_of_admission) <= 8);
+  const currentWorkers = workers.filter((w) => w.status === 1);
+  const scheduleAssignmentsBySemester = scheduleAssignments.filter((s) => s.semester_id === +id);
+  const scheduleTeachersBySemester = scheduleTeachers.filter((s) => s.semester_id === +id);
+  const currentSemester = semesters.find((s) => s.id === +id);
 
   const breadcrumbItems = [
     { label: "Administrar horarios", to: "/semesters" },
-    {
-      label: `Semestre ${currentSemester[0]?.semester || ""}`,
-    },
+    { label: `Semestre ${currentSemester?.semester || ""}` },
   ];
 
   return (
@@ -86,39 +92,46 @@ function ScheduleDashboard() {
       value={{ groups: currentGroups, workers: currentWorkers, subjects, scheduleAssignments: scheduleAssignmentsBySemester }}
     >
       <Breadcrumbs items={breadcrumbItems} />
-      <Row>
-        <Row>
-          <Button onClick={() => setShowScholarSchedule(!showScholarSchedule)}>
-            Gestionar horario escolar
-          </Button>
-          {showScholarSchedule && (
-            <ScholarSchedule
-              workers={workers}
-              subjects={subjects}
-              groups={currentGroups}
-              semesterId={id}
-              scheduleAssignments={scheduleAssignmentsBySemester}
-            />
-          )}
-          <Button onClick={() => setShowTeacherSchedule(!showTeacherSchedule)}>
-            Gestionar horario del maestro
-          </Button>
-          {showTeacherSchedule && (
-            <TeacherSchedule
-              workers={workers}
-              semesterId={id}
-              scheduleTeachers={scheduleTeachersBySemester}
-              scheduleAssignments={scheduleAssignmentsBySemester}
-            />
-          )}
-          <WorkerSheetSemester
-            semester={currentSemester}
-            workers={workers}
-            scheduleAssignments={scheduleAssignmentsBySemester}
-            scheduleTeachers={scheduleTeachersBySemester}
-          />
-        </Row>
-      </Row>
+
+      <SemesterHeader>
+        <div>
+          <Heading as="h1">Semestre {currentSemester?.semester}</Heading>
+          <SemesterMeta>Ciclo escolar {currentSemester?.school_year}</SemesterMeta>
+        </div>
+        <WorkerSheetSemester
+          semester={currentSemester ? [currentSemester] : []}
+          workers={workers}
+          scheduleAssignments={scheduleAssignmentsBySemester}
+          scheduleTeachers={scheduleTeachersBySemester}
+        />
+      </SemesterHeader>
+
+      <TabsBar>
+        <Tab $active={activeTab === "scholar"} onClick={() => setActiveTab("scholar")}>
+          Horario Escolar
+        </Tab>
+        <Tab $active={activeTab === "teacher"} onClick={() => setActiveTab("teacher")}>
+          Horario del Maestro
+        </Tab>
+      </TabsBar>
+
+      {activeTab === "scholar" && (
+        <ScholarSchedule
+          workers={workers}
+          subjects={subjects}
+          groups={currentGroups}
+          semesterId={id}
+          scheduleAssignments={scheduleAssignmentsBySemester}
+        />
+      )}
+      {activeTab === "teacher" && (
+        <TeacherSchedule
+          workers={workers}
+          semesterId={id}
+          scheduleTeachers={scheduleTeachersBySemester}
+          scheduleAssignments={scheduleAssignmentsBySemester}
+        />
+      )}
     </SemesterContext.Provider>
   );
 }

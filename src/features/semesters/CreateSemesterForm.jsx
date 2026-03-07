@@ -7,7 +7,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createSemester } from "../../services/apiSemesters";
 import toast from "react-hot-toast";
 
-function CreateSemesterForm() {
+function CreateSemesterForm({ onCloseModal }) {
   const queryClient = useQueryClient();
 
   const { register, handleSubmit, reset, formState } = useForm();
@@ -19,6 +19,7 @@ function CreateSemesterForm() {
       toast.success("El registro se creó correctamente");
       queryClient.invalidateQueries({ queryKey: ["semesters"] });
       reset();
+      onCloseModal?.();
     },
     onError: (err) => toast.error(err.message),
   });
@@ -82,7 +83,7 @@ function CreateSemesterForm() {
       </FormRow>
 
       <FormRow>
-        <Button variation="secondary" type="reset">
+        <Button variation="secondary" type="button" onClick={onCloseModal}>
           Cancelar
         </Button>
         <Button>Agregar Semestre</Button>
