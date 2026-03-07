@@ -1,8 +1,8 @@
 import styled from "styled-components";
-import Button from "../../ui/Button";
 import Modal from "../../ui/Modal";
+import Menus from "../../ui/Menus";
 import CreateEditStateRoleForm from "./CreateEditStateRoleForm";
-import { useState } from "react";
+import { HiPencil } from "react-icons/hi2";
 
 const TableRow = styled.div`
   display: grid;
@@ -17,21 +17,26 @@ const TableRow = styled.div`
 `;
 
 function StateRoleRow({ role }) {
-  const [editModal, setEditModal] = useState(false);
-
   return (
-    <>
+    <Modal>
       <TableRow role="row">
         <p>{role.role}</p>
         <p>{role.name_worker}</p>
-        <Button onClick={() => setEditModal(!editModal)}>Editar</Button>
+        <Menus>
+          <Menus.Menu>
+            <Menus.Toggle id={role.id} />
+            <Menus.List id={role.id}>
+              <Modal.Open opens="state-role-form">
+                <Menus.Button icon={<HiPencil />}>Editar</Menus.Button>
+              </Modal.Open>
+            </Menus.List>
+          </Menus.Menu>
+        </Menus>
       </TableRow>
-      {editModal && (
-        <Modal onClose={() => setEditModal(false)}>
-          <CreateEditStateRoleForm stateRoleToEdit={role} />
-        </Modal>
-      )}
-    </>
+      <Modal.Window name="state-role-form">
+        <CreateEditStateRoleForm stateRoleToEdit={role} />
+      </Modal.Window>
+    </Modal>
   );
 }
 

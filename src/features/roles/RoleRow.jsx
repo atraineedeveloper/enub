@@ -1,9 +1,9 @@
 import styled from "styled-components";
-import Button from "../../ui/Button";
 import Modal from "../../ui/Modal";
-import { useState } from "react";
+import Menus from "../../ui/Menus";
 import capitalizeName from "../../helpers/capitalizeFirstLetter";
 import CreateEditRoleForm from "./CreateEditRoleForm";
+import { HiPencil } from "react-icons/hi2";
 
 const TableRow = styled.div`
   display: grid;
@@ -18,26 +18,26 @@ const TableRow = styled.div`
 `;
 
 function RoleRow({ role }) {
-  const [editModal, setEditModal] = useState(false);
-
   return (
-    <>
+    <Modal>
       <TableRow role="row">
         <p>{role.role}</p>
         <p>{capitalizeName(role.workers.name)}</p>
-        <Modal>
-          <Modal.Open opens="scholar-schedule-form">
-            <Button>Editar</Button>
-          </Modal.Open>
-          <Modal.Window name="scholar-schedule-form">
-            <CreateEditRoleForm
-              roleToEdit={role}
-              onCloseModal={() => setEditModal(false)}
-            />
-          </Modal.Window>
-        </Modal>
+        <Menus>
+          <Menus.Menu>
+            <Menus.Toggle id={role.id} />
+            <Menus.List id={role.id}>
+              <Modal.Open opens="role-form">
+                <Menus.Button icon={<HiPencil />}>Editar</Menus.Button>
+              </Modal.Open>
+            </Menus.List>
+          </Menus.Menu>
+        </Menus>
       </TableRow>
-    </>
+      <Modal.Window name="role-form">
+        <CreateEditRoleForm roleToEdit={role} />
+      </Modal.Window>
+    </Modal>
   );
 }
 

@@ -76,7 +76,7 @@ const StyledNavLink = styled(NavLink)`
 `;
 
 function MainNav({ onNavigate = () => {} }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
   return (
     <nav>
       <NavLinkHeader onClick={() => setIsOpen(!isOpen)}>

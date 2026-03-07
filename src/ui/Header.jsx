@@ -31,6 +31,20 @@ const MenuButton = styled.button`
   background: var(--color-grey-0);
   color: var(--color-grey-700);
   box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+
+  &:hover {
+    background-color: var(--color-grey-100);
+    color: var(--color-grey-900);
+  }
+`;
+
+const Logo = styled.span`
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--color-brand-600);
+  letter-spacing: 0.05em;
 `;
 
 const IconsContainer = styled.div`
@@ -45,6 +59,8 @@ function Header({ onToggleSidebar }) {
       <MenuButton aria-label="Abrir menú" onClick={onToggleSidebar}>
         <HiBars3 size={22} />
       </MenuButton>
+
+      <Logo>ENUB</Logo>
 
       <IconsContainer>
         <DarkModeToggle />

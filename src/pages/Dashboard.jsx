@@ -1,4 +1,4 @@
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 import Heading from "../ui/Heading";
 import Row from "../ui/Row";
 import Button from "../ui/Button";
@@ -7,7 +7,8 @@ import { useSemesters } from "../features/semesters/useSemesters";
 import { useWorkers } from "../features/workers/useWorkers";
 import { useSubjects } from "../features/subjects/useSubjects";
 import { useGroups } from "../features/groups/useGroups";
-import Spinner from "../ui/Spinner";
+import { FaCalendar } from "react-icons/fa";
+import { HiBookOpen, HiOutlineUsers, HiAcademicCap } from "react-icons/hi2";
 
 const Grid = styled.div`
   display: grid;
@@ -16,24 +17,62 @@ const Grid = styled.div`
   margin: 2rem 0 3rem;
 `;
 
+const shimmer = keyframes`
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+`;
+
 const StatCard = styled.div`
   background-color: var(--color-grey-0);
   border: 1px solid var(--color-grey-200);
   border-radius: var(--border-radius-md);
   padding: 1.6rem 1.8rem;
   box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+`;
+
+const StatIcon = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.8rem;
+  height: 4.8rem;
+  border-radius: var(--border-radius-md);
+  background-color: var(--color-brand-50);
+  color: var(--color-brand-600);
+  flex-shrink: 0;
+`;
+
+const StatContent = styled.div`
+  display: flex;
+  flex-direction: column;
 `;
 
 const StatLabel = styled.p`
   font-size: 1.4rem;
   color: var(--color-grey-600);
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.4rem;
 `;
 
 const StatValue = styled.p`
   font-size: 3rem;
   font-weight: 700;
   color: var(--color-brand-700);
+`;
+
+const SkeletonCard = styled.div`
+  background: linear-gradient(
+    90deg,
+    var(--color-grey-100) 25%,
+    var(--color-grey-50) 50%,
+    var(--color-grey-100) 75%
+  );
+  background-size: 800px 100%;
+  animation: ${shimmer} 1.4s infinite linear;
+  border-radius: var(--border-radius-md);
+  height: 8.4rem;
 `;
 
 const Actions = styled.div`
@@ -70,10 +109,12 @@ function Dashboard() {
   const { subjects, isLoading: loadingSubjects } = useSubjects();
   const { groups, isLoading: loadingGroups } = useGroups();
 
-  const isLoading =
-    loadingSem || loadingWorkers || loadingSubjects || loadingGroups;
-
-  if (isLoading) return <Spinner />;
+  const stats = [
+    { label: "Semestres activos", value: semesters?.length, loading: loadingSem, icon: <FaCalendar size={22} /> },
+    { label: "Trabajadores", value: workers?.length, loading: loadingWorkers, icon: <HiOutlineUsers size={22} /> },
+    { label: "Asignaturas", value: subjects?.length, loading: loadingSubjects, icon: <HiBookOpen size={22} /> },
+    { label: "Grupos", value: groups?.length, loading: loadingGroups, icon: <HiAcademicCap size={22} /> },
+  ];
 
   return (
     <>
@@ -85,22 +126,19 @@ function Dashboard() {
       </Row>
 
       <Grid>
-        <StatCard>
-          <StatLabel>Semestres activos</StatLabel>
-          <StatValue>{semesters?.length ?? 0}</StatValue>
-        </StatCard>
-        <StatCard>
-          <StatLabel>Trabajadores</StatLabel>
-          <StatValue>{workers?.length ?? 0}</StatValue>
-        </StatCard>
-        <StatCard>
-          <StatLabel>Asignaturas</StatLabel>
-          <StatValue>{subjects?.length ?? 0}</StatValue>
-        </StatCard>
-        <StatCard>
-          <StatLabel>Grupos</StatLabel>
-          <StatValue>{groups?.length ?? 0}</StatValue>
-        </StatCard>
+        {stats.map(({ label, value, loading, icon }) =>
+          loading ? (
+            <SkeletonCard key={label} />
+          ) : (
+            <StatCard key={label}>
+              <StatIcon>{icon}</StatIcon>
+              <StatContent>
+                <StatLabel>{label}</StatLabel>
+                <StatValue>{value ?? 0}</StatValue>
+              </StatContent>
+            </StatCard>
+          )
+        )}
       </Grid>
 
       <Actions>

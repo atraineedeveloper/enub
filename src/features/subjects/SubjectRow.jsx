@@ -1,8 +1,10 @@
 import Table from "../../ui/Table";
-import Button from "../../ui/Button";
+import Menus from "../../ui/Menus";
+import { HiPencil } from "react-icons/hi2";
 
 function SubjectRow({ subject }) {
   const {
+    id,
     semester,
     name,
     credits,
@@ -13,20 +15,23 @@ function SubjectRow({ subject }) {
   } = subject;
 
   return (
-    <>
-      <Table.Row>
-        <p>{semester}</p>
-        <p>{name.toUpperCase()}</p>
-        <p>{credits}</p>
-        <p>{hours_per_week}</p>
-        <p>{hours_per_semester}</p>
-        <p>{study_programs.year}</p>
-        <p>{degrees.code}</p>
-        <Button size="medium" variation="primary">
-          Editar
-        </Button>
-      </Table.Row>
-    </>
+    <Table.Row>
+      <p>{semester}</p>
+      <p>{name.toUpperCase()}</p>
+      <p>{credits}</p>
+      <p>{hours_per_week}</p>
+      <p>{hours_per_semester}</p>
+      <p>{study_programs.year}</p>
+      <p>{degrees.code}</p>
+      <Menus>
+        <Menus.Menu>
+          <Menus.Toggle id={id} />
+          <Menus.List id={id}>
+            <Menus.Button icon={<HiPencil />}>Editar</Menus.Button>
+          </Menus.List>
+        </Menus.Menu>
+      </Menus>
+    </Table.Row>
   );
 }
 
