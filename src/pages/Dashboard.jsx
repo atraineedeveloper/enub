@@ -33,6 +33,12 @@ const StatCard = styled.div`
   gap: 1.4rem;
 `;
 
+const iconThemes = {
+  gold: { bg: "var(--color-gold-100)", color: "var(--color-gold-700)" },
+  brand: { bg: "var(--color-brand-50)", color: "var(--color-brand-600)" },
+  green: { bg: "var(--color-gov-green-100)", color: "var(--color-gov-green-700)" },
+};
+
 const StatIcon = styled.div`
   display: flex;
   align-items: center;
@@ -40,8 +46,8 @@ const StatIcon = styled.div`
   width: 4.8rem;
   height: 4.8rem;
   border-radius: var(--border-radius-md);
-  background-color: var(--color-brand-50);
-  color: var(--color-brand-600);
+  background-color: ${(p) => iconThemes[p.$theme]?.bg ?? "var(--color-brand-50)"};
+  color: ${(p) => iconThemes[p.$theme]?.color ?? "var(--color-brand-600)"};
   flex-shrink: 0;
 `;
 
@@ -83,6 +89,12 @@ const Actions = styled.div`
 
 const ActionCard = styled.div`
   border: 1px solid var(--color-grey-200);
+  border-top: 3px solid ${(p) =>
+    p.$accent === "gold"
+      ? "var(--color-gold-700)"
+      : p.$accent === "green"
+      ? "var(--color-gov-green-700)"
+      : "var(--color-brand-600)"};
   border-radius: var(--border-radius-md);
   padding: 1.4rem 1.6rem;
   background: var(--color-grey-0);
@@ -110,10 +122,10 @@ function Dashboard() {
   const { groups, isLoading: loadingGroups } = useGroups();
 
   const stats = [
-    { label: "Semestres activos", value: semesters?.length, loading: loadingSem, icon: <FaCalendar size={22} /> },
-    { label: "Trabajadores", value: workers?.length, loading: loadingWorkers, icon: <HiOutlineUsers size={22} /> },
-    { label: "Asignaturas", value: subjects?.length, loading: loadingSubjects, icon: <HiBookOpen size={22} /> },
-    { label: "Grupos", value: groups?.length, loading: loadingGroups, icon: <HiAcademicCap size={22} /> },
+    { label: "Semestres activos", value: semesters?.length, loading: loadingSem, icon: <FaCalendar size={22} />, theme: "gold" },
+    { label: "Trabajadores", value: workers?.length, loading: loadingWorkers, icon: <HiOutlineUsers size={22} />, theme: "brand" },
+    { label: "Asignaturas", value: subjects?.length, loading: loadingSubjects, icon: <HiBookOpen size={22} />, theme: "green" },
+    { label: "Grupos", value: groups?.length, loading: loadingGroups, icon: <HiAcademicCap size={22} />, theme: "green" },
   ];
 
   return (
@@ -126,12 +138,12 @@ function Dashboard() {
       </Row>
 
       <Grid>
-        {stats.map(({ label, value, loading, icon }) =>
+        {stats.map(({ label, value, loading, icon, theme }) =>
           loading ? (
             <SkeletonCard key={label} />
           ) : (
             <StatCard key={label}>
-              <StatIcon>{icon}</StatIcon>
+              <StatIcon $theme={theme}>{icon}</StatIcon>
               <StatContent>
                 <StatLabel>{label}</StatLabel>
                 <StatValue>{value ?? 0}</StatValue>
@@ -142,7 +154,7 @@ function Dashboard() {
       </Grid>
 
       <Actions>
-        <ActionCard>
+        <ActionCard $accent="gold">
           <ActionTitle>Administrar horarios</ActionTitle>
           <ActionText>
             Ingresa a los semestres para gestionar horarios escolares y de
@@ -153,7 +165,7 @@ function Dashboard() {
           </Button>
         </ActionCard>
 
-        <ActionCard>
+        <ActionCard $accent="green">
           <ActionTitle>Registrar asignaturas</ActionTitle>
           <ActionText>
             Alta y edición de materias, su semestre y programa académico.
@@ -163,7 +175,7 @@ function Dashboard() {
           </Button>
         </ActionCard>
 
-        <ActionCard>
+        <ActionCard $accent="brand">
           <ActionTitle>Gestionar trabajadores</ActionTitle>
           <ActionText>
             Revisa el padrón de maestros y personal, y sus roles asignados.
@@ -173,7 +185,7 @@ function Dashboard() {
           </Button>
         </ActionCard>
 
-        <ActionCard>
+        <ActionCard $accent="green">
           <ActionTitle>Grupos escolares</ActionTitle>
           <ActionText>
             Consulta o crea grupos por licenciatura y semestre en curso.

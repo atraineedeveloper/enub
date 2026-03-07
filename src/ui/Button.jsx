@@ -30,12 +30,13 @@ const variations = {
     }
   `,
   secondary: css`
-    color: var(--color-grey-600);
-    background: var(--color-grey-0);
-    border: 1px solid var(--color-grey-200);
+    color: var(--color-grey-700);
+    background: var(--color-grey-100);
+    border: 1px solid var(--color-grey-400);
 
     &:hover {
-      background-color: var(--color-grey-50);
+      background-color: var(--color-grey-200);
+      border-color: var(--color-grey-500);
     }
   `,
   danger: css`

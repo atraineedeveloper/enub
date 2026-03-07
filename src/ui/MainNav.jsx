@@ -73,6 +73,12 @@ const StyledNavLink = styled(NavLink)`
   &.active:visited svg {
     color: var(--color-brand-600);
   }
+
+  &.active:link,
+  &.active:visited {
+    border-left: 3px solid var(--color-brand-600);
+    padding-left: calc(2.4rem - 3px);
+  }
 `;
 
 function MainNav({ onNavigate = () => {} }) {
@@ -139,11 +145,17 @@ function MainNav({ onNavigate = () => {} }) {
           </li>
         </NavList>
       )}
-      <NavLink to="/semesters" onClick={onNavigate}>
-        <NavLinkHeader>
-          <span>Administrar horarios</span>
-          <FaCalendar size={26} />
-        </NavLinkHeader>
+      <NavLink to="/semesters" onClick={onNavigate} style={({ isActive }) => ({ textDecoration: "none" })}>
+        {({ isActive }) => (
+          <NavLinkHeader style={{
+            color: isActive ? "var(--color-gold-700)" : undefined,
+            borderLeft: isActive ? "3px solid var(--color-gold-700)" : "3px solid transparent",
+            paddingLeft: "calc(2.4rem - 3px)",
+          }}>
+            <span>Administrar horarios</span>
+            <FaCalendar size={26} style={{ color: isActive ? "var(--color-gold-700)" : "var(--color-grey-400)" }} />
+          </NavLinkHeader>
+        )}
       </NavLink>
     </nav>
   );

@@ -12,6 +12,17 @@ const GlobalStyles = createGlobalStyle`
   --color-brand-800: #6f1a33;
   --color-brand-900: #591529;
 
+  /* Dorado — Gobierno de México */
+  --color-gold-100: #f5edca;
+  --color-gold-200: #e6d194;
+  --color-gold-700: #a57f2c;
+  --color-gold-800: #7d5f1e;
+
+  /* Verde Institucional — Gobierno de México */
+  --color-gov-green-100: #c6dbd7;
+  --color-gov-green-700: #1e5b4f;
+  --color-gov-green-800: #002f2a;
+
   /* Grey */
   --color-grey-0: #fff;
   --color-grey-50: #f9fafb;
@@ -68,6 +79,15 @@ const GlobalStyles = createGlobalStyle`
   --color-grey-700: #e5e7eb;
   --color-grey-800: #f3f4f6;
   --color-grey-900: #f9fafb;
+
+  --color-gold-100: #3d2e06;
+  --color-gold-200: #5a4410;
+  --color-gold-700: #d4aa55;
+  --color-gold-800: #e6d194;
+
+  --color-gov-green-100: #0a1f1c;
+  --color-gov-green-700: #4a9e8e;
+  --color-gov-green-800: #c6dbd7;
 
   --color-blue-100: #075985;
   --color-blue-700: #e0f2fe;

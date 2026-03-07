@@ -40,6 +40,11 @@ const TabsBar = styled.div`
   margin-bottom: 2.4rem;
 `;
 
+const tabAccents = {
+  scholar: "var(--color-gold-700)",
+  teacher: "var(--color-gov-green-700)",
+};
+
 const Tab = styled.button`
   padding: 1rem 2rem;
   font-size: 1.5rem;
@@ -47,13 +52,13 @@ const Tab = styled.button`
   border: none;
   background: none;
   cursor: pointer;
-  color: ${(props) => (props.$active ? "var(--color-brand-600)" : "var(--color-grey-500)")};
-  border-bottom: 2px solid ${(props) => (props.$active ? "var(--color-brand-600)" : "transparent")};
+  color: ${(props) => (props.$active ? tabAccents[props.$tab] : "var(--color-grey-500)")};
+  border-bottom: 2px solid ${(props) => (props.$active ? tabAccents[props.$tab] : "transparent")};
   margin-bottom: -2px;
   transition: color 0.2s ease, border-color 0.2s ease;
 
   &:hover {
-    color: var(--color-brand-600);
+    color: ${(props) => tabAccents[props.$tab]};
   }
 `;
 
@@ -107,10 +112,10 @@ function ScheduleDashboard() {
       </SemesterHeader>
 
       <TabsBar>
-        <Tab $active={activeTab === "scholar"} onClick={() => setActiveTab("scholar")}>
+        <Tab $active={activeTab === "scholar"} $tab="scholar" onClick={() => setActiveTab("scholar")}>
           Horario Escolar
         </Tab>
-        <Tab $active={activeTab === "teacher"} onClick={() => setActiveTab("teacher")}>
+        <Tab $active={activeTab === "teacher"} $tab="teacher" onClick={() => setActiveTab("teacher")}>
           Horario del Maestro
         </Tab>
       </TabsBar>

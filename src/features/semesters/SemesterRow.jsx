@@ -33,8 +33,8 @@ const IconBox = styled.div`
   width: 4rem;
   height: 4rem;
   border-radius: var(--border-radius-md);
-  background-color: var(--color-brand-50);
-  color: var(--color-brand-600);
+  background-color: var(--color-gold-100);
+  color: var(--color-gold-700);
   flex-shrink: 0;
 `;
 
