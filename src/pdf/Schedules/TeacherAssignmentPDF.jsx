@@ -50,7 +50,7 @@ function TeacherAssignmentPDF({
 
     const logoSetab = new Image();
     logoSetab.src = "/setab.jpeg";
-    doc.addImage(logoSetab, "JPEG", 30, 5, 60, 60);
+    doc.addImage(logoSetab, "JPEG", 15, 17, 130, 36);
 
     doc.autoTable({
       willDrawPage: function (data) {

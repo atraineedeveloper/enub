@@ -187,7 +187,7 @@ function WorkerSheetSemester({
       const right = data?.settings?.margin?.right ?? tableMargins.right;
       const centerX = pageWidth / 2;
 
-      doc.addImage(logoSetab, "JPEG", left + 6, 8, 46, 46);
+      doc.addImage(logoSetab, "JPEG", left + 6, 18, 110, 30);
       doc.addImage(logoEnub, "JPG", pageWidth - right - 52, 10, 46, 46);
 
       doc.setFont("Montserrat-Italic", "italic");
