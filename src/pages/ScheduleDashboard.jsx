@@ -8,6 +8,7 @@ import { useGroups } from "../features/groups/useGroups";
 import { useParams } from "react-router-dom";
 import { useScheduleAssignments } from "../features/schedules/useScheduleAssignments";
 import calculateSemesterGroup from "../helpers/calculateSemesterGroup";
+import sortWorkersBySurname from "../helpers/sortWorkersBySurname";
 import TeacherSchedule from "../features/schedules/TeacherSchedule";
 import { useScheduleTeachers } from "../features/schedules/useScheduleTeachers";
 import WorkerSheetSemester from "../pdf/WorkerSheetSemester";
@@ -83,6 +84,7 @@ function ScheduleDashboard() {
 
   const currentGroups = groups.filter((g) => calculateSemesterGroup(g.year_of_admission) <= 8);
   const currentWorkers = workers.filter((w) => w.status === 1);
+  const sortedCurrentWorkers = sortWorkersBySurname(currentWorkers);
   const scheduleAssignmentsBySemester = scheduleAssignments.filter((s) => s.semester_id === +id);
   const scheduleTeachersBySemester = scheduleTeachers.filter((s) => s.semester_id === +id);
   const currentSemester = semesters.find((s) => s.id === +id);
@@ -94,7 +96,12 @@ function ScheduleDashboard() {
 
   return (
     <SemesterContext.Provider
-      value={{ groups: currentGroups, workers: currentWorkers, subjects, scheduleAssignments: scheduleAssignmentsBySemester }}
+      value={{
+        groups: currentGroups,
+        workers: sortedCurrentWorkers,
+        subjects,
+        scheduleAssignments: scheduleAssignmentsBySemester,
+      }}
     >
       <Breadcrumbs items={breadcrumbItems} />
 
@@ -105,7 +112,7 @@ function ScheduleDashboard() {
         </div>
         <WorkerSheetSemester
           semester={currentSemester ? [currentSemester] : []}
-          workers={workers}
+          workers={sortedCurrentWorkers}
           scheduleAssignments={scheduleAssignmentsBySemester}
           scheduleTeachers={scheduleTeachersBySemester}
         />
@@ -122,7 +129,7 @@ function ScheduleDashboard() {
 
       {activeTab === "scholar" && (
         <ScholarSchedule
-          workers={workers}
+          workers={sortedCurrentWorkers}
           subjects={subjects}
           groups={currentGroups}
           semesterId={id}
@@ -131,7 +138,7 @@ function ScheduleDashboard() {
       )}
       {activeTab === "teacher" && (
         <TeacherSchedule
-          workers={workers}
+          workers={sortedCurrentWorkers}
           semesterId={id}
           scheduleTeachers={scheduleTeachersBySemester}
           scheduleAssignments={scheduleAssignmentsBySemester}
