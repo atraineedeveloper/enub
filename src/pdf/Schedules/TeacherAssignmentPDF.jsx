@@ -470,7 +470,9 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY - 8,
     });
 
-    doc.output("dataurlnewwindow");
+    const blobUrl = doc.output("bloburl");
+    const previewWindow = window.open(blobUrl, "_blank");
+    if (!previewWindow) doc.save("AsignacionHoraria.pdf");
   };
   return (
     <Button variation="secondary" onClick={generatePDF}>

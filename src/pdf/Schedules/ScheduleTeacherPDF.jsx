@@ -392,7 +392,9 @@ function ScheduleTeacherPDF({ schedulesScholar, scheduleTeacher, totalHours }) {
       theme: "plain",
     });
 
-    doc.output("dataurlnewwindow");
+    const blobUrl = doc.output("bloburl");
+    const previewWindow = window.open(blobUrl, "_blank");
+    if (!previewWindow) doc.save("HorarioMaestro.pdf");
   };
 
   if (isLoadingRoles || isLoadingStateRoles || isLoadingUtilities)
