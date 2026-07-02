@@ -37,11 +37,11 @@
 
 ## Phase 4: React Query hooks
 
-- [ ] Create worker document query hook.
-- [ ] Create document upload mutation hook.
-- [ ] Create document replace mutation hook.
-- [ ] Create document download URL hook or helper.
-- [ ] Invalidate related queries after upload/replace.
+- [x] Create worker document query hook.
+- [x] Create document upload mutation hook.
+- [x] Create document replace mutation hook.
+- [x] Create document download URL hook or helper.
+- [x] Invalidate related queries after upload/replace.
 
 ## Phase 5: UI
 
