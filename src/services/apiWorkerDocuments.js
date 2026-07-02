@@ -14,6 +14,17 @@ const ALLOWED_FILE_EXTENSIONS = new Set([
   "png",
   "webp",
 ]);
+const MIME_TYPE_BY_EXTENSION = {
+  pdf: "application/pdf",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xls: "application/vnd.ms-excel",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+};
 const WORKER_DOCUMENT_SELECT =
   "*, worker_document_types(*, worker_document_categories(*)), semesters(*)";
 
@@ -57,6 +68,11 @@ function validateWorkerDocumentFile(file) {
   if (!file.size || file.size > MAX_WORKER_DOCUMENT_SIZE) {
     throw new Error("El archivo no debe pesar más de 10 MB");
   }
+}
+
+function getWorkerDocumentMimeType(file) {
+  const extension = getFileExtension(file.name);
+  return MIME_TYPE_BY_EXTENSION[extension] ?? file.type;
 }
 
 function createWorkerDocumentStoragePath({
@@ -117,7 +133,7 @@ async function uploadWorkerDocumentFile(storagePath, file) {
   const { error } = await supabase.storage
     .from(WORKER_DOCUMENTS_BUCKET)
     .upload(storagePath, file, {
-      contentType: file.type || undefined,
+      contentType: getWorkerDocumentMimeType(file),
       upsert: false,
     });
 
@@ -157,7 +173,7 @@ async function insertWorkerDocumentMetadata({
         semester_id: normalizeSemesterId(semesterId),
         file_name: file.name,
         storage_path: storagePath,
-        mime_type: file.type || "application/octet-stream",
+        mime_type: getWorkerDocumentMimeType(file),
         file_size: file.size,
       },
     ])

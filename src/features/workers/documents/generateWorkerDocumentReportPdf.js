@@ -24,6 +24,17 @@ function sanitizeFileName(value = "") {
     .toLowerCase();
 }
 
+function wrapLongText(value = "", chunkSize = 36) {
+  return String(value)
+    .split(/(\s+)/)
+    .map((part) => {
+      if (/^\s+$/.test(part) || part.length <= chunkSize) return part;
+
+      return part.match(new RegExp(`.{1,${chunkSize}}`, "g")).join("\n");
+    })
+    .join("");
+}
+
 function buildReportRows(categories = []) {
   return categories.flatMap((category) =>
     (category.document_types ?? []).flatMap((documentType) => {
@@ -45,7 +56,7 @@ function buildReportRows(categories = []) {
         category.name,
         documentType.name,
         "Cargado",
-        document.file_name,
+        wrapLongText(document.file_name),
         formatDate(document.created_at),
       ]);
     })
@@ -60,6 +71,7 @@ export function generateWorkerDocumentReportPdf(reportData) {
   const { worker, semester, categories } = reportData;
   const doc = new jsPDF("landscape", "px", "letter");
   const pageWidth = doc.internal.pageSize.getWidth();
+  const horizontalMargin = 24;
   const generatedAt = formatDate(new Date().toISOString());
   const semesterLabel = getSemesterLabel(semester);
   const workerName = worker.name ?? "Trabajador";
@@ -90,11 +102,12 @@ export function generateWorkerDocumentReportPdf(reportData) {
       ],
     ],
     body: buildReportRows(categories),
-    margin: { left: 32, right: 32, bottom: 32 },
+    margin: { left: horizontalMargin, right: horizontalMargin, bottom: 24 },
+    tableWidth: pageWidth - horizontalMargin * 2,
     styles: {
       font: "helvetica",
-      fontSize: 8,
-      cellPadding: 4,
+      fontSize: 6.5,
+      cellPadding: 3,
       overflow: "linebreak",
       valign: "top",
     },
@@ -107,11 +120,11 @@ export function generateWorkerDocumentReportPdf(reportData) {
       fillColor: [245, 247, 242],
     },
     columnStyles: {
-      0: { cellWidth: 110 },
-      1: { cellWidth: 150 },
-      2: { cellWidth: 70 },
-      3: { cellWidth: 220 },
-      4: { cellWidth: 100 },
+      0: { cellWidth: 92 },
+      1: { cellWidth: 148 },
+      2: { cellWidth: 58 },
+      3: { cellWidth: 335 },
+      4: { cellWidth: 82 },
     },
   });
 

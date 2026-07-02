@@ -300,12 +300,22 @@ function WorkerDocuments() {
   async function handleDownloadDocument(document) {
     try {
       const signedUrl = await getWorkerDocumentSignedUrl(document.storage_path);
+      const response = await fetch(signedUrl);
+
+      if (!response.ok) {
+        throw new Error("No se pudo descargar el documento");
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
       const link = window.document.createElement("a");
-      link.href = signedUrl;
+      link.href = objectUrl;
       link.download = document.file_name;
-      link.rel = "noopener noreferrer";
-      link.target = "_blank";
+      link.style.display = "none";
+      window.document.body.appendChild(link);
       link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
     } catch (error) {
       toast.error(error?.message || "No se pudo descargar el documento");
     }
