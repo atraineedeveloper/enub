@@ -64,13 +64,13 @@ Three new tables, all using `bigint identity` primary keys to match `workers`/`s
 
 Reference/lookup table, seeded once via migration.
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | `bigint identity` | PK |
-| `name` | `text not null` | e.g. "Datos personales", "Docencia" |
-| `scope` | `text not null` | `'permanent'` or `'semester'`, enforced by `CHECK` |
-| `sort_order` | `smallint not null default 0` | display ordering |
-| `created_at` | `timestamptz not null default now()` | |
+| Column       | Type                                 | Notes                                              |
+| ------------ | ------------------------------------ | -------------------------------------------------- |
+| `id`         | `bigint identity`                    | PK                                                 |
+| `name`       | `text not null`                      | e.g. "Datos personales", "Docencia"                |
+| `scope`      | `text not null`                      | `'permanent'` or `'semester'`, enforced by `CHECK` |
+| `sort_order` | `smallint not null default 0`        | display ordering                                   |
+| `created_at` | `timestamptz not null default now()` |                                                    |
 
 `UNIQUE (name)`.
 
@@ -78,14 +78,14 @@ Reference/lookup table, seeded once via migration.
 
 Reference/lookup table, seeded once via migration.
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | `bigint identity` | PK |
-| `category_id` | `bigint not null references worker_document_categories(id)` | |
-| `name` | `text not null` | e.g. "CURP", "Evidencias" |
-| `allows_multiple` | `boolean not null default false` | `true` only for the Evidencias-type entries |
-| `sort_order` | `smallint not null default 0` | |
-| `created_at` | `timestamptz not null default now()` | |
+| Column            | Type                                                        | Notes                                       |
+| ----------------- | ----------------------------------------------------------- | ------------------------------------------- |
+| `id`              | `bigint identity`                                           | PK                                          |
+| `category_id`     | `bigint not null references worker_document_categories(id)` |                                             |
+| `name`            | `text not null`                                             | e.g. "CURP", "Evidencias"                   |
+| `allows_multiple` | `boolean not null default false`                            | `true` only for the Evidencias-type entries |
+| `sort_order`      | `smallint not null default 0`                               |                                             |
+| `created_at`      | `timestamptz not null default now()`                        |                                             |
 
 `UNIQUE (category_id, name)`. Index on `category_id`.
 
@@ -93,18 +93,23 @@ Reference/lookup table, seeded once via migration.
 
 Uploaded file records — the only table written to at runtime.
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | `bigint identity` | PK |
-| `worker_id` | `bigint not null references workers(id) on delete cascade` | |
-| `document_type_id` | `bigint not null references worker_document_types(id)` | |
-| `semester_id` | `bigint references semesters(id)` | `NULL` for permanent-scope categories, required for semester-scope categories |
-| `file_name` | `text not null` | original file name |
-| `storage_path` | `text not null` | path inside the storage bucket |
-| `mime_type` | `text not null` | |
-| `file_size` | `bigint not null` | bytes, enforced `<= 10485760` via `CHECK` as a defense-in-depth backstop to client-side validation |
-| `uploaded_by` | `uuid references auth.users(id)` | nullable — populated from `auth.uid()` at insert time when available |
-| `created_at` | `timestamptz not null default now()` | upload date |
+| Column             | Type                                                       | Notes                                                                         |
+| ------------------ | ---------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `id`               | `bigint identity`                                          | PK                                                                            |
+| `worker_id`        | `bigint not null references workers(id) on delete cascade` |                                                                               |
+| `document_type_id` | `bigint not null references worker_document_types(id)`     |                                                                               |
+| `semester_id`      | `bigint references semesters(id)`                          | `NULL` for permanent-scope categories, required for semester-scope categories |
+| `file_name`        | `text not null`                                            | original file name                                                            |
+| `storage_path`     | `text not null`                                            | path inside the storage bucket, globally unique                               |
+| `mime_type`        | `text not null`                                            |                                                                               |
+| `file_size`        | `bigint not null`                                          | bytes, enforced with `CHECK (file_size > 0 AND file_size <= 10485760)`        |
+| `uploaded_by`      | `uuid references auth.users(id)`                           | nullable — populated from `auth.uid()` at insert time when available          |
+| `created_at`       | `timestamptz not null default now()`                       | upload date                                                                   |
+
+Constraints:
+
+- `UNIQUE (storage_path)` prevents two metadata rows from pointing to the same storage object.
+- `CHECK (file_size > 0 AND file_size <= 10485760)` enforces a positive file size and the 10 MB MVP limit.
 
 Indexes: `(worker_id)`, `(worker_id, semester_id)`, `(document_type_id)`.
 
@@ -136,11 +141,11 @@ The worker document status report (task list Phase 6) is a read-only aggregation
 
 Confirmed staff-facing access model ([decisions.md #11](specs/active/worker-document-uploads/decisions.md)): any authenticated internal user may upload or view documents for any worker in this MVP; no per-worker or per-uploader row scoping. Proposed policies follow the existing project convention (permissive by role, not by row owner), but are **stricter than the existing `workers` table** because these rows reference sensitive personal documents:
 
-| Table | SELECT | INSERT | UPDATE | DELETE |
-|---|---|---|---|---|
-| `worker_document_categories` | `USING (true)` — all roles (reference data, safe to expose) | none (seeded via migration only) | none | none |
-| `worker_document_types` | `USING (true)` — all roles | none (seeded via migration only) | none | none |
-| `worker_documents` | `TO authenticated USING (true)` — **not** open to `anon`, unlike most existing tables | `TO authenticated WITH CHECK (true)` | `TO authenticated USING (true) WITH CHECK (true)` (only needed if metadata edits are allowed; likely unused if replace = delete+insert) | `TO authenticated USING (true)` |
+| Table                        | SELECT                                                                                | INSERT                               | UPDATE                                                                                                                                  | DELETE                          |
+| ---------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| `worker_document_categories` | `USING (true)` — all roles (reference data, safe to expose)                           | none (seeded via migration only)     | none                                                                                                                                    | none                            |
+| `worker_document_types`      | `USING (true)` — all roles                                                            | none (seeded via migration only)     | none                                                                                                                                    | none                            |
+| `worker_documents`           | `TO authenticated USING (true)` — **not** open to `anon`, unlike most existing tables | `TO authenticated WITH CHECK (true)` | `TO authenticated USING (true) WITH CHECK (true)` (only needed if metadata edits are allowed; likely unused if replace = delete+insert) | `TO authenticated USING (true)` |
 
 `storage.objects` policies for the `worker_documents` bucket: mirror the table policy — `SELECT`/`INSERT`/`UPDATE`/`DELETE` restricted `TO authenticated`, `bucket_id = 'worker_documents'`, no `anon` access. This differs from typical public-bucket policies and is necessary since the bucket is private.
 
