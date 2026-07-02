@@ -2,24 +2,27 @@
 
 ## Phase 1: Spec and database planning
 
-- [ ] Confirm stakeholder decisions in `decisions.md`.
-- [ ] Update `spec.md` with permanent vs semester document scope.
-- [ ] Create `database-plan.md`.
-- [ ] Confirm existing workers table name and primary key type.
-- [ ] Confirm existing semesters table name and primary key type.
-- [ ] Confirm current Supabase setup.
+- [x] Confirm stakeholder decisions in `decisions.md`.
+- [x] Update `spec.md` with permanent vs semester document scope.
+- [x] Create `database-plan.md`.
+- [x] Create `verification-plan.md`.
+- [x] Confirm existing workers table name and primary key type.
+- [x] Confirm existing semesters table name and primary key type.
+- [x] Confirm current Supabase setup.
 
 ## Phase 2: Supabase schema
 
-- [ ] Create migration for worker document categories.
-- [ ] Create migration for worker document types.
-- [ ] Create migration for uploaded worker documents.
-- [ ] Add support for worker-level and semester-level document scopes.
-- [ ] Add support for multiple files in evidence document types.
-- [ ] Add indexes.
-- [ ] Add RLS policies.
-- [ ] Add storage bucket setup if safely representable in SQL.
-- [ ] Add seed data for categories and document types.
+- [x] Create migration for worker document categories.
+- [x] Create migration for worker document types.
+- [x] Create migration for uploaded worker documents.
+- [x] Add support for worker-level and semester-level document scopes.
+- [x] Add support for multiple files in evidence document types.
+- [x] Add indexes.
+- [x] Add RLS policies.
+- [x] Add storage bucket setup if safely representable in SQL.
+- [x] Add seed data for categories and document types.
+- [x] Add trigger function for permanent vs semester scope consistency.
+- [x] Add trigger function for single-file enforcement when `allows_multiple = false`.
 
 ## Phase 3: Data access layer
 
@@ -76,3 +79,13 @@
 - [ ] Manually verify multiple evidence files.
 - [ ] Manually verify report download.
 - [ ] Confirm no `.env` or secrets were committed.
+
+## Follow-up (separate future spec, not part of this feature)
+
+Deferred by the staff-facing access-model decision (`decisions.md` #11) and the storage gap noted in `decisions.md` #14:
+
+- [ ] `auth.users` to `workers` mapping.
+- [ ] Worker self-service portal.
+- [ ] Dirección/admin role tier.
+- [ ] Ownership-based RLS policies once the above exist.
+- [ ] Make `profile_pictures` bucket reproducible locally via migration.
