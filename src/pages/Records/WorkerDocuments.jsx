@@ -36,8 +36,10 @@ const ACCEPTED_DOCUMENT_TYPES =
 const PageHeader = styled.div`
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 1.6rem;
+  gap: 2.4rem;
   align-items: end;
+  padding-bottom: 1.2rem;
+  border-bottom: 1px solid var(--color-grey-200);
 
   @media (max-width: 700px) {
     grid-template-columns: 1fr;
@@ -79,7 +81,8 @@ const HeaderActions = styled.div`
 const Section = styled.section`
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
+  gap: 1.6rem;
+  padding-top: 0.8rem;
 `;
 
 const SectionHeader = styled.div`
@@ -108,6 +111,12 @@ const Status = styled.span`
 `;
 
 const DocumentList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`;
+
+const DocumentFile = styled.div`
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
@@ -160,6 +169,17 @@ const UploadArea = styled.div`
   }
 `;
 
+const UploadControls = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+`;
+
+const UploadHint = styled.span`
+  color: var(--color-grey-500);
+  font-size: 1.2rem;
+`;
+
 const EmptyState = styled.p`
   background-color: var(--color-grey-0);
   border: 1px solid var(--color-grey-200);
@@ -196,6 +216,7 @@ function WorkerDocuments() {
   const workerId = Number(id);
   const [selectedSemesterId, setSelectedSemesterId] = useState("");
   const [selectedFiles, setSelectedFiles] = useState({});
+  const [fileInputVersions, setFileInputVersions] = useState({});
   const { workers, isLoading: isLoadingWorkers, error: workersError } =
     useWorkers({ fullDetails: false });
   const {
@@ -262,6 +283,10 @@ function WorkerDocuments() {
       delete nextFiles[documentTypeId];
       return nextFiles;
     });
+    setFileInputVersions((currentVersions) => ({
+      ...currentVersions,
+      [documentTypeId]: (currentVersions[documentTypeId] ?? 0) + 1,
+    }));
   }
 
   function handleUpload(documentType, existingDocuments, categoryScope) {
@@ -355,11 +380,17 @@ function WorkerDocuments() {
             const uploaded = existingDocuments.length > 0;
             const selectedFile = selectedFiles[documentType.id];
             const isWorking = isUploading || isReplacing;
+            const isReplacingDocument =
+              uploaded && !documentType.allows_multiple;
             const actionLabel = documentType.allows_multiple
-              ? "Subir otro"
-              : uploaded
-                ? "Reemplazar"
-                : "Subir";
+              ? "Subir evidencia"
+              : isReplacingDocument
+                ? "Reemplazar archivo"
+                : "Subir archivo";
+            const pendingLabel = isReplacingDocument
+              ? "Reemplazando..."
+              : "Subiendo...";
+            const fileInputId = `worker-document-${documentType.id}`;
 
             return (
               <Table.Row key={documentType.id}>
@@ -375,46 +406,59 @@ function WorkerDocuments() {
                 <DocumentList>
                   {uploaded ? (
                     existingDocuments.map((document) => (
-                      <div key={document.id}>
+                      <DocumentFile key={document.id}>
                         <FileName>{document.file_name}</FileName>
                         <Meta>{formatDate(document.created_at)}</Meta>
                         <FileActions>
                           <FileLink
                             type="button"
+                            aria-label={`Ver ${document.file_name}`}
                             onClick={() =>
                               handleOpenDocument(document.storage_path)
                             }
                           >
-                            <HiEye /> Ver
+                            <HiEye /> Ver archivo
                           </FileLink>
                           <FileLink
                             type="button"
+                            aria-label={`Descargar ${document.file_name}`}
                             onClick={() => handleDownloadDocument(document)}
                           >
-                            <HiArrowDownTray /> Descargar
+                            <HiArrowDownTray /> Descargar archivo
                           </FileLink>
                         </FileActions>
-                      </div>
+                      </DocumentFile>
                     ))
                   ) : (
                     <Meta>Sin archivo cargado</Meta>
                   )}
                 </DocumentList>
                 <UploadArea>
-                  <Input
-                    type="file"
-                    accept={ACCEPTED_DOCUMENT_TYPES}
-                    disabled={isWorking}
-                    onChange={(event) =>
-                      handleFileChange(
-                        documentType.id,
-                        event.target.files?.[0] ?? null
-                      )
-                    }
-                  />
+                  <UploadControls>
+                    <Input
+                      key={`${documentType.id}-${
+                        fileInputVersions[documentType.id] ?? 0
+                      }`}
+                      id={fileInputId}
+                      type="file"
+                      accept={ACCEPTED_DOCUMENT_TYPES}
+                      aria-label={`Seleccionar archivo para ${documentType.name}`}
+                      disabled={isWorking}
+                      onChange={(event) =>
+                        handleFileChange(
+                          documentType.id,
+                          event.target.files?.[0] ?? null
+                        )
+                      }
+                    />
+                    {selectedFile && (
+                      <UploadHint>Seleccionado: {selectedFile.name}</UploadHint>
+                    )}
+                  </UploadControls>
                   <Button
                     size="small"
                     type="button"
+                    aria-label={`${actionLabel} para ${documentType.name}`}
                     disabled={!selectedFile || isWorking}
                     onClick={() =>
                       handleUpload(
@@ -431,9 +475,10 @@ function WorkerDocuments() {
                     ) : (
                       actionLabel
                     )}
-                    {documentType.allows_multiple && !isWorking
-                      ? ` ${actionLabel}`
-                      : ""}
+                    {isWorking && ` ${pendingLabel}`}
+                    {documentType.allows_multiple &&
+                      !isWorking &&
+                      ` ${actionLabel}`}
                   </Button>
                 </UploadArea>
               </Table.Row>
