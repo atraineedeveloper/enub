@@ -26,14 +26,14 @@
 
 ## Phase 3: Data access layer
 
-- [ ] Create `src/services/apiWorkerDocuments.js`.
-- [ ] Implement function to fetch document categories and types.
-- [ ] Implement function to fetch uploaded documents by worker.
-- [ ] Implement function to fetch uploaded documents by worker and semester.
-- [ ] Implement upload function using Supabase Storage.
-- [ ] Implement replace function for single-file document types.
-- [ ] Implement download/view URL function.
-- [ ] Implement report data function.
+- [x] Create `src/services/apiWorkerDocuments.js`.
+- [x] Implement function to fetch document categories and types.
+- [x] Implement function to fetch uploaded documents by worker.
+- [x] Implement function to fetch uploaded documents by worker and semester.
+- [x] Implement upload function using Supabase Storage.
+- [x] Implement replace function for single-file document types.
+- [x] Implement download/view URL function.
+- [x] Implement report data function.
 
 ## Phase 4: React Query hooks
 
