@@ -14,6 +14,7 @@
     "supabase:status": "supabase status",
     "supabase:reset": "supabase db reset",
     "supabase:lint": "supabase db lint",
+    "supabase:test": "supabase test db --local",
     "supabase:migration:new": "supabase migration new",
     "supabase:push:dry": "supabase db push --dry-run"
   },

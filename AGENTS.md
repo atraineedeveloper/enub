@@ -71,6 +71,7 @@ Allowed local commands:
 - `bunx supabase migration new <name>`
 - `bunx supabase db reset`
 - `bunx supabase db lint`
+- `bunx supabase test db --local`
 - `bunx supabase migration list`
 - `bun run build`
 - `bun run lint`

@@ -77,6 +77,33 @@ Use the local anon key and a local test-authenticated session (via `supabase.aut
 - [ ] Upload each accepted type (`.pdf`, `.doc`, `.docx`, `.xls`, `.xlsx`, `.jpg`, `.jpeg`, `.png`, `.webp`) under 10 MB — all succeed.
 - [ ] Generated storage paths follow the `{worker_id}/{document_type_id}/{semester_id|'permanent'}/...` convention and don't collide across workers/types/semesters.
 
+## 7A. Automated database QA with pgTAP
+
+Run the automated database QA suite locally only:
+
+```sh
+bunx supabase db reset
+bunx supabase test db --local
+bunx supabase db lint
+```
+
+The suite lives under `supabase/tests/database/` and covers:
+
+- Worker document schema shape: required tables, bigint FK columns, `UNIQUE(storage_path)`, and the 10 MB file-size constraint.
+- Seed data: exactly 5 categories, exactly 29 document types, permanent vs semester scopes, and the three allowed multiple Evidencias document types.
+- Trigger behavior: permanent/semester scope consistency, duplicate single-file rejection, multiple Evidencias acceptance, delete-old-row-then-insert-new replacement, and file-size rejection.
+- RLS/storage policy configuration: public reference-data reads, authenticated-only `worker_documents` access, private `worker_documents` bucket configuration, and authenticated-only storage object policies.
+
+After enabling pgTAP, `bunx supabase db lint` may report findings inside `extensions.*`. These come from pgTAP's bundled extension functions and are expected. Findings inside project-owned schemas, tables, or functions should still be treated as real issues.
+
+What remains manual:
+
+- Browser verification of `/workers/:id/documents`.
+- Real upload/view/download behavior through Supabase Storage signed URLs.
+- MIME-type enforcement for every accepted/disallowed file type.
+- Report download UX.
+- Secret hygiene review before commit.
+
 ## 8. App-level build/lint gates
 
 - [ ] `bun run lint` — passes with no new violations.
