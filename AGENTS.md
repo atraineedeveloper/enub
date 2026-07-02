@@ -98,3 +98,5 @@ Never commit:
 - Supabase access tokens
 - service role keys
 - database passwords
+
+- Avoid `bunx supabase migration list` if it attempts to connect to the remote database. Prefer local reset/lint verification unless the user explicitly approves remote inspection.
