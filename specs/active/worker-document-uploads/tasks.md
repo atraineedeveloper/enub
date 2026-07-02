@@ -56,17 +56,17 @@
 - [x] Add upload controls.
 - [x] Add replace controls.
 - [x] Add view/download controls.
-- [ ] Add report download action.
+- [x] Add report download action.
 
 ## Phase 6: Report
 
-- [ ] Define report format.
-- [ ] Generate worker document status report.
-- [ ] Include worker name.
-- [ ] Include semester when applicable.
-- [ ] Include categories and document types.
-- [ ] Include uploaded/pending status.
-- [ ] Include upload dates and file names when available.
+- [x] Define report format.
+- [x] Generate worker document status report.
+- [x] Include worker name.
+- [x] Include semester when applicable.
+- [x] Include categories and document types.
+- [x] Include uploaded/pending status.
+- [x] Include upload dates and file names when available.
 
 ## Phase 7: Verification
 

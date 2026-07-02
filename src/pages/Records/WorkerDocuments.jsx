@@ -13,9 +13,11 @@ import {
   useReplaceWorkerDocument,
   useUploadWorkerDocument,
   useWorkerDocumentCatalog,
+  useWorkerDocumentReportData,
   useWorkerDocuments,
   useWorkerDocumentsBySemester,
 } from "../../features/workers/documents";
+import { generateWorkerDocumentReportPdf } from "../../features/workers/documents/generateWorkerDocumentReportPdf";
 import { useSemesters } from "../../features/semesters/useSemesters";
 import { useWorkers } from "../../features/workers/useWorkers";
 import Button from "../../ui/Button";
@@ -65,6 +67,13 @@ const SelectorGroup = styled.div`
     font-weight: 600;
     color: var(--color-grey-600);
   }
+`;
+
+const HeaderActions = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  align-items: stretch;
 `;
 
 const Section = styled.section`
@@ -209,6 +218,11 @@ function WorkerDocuments() {
     isLoading: isLoadingSemesterDocuments,
     error: semesterDocumentsError,
   } = useWorkerDocumentsBySemester(workerId, selectedSemesterId);
+  const {
+    reportData,
+    isLoading: isLoadingReportData,
+    error: reportError,
+  } = useWorkerDocumentReportData(workerId, selectedSemesterId || null);
   const { uploadDocument, isUploading } = useUploadWorkerDocument();
   const { replaceDocument, isReplacing } = useReplaceWorkerDocument();
 
@@ -294,6 +308,24 @@ function WorkerDocuments() {
       link.click();
     } catch (error) {
       toast.error(error?.message || "No se pudo descargar el documento");
+    }
+  }
+
+  function handleDownloadReport() {
+    if (reportError) {
+      toast.error(reportError?.message || "No se pudo cargar el reporte");
+      return;
+    }
+
+    if (!reportData) {
+      toast.error("Los datos del reporte aún no están disponibles");
+      return;
+    }
+
+    try {
+      generateWorkerDocumentReportPdf(reportData);
+    } catch (error) {
+      toast.error(error?.message || "No se pudo generar el reporte");
     }
   }
 
@@ -427,20 +459,30 @@ function WorkerDocuments() {
           <span>{worker.name}</span>
           <span>{worker.type_worker}</span>
         </WorkerSummary>
-        <SelectorGroup>
-          <label htmlFor="semester">Semestre para documentos académicos</label>
-          <Select
-            id="semester"
-            value={selectedSemesterId}
-            onChange={(event) => setSelectedSemesterId(event.target.value)}
+        <HeaderActions>
+          <SelectorGroup>
+            <label htmlFor="semester">Semestre para documentos académicos</label>
+            <Select
+              id="semester"
+              value={selectedSemesterId}
+              onChange={(event) => setSelectedSemesterId(event.target.value)}
+            >
+              {(semesters ?? []).map((semester) => (
+                <option key={semester.id} value={semester.id}>
+                  {getSemesterLabel(semester)}
+                </option>
+              ))}
+            </Select>
+          </SelectorGroup>
+          <Button
+            type="button"
+            variation="secondary"
+            disabled={isLoadingReportData}
+            onClick={handleDownloadReport}
           >
-            {(semesters ?? []).map((semester) => (
-              <option key={semester.id} value={semester.id}>
-                {getSemesterLabel(semester)}
-              </option>
-            ))}
-          </Select>
-        </SelectorGroup>
+            <HiArrowDownTray /> Descargar reporte
+          </Button>
+        </HeaderActions>
       </PageHeader>
 
       {!documentCatalog?.length && (
