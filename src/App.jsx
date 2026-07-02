@@ -21,6 +21,7 @@ const StudyPrograms = lazy(() => import("./pages/Records/StudyPrograms"));
 const StateRoles = lazy(() => import("./pages/Records/StateRoles"));
 const Others = lazy(() => import("./pages/Records/Others"));
 const Workers = lazy(() => import("./pages/Records/Workers"));
+const WorkerDocuments = lazy(() => import("./pages/Records/WorkerDocuments"));
 const Roles = lazy(() => import("./pages/Records/Roles"));
 const Login = lazy(() => import("./pages/Login"));
 
@@ -65,6 +66,10 @@ function App() {
                 <Route path="others" element={<Others />} />
                 <Route path="semesters" element={<Semesters />} />
                 <Route path="workers" element={<Workers />} />
+                <Route
+                  path="workers/:id/documents"
+                  element={<WorkerDocuments />}
+                />
                 <Route path="semesters/:id" element={<ScheduleDashboard />} />
                 <Route path="*" element={<PageNotFound />} />
               </Route>

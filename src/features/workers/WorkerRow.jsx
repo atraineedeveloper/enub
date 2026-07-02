@@ -1,10 +1,12 @@
+/* eslint-disable react/prop-types */
 import styled from "styled-components";
 import Table from "../../ui/Table";
 import Modal from "../../ui/Modal";
 import Menus from "../../ui/Menus";
 import CreateEditWorkerForm from "./CreateEditWorkerForm";
 import { getProfilePicturePublicUrl } from "../../services/apiWorkers";
-import { HiPencil } from "react-icons/hi2";
+import { HiDocumentText, HiPencil } from "react-icons/hi2";
+import { useNavigate } from "react-router-dom";
 
 const Img = styled.img`
   display: block;
@@ -32,6 +34,7 @@ const Avatar = styled.div`
 `;
 
 function WorkerRow({ worker }) {
+  const navigate = useNavigate();
   const { profile_picture, name, type_worker, status } = worker;
   const profilePictureUrl = getProfilePicturePublicUrl(profile_picture);
   const initials = name
@@ -56,6 +59,12 @@ function WorkerRow({ worker }) {
           <Menus.Menu>
             <Menus.Toggle id={worker.id} />
             <Menus.List id={worker.id}>
+              <Menus.Button
+                icon={<HiDocumentText />}
+                onClick={() => navigate(`/workers/${worker.id}/documents`)}
+              >
+                Documentos
+              </Menus.Button>
               <Modal.Open opens="worker-form">
                 <Menus.Button icon={<HiPencil />}>Editar</Menus.Button>
               </Modal.Open>

@@ -45,17 +45,17 @@
 
 ## Phase 5: UI
 
-- [ ] Add route `/workers/:id/documents`.
-- [ ] Add “Documentos” action in workers UI.
-- [ ] Create worker document page.
-- [ ] Show worker information.
-- [ ] Show Datos personales section.
-- [ ] Add semester selector for semester-level categories.
-- [ ] Show Docencia, Tutoría, Asesoría, and Investigación sections.
-- [ ] Show pending/uploaded status.
-- [ ] Add upload controls.
-- [ ] Add replace controls.
-- [ ] Add view/download controls.
+- [x] Add route `/workers/:id/documents`.
+- [x] Add “Documentos” action in workers UI.
+- [x] Create worker document page.
+- [x] Show worker information.
+- [x] Show Datos personales section.
+- [x] Add semester selector for semester-level categories.
+- [x] Show Docencia, Tutoría, Asesoría, and Investigación sections.
+- [x] Show pending/uploaded status.
+- [x] Add upload controls.
+- [x] Add replace controls.
+- [x] Add view/download controls.
 - [ ] Add report download action.
 
 ## Phase 6: Report
