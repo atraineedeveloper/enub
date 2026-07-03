@@ -167,6 +167,21 @@ export async function getWorkers() {
   return data;
 }
 
+export async function getWorkerById(id) {
+  const { data, error } = await supabase
+    .from("workers")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error) {
+    console.error(error);
+    throw new Error("El trabajador no pudo cargarse");
+  }
+
+  return data;
+}
+
 export async function createEditWorkers(
   newWorker,
   id,
