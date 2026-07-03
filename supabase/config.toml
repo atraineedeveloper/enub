@@ -254,10 +254,18 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# Custom local templates for the worker account access flows (Phase 11):
+# invite (create-worker-account) and recovery (resend-worker-access-link).
+# No external images/remote assets/tracking pixels -- inline-styled HTML
+# only, matching the worker-self-service-documents spec's plain-text/simple
+# email requirement.
+[auth.email.template.invite]
+subject = "Activa tu cuenta de Enub"
+content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.recovery]
+subject = "Restablece tu acceso a Enub"
+content_path = "./supabase/templates/recovery.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
