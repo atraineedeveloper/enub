@@ -7,6 +7,7 @@ import { Toaster } from "react-hot-toast";
 import { DarkModeProvider } from "./context/DarkModeContext";
 import GlobalStyles from "./styles/GlobalStyles";
 import ProtectedRoute from "./ui/ProtectedRoute";
+import RoleGate from "./ui/RoleGate";
 import SpinnerFullPage from "./ui/SpinnerFullPage";
 
 const PageNotFound = lazy(() => import("./pages/PageNotFound"));
@@ -24,6 +25,9 @@ const Workers = lazy(() => import("./pages/Records/Workers"));
 const WorkerDocuments = lazy(() => import("./pages/Records/WorkerDocuments"));
 const Roles = lazy(() => import("./pages/Records/Roles"));
 const Login = lazy(() => import("./pages/Login"));
+const MyDocuments = lazy(() => import("./pages/MyDocuments"));
+const PendingAccess = lazy(() => import("./pages/PendingAccess"));
+const SetPassword = lazy(() => import("./pages/SetPassword"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -51,7 +55,9 @@ function App() {
               <Route
                 element={
                   <ProtectedRoute>
-                    <AppLayout />
+                    <RoleGate>
+                      <AppLayout />
+                    </RoleGate>
                   </ProtectedRoute>
                 }
               >
@@ -74,7 +80,30 @@ function App() {
                 <Route path="*" element={<PageNotFound />} />
               </Route>
 
+              <Route
+                path="my-documents"
+                element={
+                  <ProtectedRoute>
+                    <MyDocuments />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="pending-access"
+                element={
+                  <ProtectedRoute>
+                    <PendingAccess />
+                  </ProtectedRoute>
+                }
+              />
+
               <Route path="login" element={<Login />} />
+              {/* Not wrapped in ProtectedRoute: this is the landing page for
+                  an invitation/recovery link. The page itself checks for a
+                  session (via useUser) and shows its own "invalid/expired
+                  link" state rather than being redirected to /login before
+                  that check can happen. */}
+              <Route path="set-password" element={<SetPassword />} />
             </Routes>
           </Suspense>
         </BrowserRouter>
