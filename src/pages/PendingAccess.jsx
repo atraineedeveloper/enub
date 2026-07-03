@@ -1,17 +1,11 @@
 import styled from "styled-components";
 import Heading from "../ui/Heading";
-import Logout from "../features/authentication/Logout";
 
-const PendingAccessLayout = styled.main`
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 2.4rem;
-  background-color: var(--color-grey-50);
-`;
-
+// Rendered inside WorkerAppLayout's Main, which already provides the header
+// and its Logout action -- this only needs its own centered message card.
 const Card = styled.div`
   width: min(90vw, 48rem);
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -31,16 +25,13 @@ const Message = styled.p`
 
 function PendingAccess() {
   return (
-    <PendingAccessLayout>
-      <Card>
-        <Heading as="h4">Acceso pendiente</Heading>
-        <Message>
-          Tu cuenta no tiene acceso asignado todavía. Contacta a un
-          administrador.
-        </Message>
-        <Logout />
-      </Card>
-    </PendingAccessLayout>
+    <Card>
+      <Heading as="h4">Acceso pendiente</Heading>
+      <Message>
+        Tu cuenta no tiene acceso asignado todavía. Contacta a un
+        administrador.
+      </Message>
+    </Card>
   );
 }
 

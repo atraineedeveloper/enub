@@ -13,6 +13,7 @@ import SpinnerFullPage from "./ui/SpinnerFullPage";
 const PageNotFound = lazy(() => import("./pages/PageNotFound"));
 const Degrees = lazy(() => import("./pages/Records/Degrees"));
 const AppLayout = lazy(() => import("./ui/AppLayout"));
+const WorkerAppLayout = lazy(() => import("./ui/WorkerAppLayout"));
 const Subjects = lazy(() => import("./pages/Records/Subjects"));
 const Groups = lazy(() => import("./pages/Records/Groups"));
 const Semesters = lazy(() => import("./pages/Semesters"));
@@ -81,21 +82,15 @@ function App() {
               </Route>
 
               <Route
-                path="my-documents"
                 element={
                   <ProtectedRoute>
-                    <MyDocuments />
+                    <WorkerAppLayout />
                   </ProtectedRoute>
                 }
-              />
-              <Route
-                path="pending-access"
-                element={
-                  <ProtectedRoute>
-                    <PendingAccess />
-                  </ProtectedRoute>
-                }
-              />
+              >
+                <Route path="my-documents" element={<MyDocuments />} />
+                <Route path="pending-access" element={<PendingAccess />} />
+              </Route>
 
               <Route path="login" element={<Login />} />
               {/* Not wrapped in ProtectedRoute: this is the landing page for

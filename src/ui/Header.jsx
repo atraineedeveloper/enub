@@ -56,9 +56,13 @@ const IconsContainer = styled.div`
 function Header({ onToggleSidebar }) {
   return (
     <StyledHeader>
-      <MenuButton aria-label="Abrir menú" onClick={onToggleSidebar}>
-        <HiBars3 size={22} />
-      </MenuButton>
+      {onToggleSidebar ? (
+        <MenuButton aria-label="Abrir menú" onClick={onToggleSidebar}>
+          <HiBars3 size={22} />
+        </MenuButton>
+      ) : (
+        <span />
+      )}
 
       <Logo>ENUB</Logo>
 
