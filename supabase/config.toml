@@ -412,3 +412,17 @@ enabled = true
 # declarative_schema_path = "./database"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+[functions.create-worker-account]
+enabled = true
+# Must stay true: the platform itself must reject unauthenticated requests
+# before the function body runs, on top of the current_app_role()/
+# link_worker_account checks inside it (decisions.md #21, #24 case 7).
+verify_jwt = true
+import_map = "./functions/create-worker-account/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/create-worker-account/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/create-worker-account/*.html" ]
