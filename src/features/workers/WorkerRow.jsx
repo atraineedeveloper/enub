@@ -4,9 +4,12 @@ import Table from "../../ui/Table";
 import Modal from "../../ui/Modal";
 import Menus from "../../ui/Menus";
 import CreateEditWorkerForm from "./CreateEditWorkerForm";
+import LinkWorkerAccountForm from "./LinkWorkerAccountForm";
 import { getProfilePicturePublicUrl } from "../../services/apiWorkers";
-import { HiDocumentText, HiPencil } from "react-icons/hi2";
+import { HiDocumentText, HiLink, HiPencil, HiUserPlus } from "react-icons/hi2";
 import { useNavigate } from "react-router-dom";
+import { useProfile } from "../authentication/useProfile";
+import { useCreateWorkerAccount } from "../authentication/useCreateWorkerAccount";
 
 const Img = styled.img`
   display: block;
@@ -35,6 +38,8 @@ const Avatar = styled.div`
 
 function WorkerRow({ worker }) {
   const navigate = useNavigate();
+  const { isAdmin } = useProfile();
+  const { createAccount } = useCreateWorkerAccount();
   const { profile_picture, name, type_worker, status } = worker;
   const profilePictureUrl = getProfilePicturePublicUrl(profile_picture);
   const initials = name
@@ -68,6 +73,21 @@ function WorkerRow({ worker }) {
               <Modal.Open opens="worker-form">
                 <Menus.Button icon={<HiPencil />}>Editar</Menus.Button>
               </Modal.Open>
+              {isAdmin && (
+                <Menus.Button
+                  icon={<HiUserPlus />}
+                  onClick={() => createAccount({ workerId: worker.id })}
+                >
+                  Crear cuenta de acceso
+                </Menus.Button>
+              )}
+              {isAdmin && (
+                <Modal.Open opens="link-worker-account-form">
+                  <Menus.Button icon={<HiLink />}>
+                    Vincular cuenta existente
+                  </Menus.Button>
+                </Modal.Open>
+              )}
             </Menus.List>
           </Menus.Menu>
         </Menus>
@@ -75,6 +95,11 @@ function WorkerRow({ worker }) {
       <Modal.Window name="worker-form">
         <CreateEditWorkerForm workerToEdit={worker} />
       </Modal.Window>
+      {isAdmin && (
+        <Modal.Window name="link-worker-account-form">
+          <LinkWorkerAccountForm workerId={worker.id} />
+        </Modal.Window>
+      )}
     </Modal>
   );
 }

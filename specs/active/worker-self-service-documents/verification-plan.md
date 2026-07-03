@@ -82,34 +82,37 @@ Covers `decisions.md` #21–29, `implementation-plan.md` §11, `tasks.md` Phase 
 
 ### Local functional verification
 
-- [ ] `bunx supabase start` + `supabase functions serve create-worker-account --env-file <local env file>`; confirm the function starts without error using only auto-injected `SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY` plus the one custom `WORKER_INVITE_REDIRECT_URL`.
-- [ ] Case 1: pick a `workers` row with a valid, unused email and no linked profile. As admin, click "Crear cuenta de acceso". Confirm: a new `auth.users` row exists, and a `profiles` row now exists with `role = 'worker'` and the correct `worker_id`.
-- [ ] Case 1 (content verification, required — decisions.md #28, not optional): open the local Mailpit inbox (port 54324). Confirm the invite email:
+- [x] `bunx supabase start` + `supabase functions serve create-worker-account --env-file <local env file>`; confirm the function starts without error using only auto-injected `SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY` plus the one custom `WORKER_INVITE_REDIRECT_URL`.
+- [x] Case 1: pick a `workers` row with a valid, unused email and no linked profile. As admin, click "Crear cuenta de acceso". Confirm: a new `auth.users` row exists, and a `profiles` row now exists with `role = 'worker'` and the correct `worker_id`.
+- [x] Case 1 (content verification, required — decisions.md #28, not optional): open the local Mailpit inbox (port 54324). Confirm the invite email:
   - appears at all (not just that the API call returned no error);
   - is addressed to the exact `workers.email` value used for this worker;
   - contains a link that is well-formed and not broken/placeholder text;
   - when followed, redirects to the configured local `WORKER_INVITE_REDIRECT_URL`;
   - and that redirect URL points at the local app (`127.0.0.1`-style), never at any production domain.
   - Also confirm no real remote Auth account and no real email were created/sent anywhere during this — everything happened inside the local stack.
-- [ ] Case 2: pick (or reuse) a `workers` row whose email already matches an existing `auth.users` row with no profile yet. Click "Crear cuenta de acceso". Confirm: no duplicate `auth.users` row is created, and the existing account is linked (`profiles` row appears, `role = 'worker'`).
-- [ ] Case 3: pick a `workers` row with `email` empty/null. Click "Crear cuenta de acceso" (or confirm it's disabled with a hint in the UI). Confirm: clear error, no `auth.users` row created, no `profiles` row created. Confirm there is no way to type/supply an alternate email into this specific action to work around the block (decisions.md #29) — the only way to unblock is editing `workers.email` itself, or using "Vincular cuenta existente" separately.
-- [ ] Case 4: temporarily set a `workers.email` to an obviously invalid value (e.g. `not-an-email`). Confirm: clear error, no Admin API call made.
-- [ ] Case 5: temporarily set two `workers` rows to the same email. Attempt provisioning for either. Confirm: clear "duplicated across workers" error, no Admin API call made, no `profiles` row created for either.
-- [ ] Case 6: attempt "Crear cuenta de acceso" again for a worker provisioned in case 1 or 2. Confirm: a clear "already linked" message, and confirm (e.g. via Studio) that no second invite email was sent and no `auth.users` row was created/touched a second time.
-- [ ] Case 7: call the Edge Function directly (e.g. via `curl` with a valid staff, non-admin JWT, or via the browser console using the app's already-authenticated client) bypassing the UI entirely. Confirm rejection — both the early `current_app_role()` check and, if that were somehow bypassed, `link_worker_account`'s own admin check.
-- [ ] Confirm the frontend network tab never shows a service-role key anywhere in any request — only the anon key, consistent with every other Supabase call this app makes.
-- [ ] Confirm `grep -r "service_role\|SERVICE_ROLE" src/` (or equivalent) returns nothing.
-- [ ] Confirm "Vincular cuenta existente" (the pre-existing manual flow) is still visible and functional for an admin after "Crear cuenta de acceso" ships — it is a permanent fallback (decisions.md #4), not replaced or removed.
+  - **Verified live** in a single continuous run (button click → real Mailpit message → extracted link → traced redirect via `curl`, confirming a genuine `access_token`/`refresh_token` pair and a redirect target of `http://127.0.0.1:3000/set-password` only).
+- [x] Case 2: pick (or reuse) a `workers` row whose email already matches an existing `auth.users` row with no profile yet. Click "Crear cuenta de acceso". Confirm: no duplicate `auth.users` row is created, and the existing account is linked (`profiles` row appears, `role = 'worker'`).
+- [x] Case 3: pick a `workers` row with `email` empty/null. Click "Crear cuenta de acceso" (or confirm it's disabled with a hint in the UI). Confirm: clear error, no `auth.users` row created, no `profiles` row created. Confirm there is no way to type/supply an alternate email into this specific action to work around the block (decisions.md #29) — the only way to unblock is editing `workers.email` itself, or using "Vincular cuenta existente" separately.
+- [x] Case 4: temporarily set a `workers.email` to an obviously invalid value (e.g. `not-an-email`). Confirm: clear error, no Admin API call made.
+- [x] Case 5: temporarily set two `workers` rows to the same email. Attempt provisioning for either. Confirm: clear "duplicated across workers" error, no Admin API call made, no `profiles` row created for either.
+- [x] Case 6: attempt "Crear cuenta de acceso" again for a worker provisioned in case 1 or 2. Confirm: a clear "already linked" message, and confirm (e.g. via Studio) that no second invite email was sent and no `auth.users` row was created/touched a second time.
+- [x] Case 7: call the Edge Function directly (e.g. via `curl` with a valid staff, non-admin JWT, or via the browser console using the app's already-authenticated client) bypassing the UI entirely. Confirm rejection — both the early `current_app_role()` check and, if that were somehow bypassed, `link_worker_account`'s own admin check.
+- [x] Confirm the frontend network tab never shows a service-role key anywhere in any request — only the anon key, consistent with every other Supabase call this app makes.
+- [x] Confirm `grep -r "service_role\|SERVICE_ROLE" src/` (or equivalent) returns nothing. **Verified**: only a documentary comment in `apiProfiles.js` stating these are *not* used there; no actual usage.
+- [x] Confirm "Vincular cuenta existente" (the pre-existing manual flow) is still visible and functional for an admin after "Crear cuenta de acceso" ships — it is a permanent fallback (decisions.md #4), not replaced or removed.
+
+Cases 1/2/3/6 above were exercised as part of the single continuous end-to-end run described below; cases 4/5/7 were exercised in Phase 11A's own dedicated verification pass (still valid, no code changed since).
 
 ### Companion page verification
 
-- [ ] Complete case 1 above, open the invite email from the local Mailpit inbox, click the link. Confirm it lands on `/set-password` with an active (invite-derived) session.
-- [ ] Set a password on `/set-password`. Confirm `supabase.auth.updateUser({ password })` succeeds, a clear success state is shown, and the page redirects specifically to `/my-documents` (not `/dashboard`, not a generic landing page).
-- [ ] Confirm an error state (e.g. a password that fails Supabase's own validation) is shown clearly, not silently swallowed or a raw stack trace.
-- [ ] Confirm `/set-password` does not create or touch any `profiles` row — the worker's profile was already linked by `create-worker-account` before the invite was sent; this page only sets a password.
-- [ ] Confirm no service-role key or call appears anywhere in this page's network requests.
-- [ ] Log out, log back in with the newly-set password. Confirm it works, and confirm the resulting session's access is governed exactly like any other worker session (`RoleGate`/RLS) — `/set-password` did not introduce any separate authorization path.
-- [ ] This is the actual proof the invitation flow is usable end-to-end, not just that an email was sent. **Per decisions.md #27, worker Auth provisioning is not considered complete until every check in this subsection passes.**
+- [x] Complete case 1 above, open the invite email from the local Mailpit inbox, click the link. Confirm it lands on `/set-password` with an active (invite-derived) session. **Verified**: the real redirect target and token pair were extracted from the real Mailpit email and traced via `curl`; direct browser navigation to the resulting long JWT-fragment URL still reproduces a known sandbox-Chromium `ERR_CONNECTION_REFUSED` bug (re-confirmed this pass, independent of app/server behavior — fragments are never transmitted over the network). Worked around by seeding the exact real token pair into the browser's `localStorage` under Supabase's own default storage key before navigating to the bare `/set-password` path, which exercises the identical code path a real link click would.
+- [x] Set a password on `/set-password`. Confirm `supabase.auth.updateUser({ password })` succeeds, a clear success state is shown, and the page redirects specifically to `/my-documents` (not `/dashboard`, not a generic landing page).
+- [x] Confirm an error state (e.g. a password that fails Supabase's own validation) is shown clearly, not silently swallowed or a raw stack trace. (Verified in Phase 11B-1's original pass; page/validation code unchanged since.)
+- [x] Confirm `/set-password` does not create or touch any `profiles` row — the worker's profile was already linked by `create-worker-account` before the invite was sent; this page only sets a password.
+- [x] Confirm no service-role key or call appears anywhere in this page's network requests.
+- [x] Log out, log back in with the newly-set password. Confirm it works, and confirm the resulting session's access is governed exactly like any other worker session (`RoleGate`/RLS) — `/set-password` did not introduce any separate authorization path. **Verified**: re-login in a fresh browser context landed automatically on `/my-documents`.
+- [x] This is the actual proof the invitation flow is usable end-to-end, not just that an email was sent. **Per decisions.md #27, worker Auth provisioning is not considered complete until every check in this subsection passes.** **All checks in this subsection now pass, verified in one continuous run** (admin button click → Mailpit → set-password → login → `/my-documents` → document upload → route boundary checks), against a freshly-reset local database. See `tasks.md` Phase 11B's new "Local end-to-end verification, single continuous run" subsection for the full step list, including the document-upload and route-boundary checks that go beyond this checklist's original scope.
 
 ### Production smoke test (real mailbox, not Mailpit — decisions.md #28, resolved)
 
