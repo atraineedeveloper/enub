@@ -25,6 +25,29 @@ export async function getCurrentProfile() {
   };
 }
 
+// Minimal data needed to know which workers already have a linked
+// self-service account, so the admin UI can show the right action per row
+// (Crear cuenta de acceso / Reenviar enlace de acceso / Vincular cuenta
+// existente) instead of guessing from workers.email. Only worker_id is
+// selected -- no Auth user data (email, id, etc.) is exposed here. RLS
+// ("Admins can read all profiles") means a non-admin caller simply gets an
+// empty list back, not an error.
+export async function getLinkedWorkerIds() {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("worker_id")
+    .eq("role", "worker");
+
+  if (error) {
+    console.error(error);
+    throw new Error(
+      "No se pudo verificar qué trabajadores ya tienen cuenta vinculada"
+    );
+  }
+
+  return data.map((row) => row.worker_id);
+}
+
 export async function linkWorkerAccount({ workerId, email }) {
   const { error } = await supabase.rpc("link_worker_account", {
     worker_id: workerId,

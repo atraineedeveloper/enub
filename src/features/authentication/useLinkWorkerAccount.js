@@ -11,6 +11,7 @@ export function useLinkWorkerAccount() {
       toast.success("La cuenta se vinculó con éxito");
       queryClient.invalidateQueries({ queryKey: ["workers"] });
       queryClient.invalidateQueries({ queryKey: ["profile"] });
+      queryClient.invalidateQueries({ queryKey: ["linked-worker-accounts"] });
     },
     onError: (err) => toast.error(err.message),
   });

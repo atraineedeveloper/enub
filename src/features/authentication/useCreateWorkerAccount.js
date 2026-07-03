@@ -14,6 +14,7 @@ export function useCreateWorkerAccount() {
       toast.success(data?.message || "Cuenta creada e invitación enviada");
       queryClient.invalidateQueries({ queryKey: ["workers"] });
       queryClient.invalidateQueries({ queryKey: ["profile"] });
+      queryClient.invalidateQueries({ queryKey: ["linked-worker-accounts"] });
     },
     onError: (err) => toast.error(err.message),
   });

@@ -17,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import { useProfile } from "../authentication/useProfile";
 import { useCreateWorkerAccount } from "../authentication/useCreateWorkerAccount";
 import { useResendWorkerAccessLink } from "../authentication/useResendWorkerAccessLink";
+import { useLinkedWorkerAccounts } from "./useLinkedWorkerAccounts";
 
 const Img = styled.img`
   display: block;
@@ -48,8 +49,12 @@ function WorkerRow({ worker }) {
   const { isAdmin } = useProfile();
   const { createAccount } = useCreateWorkerAccount();
   const { resendAccessLink } = useResendWorkerAccessLink();
-  const { profile_picture, name, type_worker, status } = worker;
+  const { linkedWorkerIds, isLoading: isLoadingLinkedAccounts } =
+    useLinkedWorkerAccounts();
+  const { profile_picture, name, type_worker, status, email } = worker;
   const profilePictureUrl = getProfilePicturePublicUrl(profile_picture);
+  const isLinked = linkedWorkerIds.has(worker.id);
+  const hasEmail = Boolean(email?.trim());
   const initials = name
     ?.split(" ")
     .slice(0, 2)
@@ -81,7 +86,7 @@ function WorkerRow({ worker }) {
               <Modal.Open opens="worker-form">
                 <Menus.Button icon={<HiPencil />}>Editar</Menus.Button>
               </Modal.Open>
-              {isAdmin && (
+              {isAdmin && !isLoadingLinkedAccounts && !isLinked && hasEmail && (
                 <Menus.Button
                   icon={<HiUserPlus />}
                   onClick={() => createAccount({ workerId: worker.id })}
@@ -89,7 +94,7 @@ function WorkerRow({ worker }) {
                   Crear cuenta de acceso
                 </Menus.Button>
               )}
-              {isAdmin && (
+              {isAdmin && !isLoadingLinkedAccounts && isLinked && (
                 <Menus.Button
                   icon={<HiPaperAirplane />}
                   onClick={() => resendAccessLink({ workerId: worker.id })}
@@ -97,7 +102,7 @@ function WorkerRow({ worker }) {
                   Reenviar enlace de acceso
                 </Menus.Button>
               )}
-              {isAdmin && (
+              {isAdmin && !isLoadingLinkedAccounts && !isLinked && (
                 <Modal.Open opens="link-worker-account-form">
                   <Menus.Button icon={<HiLink />}>
                     Vincular cuenta existente
