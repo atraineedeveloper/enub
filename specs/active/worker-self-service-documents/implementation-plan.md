@@ -265,6 +265,88 @@ Not the same check in both places — this is deliberate, not an oversight:
 
 Full acceptance criteria for both are in `verification-plan.md`'s "Server-side worker account provisioning by invitation" section.
 
+## 12. Resend/recover access link (new, spec-only)
+
+**No code is written yet — this section is a design, same as the rest of §11.** Adds a new admin action, **"Reenviar enlace de acceso"**, and a new Edge Function, `resend-worker-access-link`, closing the operational gap found during Phase 11 local testing (decisions.md #30–33): a worker whose invite link goes stale before setting a password, or who later forgets their password, currently has no way to get a working `/set-password` link again. This is additive — it does not replace `create-worker-account` (§11.1) or the manual "Vincular cuenta existente" fallback (§9); all three admin actions coexist.
+
+### 12.1 Edge Function: `supabase/functions/resend-worker-access-link/index.ts` (new, not yet created)
+
+Request: `POST`, invoked from the client as `supabase.functions.invoke('resend-worker-access-link', { body: { workerId } })` — same anon-key client convention as `create-worker-account`.
+
+Request body is `{ workerId }` **only** — no `email` field, ever, same reasoning as decisions.md #29 (extended here, decisions.md #33). The function always resolves the email from `public.workers.email`.
+
+Two clients constructed inside the function (decisions.md #32 — a strictly smaller privilege footprint than `create-worker-account`, since this function never needs the service role at all):
+
+- A **user-scoped** client (the caller's forwarded `Authorization` header) — used for the admin check, the `workers.email` read, and the `profiles` linked-status read. Same pattern as §11.1's user-scoped client.
+- A **plain anon-key client**, with no forwarded caller header — used only for `resetPasswordForEmail`, kept deliberately separate from the admin's own authenticated client.
+
+Pseudocode (illustrative, not final implementation):
+
+```ts
+// supabase/functions/resend-worker-access-link/index.ts (NOT YET IMPLEMENTED)
+serve(async (req) => {
+  const body = await req.json();
+  const bodyKeys = Object.keys(body);
+  if (bodyKeys.length !== 1 || bodyKeys[0] !== "workerId") {
+    return jsonError(400, "El cuerpo de la solicitud debe contener únicamente workerId.");
+  }
+  const { workerId } = body;
+
+  const userClient = createUserScopedClient(req); // forwards caller's JWT
+  const anonClient = createPlainAnonClient();      // no forwarded header, anon key only -- decisions.md #32
+
+  // This check IS the real security boundary here (decisions.md #34) -- unlike
+  // create-worker-account, there is no link_worker_account RPC to delegate to.
+  // current_app_role() is SECURITY DEFINER and resolves from the caller's own
+  // verified JWT, not a client-supplied claim, so a single call is sufficient.
+  const { data: role } = await userClient.rpc("current_app_role");
+  if (role !== "admin") return jsonError(403, "Solo un administrador puede reenviar el enlace de acceso");
+
+  const { data: worker, error: workerError } = await userClient
+    .from("workers").select("id, email").eq("id", workerId).single();
+  if (workerError || !worker) return jsonError(404, "Trabajador no encontrado");
+
+  // Precondition is the OPPOSITE of create-worker-account's case 6 (decisions.md #33):
+  // this function requires an EXISTING linked worker profile, and never creates one.
+  const { data: profile } = await userClient
+    .from("profiles").select("id, role").eq("worker_id", workerId).maybeSingle();
+  if (!profile || profile.role !== "worker") {
+    return jsonError(409, "Este trabajador no tiene una cuenta vinculada todavía; usa 'Crear cuenta de acceso' primero");
+  }
+
+  const email = worker.email?.trim();
+  if (!email) return jsonError(400, "Este trabajador no tiene correo registrado");
+
+  const { error: resendError } = await anonClient.auth.resetPasswordForEmail(email, {
+    redirectTo: Deno.env.get("WORKER_INVITE_REDIRECT_URL"), // reused, not a new env var -- decisions.md #31
+  });
+  if (resendError) return jsonError(502, "No se pudo reenviar el enlace; intenta de nuevo");
+
+  // No profiles write here, ever -- this function only ever sends an email (decisions.md #33).
+  return jsonSuccess({ message: "Enlace de acceso reenviado", workerId, email });
+});
+```
+
+Config addition (to `supabase/config.toml`, not made in this pass): a `[functions.resend-worker-access-link]` section with `verify_jwt = true`, matching `create-worker-account`'s config (decisions.md #25's reasoning applies identically here).
+
+### 12.2 Frontend additions (not yet implemented)
+
+- `src/services/apiProfiles.js`: add `resendWorkerAccessLink({ workerId })`, calling `supabase.functions.invoke('resend-worker-access-link', { body: { workerId } })`, reusing the same `error.context` JSON-parsing convention already used by `createWorkerAccount` to surface the function's real error message.
+- `src/features/authentication/useResendWorkerAccessLink.js` (new): mutation hook mirroring `useCreateWorkerAccount.js` — `react-hot-toast` success/error, no query invalidation strictly required (this function never changes `profiles`/`workers` data), though invalidating `["workers"]` is harmless if kept for consistency with the other two mutations.
+- `src/features/workers/WorkerRow.jsx`: add a third admin-only action, **"Reenviar enlace de acceso"**, alongside (not replacing) "Crear cuenta de acceso" and "Vincular cuenta existente". Gated the same way (`useProfile().isAdmin`).
+- Recommended (not mandatory) UX affordance, to be decided at implementation time: since this action is only meaningful for a worker who already has a linked account, consider showing it only when the row's known state indicates `profiles` already exists for that worker (mirroring the case-3 "disable when email empty" precedent from Phase 11B, itself not implemented due to `Menus.Button` lacking a `disabled` prop — see `tasks.md` Phase 11A/11B notes). Whether or not the UI conditionally shows/hides it, the Edge Function's own precondition check (decisions.md #33) remains the actual, non-bypassable enforcement.
+
+### 12.3 Reuses `/set-password` as-is — no changes to that page
+
+The resend/recovery email's link lands on the exact same `/set-password` page built in §11.3 (decisions.md #27). That page already only ever calls `supabase.auth.updateUser({ password })` against whatever session the arriving link established — it has no dependency on *how* that session was established (an original invite vs. a resend/recovery link use the same underlying GoTrue session-from-URL-fragment mechanism). No changes to `SetPassword.jsx`, `useSetPassword.js`, or `apiAuth.js` are anticipated for this addition.
+
+### 12.4 Local vs. remote — same pattern as §11.4
+
+- **Local:** `supabase functions serve resend-worker-access-link --env-file <path>` (or served alongside `create-worker-account` if both are served together), same `WORKER_INVITE_REDIRECT_URL` local env file, same local Mailpit inbox for verification.
+- **Remote:** requires its own explicit `supabase functions deploy resend-worker-access-link --project-ref <remote-ref>` — a separate deploy from `create-worker-account`'s, since it's a separate function, though it reads the same already-configured `WORKER_INVITE_REDIRECT_URL` secret (no new remote secret to set).
+
+Full acceptance criteria in `verification-plan.md`'s new "Resend/recover access link" subsection.
+
 ## Files touched/added summary
 
 New:
@@ -302,3 +384,18 @@ Modified, added by §11:
 - `src/features/workers/WorkerRow.jsx` (add "Crear cuenta de acceso"; relabel existing "Vincular cuenta" to "Vincular cuenta existente")
 - `src/App.jsx` (add `/set-password` route, once `SetPassword.jsx` exists)
 - `supabase/config.toml` (add a `[functions.create-worker-account]` section with `verify_jwt = true`)
+
+New, added by §12 (resend/recover access link — not yet implemented, this update is spec-only):
+- `supabase/functions/resend-worker-access-link/index.ts`
+- `src/features/authentication/useResendWorkerAccessLink.js`
+
+Modified, added by §12:
+- `src/services/apiProfiles.js` (add `resendWorkerAccessLink({ workerId })`)
+- `src/features/workers/WorkerRow.jsx` (add "Reenviar enlace de acceso", alongside — not replacing — "Crear cuenta de acceso" and "Vincular cuenta existente")
+- `supabase/config.toml` (add a `[functions.resend-worker-access-link]` section with `verify_jwt = true`)
+
+Unmodified by §12 (confirmed safe to leave untouched — see §12.3):
+- `src/pages/SetPassword.jsx`
+- `src/features/authentication/useSetPassword.js`
+- `src/services/apiAuth.js`
+- `supabase/functions/create-worker-account/index.ts` (unaffected by adding the new, separate function)

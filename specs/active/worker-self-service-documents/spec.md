@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft — revised after security review, revised again to add server-side worker account provisioning by invitation, and revised a third time to resolve the two open questions from that update (see all three revision notes at the top of `decisions.md`). No open questions remain for this scope.
+Draft — revised after security review, revised again to add server-side worker account provisioning by invitation, revised a third time to resolve the two open questions from that update, and revised a fourth time to add an admin "Reenviar enlace de acceso" action closing an operational gap found during Phase 11 local testing (see all four revision notes at the top of `decisions.md`). No open questions remain for this scope.
 
 ## User request
 
@@ -42,16 +42,17 @@ Ver [[decisions#15-supersedes-uploaded_by-semantics-from-worker-document-uploads
 - **(nuevo)** Aprovisionamiento server-side de cuentas por invitación: un admin hace clic en "Crear cuenta de acceso" sobre un trabajador, y una Edge Function de Supabase (`create-worker-account`) invita (o vincula, si ya existe) la cuenta Auth usando `public.workers.email`, y la vincula a `public.profiles` reutilizando `link_worker_account` sin escribir SQL nuevo. Ver [[decisions#21-server-side-provisioning-by-invitation-an-edge-function-not-a-bigger-rpc]] y [[implementation-plan#11-server-side-worker-account-provisioning-by-invitation-new]].
 - **(nuevo)** Página mínima "activar cuenta" (`/set-password`) para que el trabajador invitado establezca su contraseña — dependencia necesaria y antes no contemplada, ver [[decisions#27-a-minimal-accept-invitation--set-password-page-becomes-necessary--found-dependency-not-originally-in-scope]].
 - El flujo manual "Vincular cuenta existente" (antes "Vincular cuenta") se mantiene como respaldo cuando la invitación no aplica (correo no confiable, cuenta ya creada por otra vía, etc.).
+- **(nuevo)** Acción admin "Reenviar enlace de acceso" para un trabajador que **ya tiene** una cuenta vinculada (`profiles.role = 'worker'`): una Edge Function separada (`resend-worker-access-link`) reenvía un enlace de recuperación/activación de contraseña a `public.workers.email`, que lleva a la misma página `/set-password`. Cubre dos casos operativos encontrados durante las pruebas locales de la Fase 11: (1) el trabajador cerró la pestaña de invitación antes de establecer su contraseña y el enlace original ya no es válido (`create-worker-account` solo devuelve `already_linked` en ese caso, sin dar una salida); (2) un trabajador ya activo olvidó su contraseña después. Esta acción **no reemplaza** "Crear cuenta de acceso" ni **elimina** "Vincular cuenta existente" — las tres coexisten permanentemente. Ver [[decisions#30-reenviar-enlace-de-acceso-a-separate-edge-function-not-a-create-worker-account-branch-and-not-the-general-self-service-forgot-password-flow]] y [[implementation-plan#12-resendrecover-access-link-new-spec-only]].
 
 ## Out of scope
 
 - Registro público / auto-registro de trabajadores (`supabase.auth.signUp`). Una invitación sigue siendo iniciada por un admin, nunca un formulario público.
 - Creación manual del usuario de Supabase Auth vía Studio/Dashboard **como único camino** — ya no es el único, ver la nueva Edge Function arriba, pero sigue disponible como respaldo. Ver [[decisions#3-provisioning-of-the-auth-account-itself]] (parcialmente superada).
 - Aprobación/rechazo manual de documentos (ya estaba fuera de alcance).
-- **Recuperación de contraseña de autoservicio general** ("olvidé mi contraseña" para cuentas ya activas) — sigue fuera de alcance. Esto es distinto de la página mínima "activar cuenta" (`/set-password`) que sí entra en alcance como dependencia necesaria de la invitación (ver arriba) — esa página solo establece la contraseña inicial una vez, no es un flujo general de recuperación.
+- **Recuperación de contraseña de autoservicio general** ("olvidé mi contraseña" iniciado por el propio trabajador, público, sin admin de por medio, para cualquier cuenta ya activa) — sigue fuera de alcance. Esto es distinto tanto de la página mínima "activar cuenta" (`/set-password`, ver arriba) como de la nueva acción admin **"Reenviar enlace de acceso"** (ver arriba y [[decisions#30-reenviar-enlace-de-acceso-a-separate-edge-function-not-a-create-worker-account-branch-and-not-the-general-self-service-forgot-password-flow]]) — esta última es admin-iniciada, admin-autenticada, y limitada a un `workerId` específico ya seleccionado por el admin en la UI; no es un formulario público de "olvidé mi contraseña".
 - Contraseñas temporales generadas por el sistema como método de aprovisionamiento — se decidió invitación por correo en su lugar. Ver [[decisions#22-invitation-over-temporary-passwords]].
 - Agregar una restricción de formato/unicidad a `public.workers.email` a nivel de base de datos — validado en la Edge Function en su lugar, ver [[database-plan#15-workersemail-data-quality-considered-deferred]].
-- Un panel de administración de invitaciones (reenviar, revocar, ver estado de invitaciones pendientes) — la Edge Function solo cubre el caso de uso puntual "crear/vincular cuenta para este trabajador ahora".
+- Un panel de administración de invitaciones (revocar, ver estado de invitaciones pendientes, vista masiva). **Reenviar el enlace para un trabajador puntual ya no está fuera de alcance** — ver la nueva acción "Reenviar enlace de acceso" arriba — pero revocar una invitación y una vista de invitaciones pendientes/masiva siguen fuera de alcance.
 - Dashboard global de cumplimiento documental.
 - Notificaciones (más allá del correo de invitación que Supabase Auth ya envía nativamente).
 - Firma digital.
@@ -109,12 +110,25 @@ Detalle completo en [[decisions]] y [[database-plan]].
 - `/set-password` existe, cumple el alcance mínimo (lee la sesión de la invitación, permite establecer/actualizar contraseña, muestra estados claros de éxito/error, redirige a `/my-documents` al terminar, no implementa recuperación general, no expone `service_role`, no crea ni vincula perfiles), y está verificada de extremo a extremo antes de considerar completo el aprovisionamiento de cuentas.
 - El flujo manual "Vincular cuenta existente" se mantiene disponible permanentemente después de que `create-worker-account` exista — no es una solución transitoria a eliminar más adelante.
 
+### Nuevos criterios de aceptación: reenvío de enlace de acceso
+
+- Un `admin` puede hacer clic en "Reenviar enlace de acceso" sobre un trabajador que **ya tiene** una cuenta vinculada (`profiles.role = 'worker'` para ese `worker_id`), y el trabajador recibe un nuevo correo con un enlace que lleva a `/set-password`.
+- Esto cubre tanto al trabajador que nunca terminó de establecer su contraseña (el enlace de invitación original se perdió, cerró la pestaña, o expiró) como al trabajador que ya activó su cuenta antes y ahora olvidó su contraseña — un solo mecanismo para ambos casos operativos.
+- Un trabajador **sin** cuenta vinculada (no existe fila en `profiles` para ese `worker_id`) no puede recibir este reenvío: la acción responde con un error claro indicando usar "Crear cuenta de acceso" primero, y no se envía ningún correo ni se toca `profiles`.
+- La función servidor-side (`resend-worker-access-link`) recibe únicamente `{ workerId }`; nunca acepta ni acepta implícitamente un correo escrito manualmente — el correo siempre se resuelve desde `public.workers.email`, igual que `create-worker-account` (decisions.md #29, extendido a esta función).
+- Un usuario `staff` (no admin) que invoque esta función directamente, sin pasar por la UI, es rechazado server-side, igual que para `create-worker-account`.
+- Esta función nunca llama a `link_worker_account` ni a `unlink_worker_account`, y nunca escribe en `profiles` bajo ningún código de ejecución — solo envía un correo.
+- Esta función no necesita ni usa la clave `service_role` en absoluto (a diferencia de `create-worker-account`, que sí la usa para `inviteUserByEmail`) — ver [[decisions#32-minimal-privilege-client-choice-resend-worker-access-link-never-reads-or-uses-the-service-role-key]].
+- "Crear cuenta de acceso" y "Vincular cuenta existente" permanecen sin cambios de comportamiento después de agregar esta tercera acción.
+- El enlace de reenvío usa el mismo `WORKER_INVITE_REDIRECT_URL` ya configurado para la invitación original — no se introduce una variable de entorno nueva (ver [[decisions#31-reused-redirect-target-worker_invite_redirect_url-covers-both-invite-and-resendrecovery-links-not-a-second-env-var]]).
+- Verificación local del contenido real del correo reenviado (destinatario, enlace válido, redirección a `/set-password` local) sigue el mismo estándar que decisions.md #28 para la invitación original — no basta con que la llamada a la API no falle.
+
 ## Environment and secrets (summary)
 
 Detalle completo en `decisions.md` #25–26 e `implementation-plan.md` §11.4. Resumen:
 
 - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, y `SUPABASE_SERVICE_ROLE_KEY` los inyecta automáticamente la plataforma/CLI de Supabase para cualquier Edge Function, tanto local (`supabase functions serve`) como remoto (una vez desplegada) — nunca se escriben a mano ni se hardcodean URLs.
-- El único secreto propio de esta feature es `WORKER_INVITE_REDIRECT_URL` (a dónde lleva el enlace de invitación) — distinto por entorno, configurado vía archivo `.env` local (`--env-file`, no comiteado) o `supabase secrets set` en remoto.
+- El único secreto propio de esta feature es `WORKER_INVITE_REDIRECT_URL` (a dónde lleva el enlace de invitación) — distinto por entorno, configurado vía archivo `.env` local (`--env-file`, no comiteado) o `supabase secrets set` en remoto. La nueva Edge Function `resend-worker-access-link` reutiliza esta misma variable (mismo destino, `/set-password`) — no se agrega una segunda variable de entorno para el reenvío. Ver [[decisions#31-reused-redirect-target-worker_invite_redirect_url-covers-both-invite-and-resendrecovery-links-not-a-second-env-var]].
 - El frontend nunca ve ni necesita la `service_role` key; solo llama `supabase.functions.invoke(...)` con el cliente anon-key que ya usa en todas partes.
 - Desplegar a remoto es una acción explícita, separada, y aprobada por un humano — no ocurre por trabajar/probar localmente.
 

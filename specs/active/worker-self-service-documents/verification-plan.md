@@ -78,7 +78,7 @@ These scenarios verify the core fix and should be checked before anything else, 
 
 ## (new) Server-side worker account provisioning by invitation
 
-Covers `decisions.md` #21–29, `implementation-plan.md` §11, `tasks.md` Phase 11. Not applicable until that phase is implemented — included here now so verification isn't designed after the fact. No open design questions remain for this scope (see the "open questions resolved" revision note at the top of `decisions.md`).
+Covers `decisions.md` #21–34, `implementation-plan.md` §11–12, `tasks.md` Phase 11 (11A/11B implemented and verified; 11C — resend/recover access link — spec-only, not yet implemented). Not applicable until each respective phase is implemented — included here now so verification isn't designed after the fact. No open design questions remain for this scope (see the "open questions resolved" and "resend/recover access link" revision notes at the top of `decisions.md`).
 
 ### Local functional verification
 
@@ -114,6 +114,25 @@ Cases 1/2/3/6 above were exercised as part of the single continuous end-to-end r
 - [x] Log out, log back in with the newly-set password. Confirm it works, and confirm the resulting session's access is governed exactly like any other worker session (`RoleGate`/RLS) — `/set-password` did not introduce any separate authorization path. **Verified**: re-login in a fresh browser context landed automatically on `/my-documents`.
 - [x] This is the actual proof the invitation flow is usable end-to-end, not just that an email was sent. **Per decisions.md #27, worker Auth provisioning is not considered complete until every check in this subsection passes.** **All checks in this subsection now pass, verified in one continuous run** (admin button click → Mailpit → set-password → login → `/my-documents` → document upload → route boundary checks), against a freshly-reset local database. See `tasks.md` Phase 11B's new "Local end-to-end verification, single continuous run" subsection for the full step list, including the document-upload and route-boundary checks that go beyond this checklist's original scope.
 
+### Resend/recover access link verification (Phase 11C, `decisions.md` #30–34, `implementation-plan.md` §12 — not applicable until implemented)
+
+Covers the new `resend-worker-access-link` Edge Function and its admin action, "Reenviar enlace de acceso". Not applicable until Phase 11C is implemented; included now so verification isn't designed after the fact, same rationale as the rest of this section.
+
+- [ ] `bunx supabase start` + `supabase functions serve resend-worker-access-link --env-file <local env file>`; confirm the function starts without error using only auto-injected `SUPABASE_URL`/`SUPABASE_ANON_KEY` and the existing `WORKER_INVITE_REDIRECT_URL` — confirm `SUPABASE_SERVICE_ROLE_KEY` is present in the environment (auto-injected like always) but never read/used by this specific function (decisions.md #32).
+- [ ] Case A — **stale/lost invite link**: provision a worker via `create-worker-account` (an `auth.users` row and a linked `profiles` row now exist, but no password has been set). Click "Reenviar enlace de acceso". Confirm a new email is sent, and confirm via the local Mailpit inbox (port 54324):
+  - a new message appears, addressed to the exact `workers.email` value for this worker;
+  - it contains a valid, well-formed link (not broken/placeholder text);
+  - following that link lands on `/set-password` with an active session (same standard as the companion-page section above);
+  - the worker can set a password and log in successfully afterward.
+- [ ] Case B — **forgotten password on an already-active account**: complete `/set-password` once for a worker (so they have a working password), then click "Reenviar enlace de acceso" again for that same worker. Confirm the same successful email/link/set-password/login loop works a second time, independent of the account's prior activation.
+- [ ] Case C — **worker with no linked account**: pick a `workers` row with no `profiles` row at all. Click "Reenviar enlace de acceso" (or invoke directly if not yet wired into the UI). Confirm: a clear "usa 'Crear cuenta de acceso' primero" error, no email sent (confirm Mailpit stays empty for this attempt), no `profiles` row created, no `auth.users` row touched.
+- [ ] Case D — **non-admin caller**: call the Edge Function directly (e.g. via `curl` with a valid staff, non-admin JWT) bypassing the UI. Confirm rejection with a clear error, before any email is sent.
+- [ ] Case E — **no duplicate/unintended side effects**: after Case A or B succeeds, confirm directly in the database that no `profiles` row was created, modified, or removed, and that the worker's existing `auth.users` row is the same row (not a new one) — this function must never link, unlink, or re-provision.
+- [ ] Confirm the frontend network tab never shows a service-role key anywhere in any request for this action — only the anon key.
+- [ ] Confirm `grep -r "service_role\|SERVICE_ROLE" src/` (or equivalent) still returns nothing after this addition.
+- [ ] Confirm "Crear cuenta de acceso" and "Vincular cuenta existente" still behave exactly as before (regression check — this is a pure addition, not a modification of either existing action).
+- [ ] Confirm no new environment variable was introduced — `resend-worker-access-link` reads the same `WORKER_INVITE_REDIRECT_URL` already configured for `create-worker-account` (decisions.md #31); no new `.env.example` entry, no new remote secret.
+
 ### Production smoke test (real mailbox, not Mailpit — decisions.md #28, resolved)
 
 Required before the first real production rollout, and again after any change to email templates or `WORKER_INVITE_REDIRECT_URL` configuration. Mailpit does not exist in production — none of these checks can be satisfied by looking at the local inbox.
@@ -123,6 +142,7 @@ Required before the first real production rollout, and again after any change to
 - [ ] Confirm the invite email actually arrives in the real, controlled mailbox (check the actual inbox, not just the function's response).
 - [ ] Confirm the link in that real email redirects to the **production** `WORKER_INVITE_REDIRECT_URL` (the remote secret, not the local one).
 - [ ] Complete `/set-password` against production with that test account, then log out and log back in with the new password — confirm the full loop works against the real deployed stack, not just locally.
+- [ ] Once Phase 11C is implemented and deployed: as admin, trigger `resend-worker-access-link` against the deployed remote function for the same controlled test worker (after intentionally not completing `/set-password` the first time, or after already having set a password once, to cover both cases). Confirm the resend email arrives in the real mailbox, redirects to the production URL, and the full set-password-then-login loop works via this path too.
 - [ ] Clean up the test worker/Auth account afterward if it isn't meant to represent a real institutional worker (avoid leaving throwaway test data in production).
 
 ### Environment/secrets verification
@@ -132,6 +152,7 @@ Required before the first real production rollout, and again after any change to
 - [ ] Confirm any local env file used for `--env-file` is excluded by `.gitignore` and was never committed (`git log --all --full-history -- <path>` should show nothing).
 - [ ] Confirm the function is **not** deployed to the remote project by default — `supabase functions list --project-ref <remote-ref>` (read-only, safe) should not show `create-worker-account` until someone has explicitly run the deploy step.
 - [ ] Confirm remote deployment and `supabase secrets set` were both treated as explicit, human-approved actions, not run automatically as part of any script or CI step introduced by this feature.
+- [ ] Once Phase 11C exists: confirm `resend-worker-access-link` is likewise **not** deployed by default (checked independently of `create-worker-account`, since it's a separate function with its own deploy step), and confirm its source contains no `SUPABASE_SERVICE_ROLE_KEY` read anywhere (decisions.md #32 — this function should not need it at all).
 
 ## Cleanup
 

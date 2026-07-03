@@ -72,7 +72,7 @@
 
 - [x] Create `src/pages/MyDocuments.jsx` — checks `role === 'worker' && workerId != null`, redirects staff/admin to `/dashboard`, redirects everyone else (including no-role) to `/pending-access`. Renders the real expediente view (`WorkerDocumentsView`, added in Phase 6) with `workerId` resolved entirely from `useProfile()`, never from the URL.
 - [x] **(security revision, new)** Create `src/pages/PendingAccess.jsx` for authenticated sessions with no resolvable role.
-- [ ] Create the minimal worker layout (no staff nav), reused by both `MyDocuments` and `PendingAccess`. **Not done** — both pages currently render standalone (no shared layout component), consistent with this task's file scope not including a `WorkerAppLayout`. Worth revisiting now that `MyDocuments` renders `WorkerDocumentsView` (Phase 6) without any surrounding layout/nav.
+- [x] Create the minimal worker layout (no staff nav), reused by both `MyDocuments` and `PendingAccess`. Implemented as `src/ui/WorkerAppLayout.jsx`, modeled on the existing `AppLayout.jsx` (shared `Header`, no `Sidebar`/`MainNav`), wired into `src/App.jsx` as a layout route wrapping both `my-documents` and `pending-access` (same nested-route pattern already used for the staff `AppLayout` group). `Header.jsx`'s sidebar-toggle button is now conditionally rendered (only when `onToggleSidebar` is passed), so the same `Header` — including its existing `Logout` action — is reused as-is for workers, with no staff navigation ever rendered. `PendingAccess.jsx` was simplified to drop its own standalone full-viewport wrapper and inline `Logout` button, now relying on the shared layout's header instead. **Verified live** (Playwright, local dev server + local Supabase): a worker session at `/my-documents` shows the header (logo, dark-mode toggle, logout) with the document view properly padded inside `Main` (no longer full raw viewport); a session with no linked profile at `/pending-access` shows the same header and can log out from it; staff/admin sessions at `/dashboard` are unaffected and still show the sidebar-toggle button. `bun run build` passes; `bun run lint` introduces no new errors in any touched file (repo-wide baseline unchanged).
 - [x] **(security revision — renamed/redesigned)** Create `RoleGate` guard component (replaces the earlier "StaffRoute" concept): allow-list `role IN ('staff','admin')` only; explicitly redirects `worker` to `/my-documents` and everything else to `/pending-access`. Applied to all existing staff routes in `src/App.jsx` (wraps `AppLayout`, so it covers every nested staff route, including `workers/:id/documents`).
 - [x] Add the `my-documents` and `pending-access` routes in `src/App.jsx`.
 
@@ -117,7 +117,7 @@ See [[verification-plan]] for the full manual scenario list. Summary:
 
 ## Phase 11: Server-side worker account provisioning by invitation
 
-Added by the spec update covering `decisions.md` #21–29, `database-plan.md` §14–15, and `implementation-plan.md` §11. Split into 11A (Edge Function, server-side only) and 11B (frontend + companion page), implemented separately.
+Added by the spec update covering `decisions.md` #21–29, `database-plan.md` §14–15, and `implementation-plan.md` §11. Split into 11A (Edge Function, server-side only), 11B (frontend + companion page), and 11C (resend/recover access link, added after an operational gap was found during 11B's own local testing — see below), implemented separately.
 
 ### Phase 11A: the Edge Function itself (implemented, local-only)
 
@@ -134,6 +134,7 @@ Added by the spec update covering `decisions.md` #21–29, `database-plan.md` §
 - [x] Implement case 7 (non-admin caller → early `current_app_role()` fast-fail for UX, with `link_worker_account`'s own admin check as the real, non-bypassable boundary). **Verified live**: `403` for a freshly-created auth user with no `profiles` row.
 - [x] Add `[functions.create-worker-account]` to `supabase/config.toml` with `verify_jwt = true` (must not be disabled). **Note**: `supabase functions new` auto-generated this section with `verify_jwt = false` (matching its default `apikey` auth-mode scaffold) — corrected to `true`.
 - [x] Create the local-only env file, confirmed git-ignored **before** creating it (`git check-ignore -v` run first, then again after creation, then via `git add --dry-run` to confirm it would never be staged). Path: `supabase/functions/create-worker-account/.env.local`. Contains only `WORKER_INVITE_REDIRECT_URL` (a local placeholder URL) — no real secret, no Supabase keys (those are auto-injected, decisions.md #25).
+- [x] Add a committed `supabase/functions/create-worker-account/.env.example` (no real secrets, safe to commit — confirmed `git check-ignore` does *not* match it, unlike `.env.local`) documenting the one custom variable: `WORKER_INVITE_REDIRECT_URL=http://localhost:5173/set-password`. **Important, easy to get wrong**: this value must match whatever origin the Vite dev server is *actually* running on for your session — `bun run dev` / `vite` defaults to port 5173 (no `--port`/`strictPort` configured in `vite.config`); earlier verification passes in this file ran the dev server on `127.0.0.1:3000` as an ad hoc override for Playwright testing, but that is not this project's default and must not be copied blindly — using the wrong port/host here sends real invite links to a page that never loads. In production, this same variable must instead be set to the real production app URL as a remote Supabase secret (`supabase secrets set`, never committed to this repo).
 - [x] Local verification (re-run after the fixes, on a fresh `db reset`): `bunx supabase db reset`, `bunx supabase db lint`, `bunx supabase test db --local` all pass unaffected (no migrations touched). `supabase functions serve` (with and without `--env-file`, as needed per case) served the function correctly; all 7 required retest cases plus the original 5 cases behaved as designed.
 - [x] Confirmed no remote deploy, `supabase link`, or `supabase secrets set` was run at any point in this pass.
 
@@ -184,11 +185,33 @@ Chains every step of the invitation flow in one uninterrupted pass, against a fr
 - [x] Zero unexpected console errors observed at any point in the chain.
 - [ ] **Not covered by this run**: a real, unassisted browser click on the Mailpit email link itself (blocked by the sandbox Chromium JWT-fragment bug, not by app/server behavior — the redirect target and token validity were independently confirmed via `curl` and then exercised through the identical `/set-password` code path via the session-seeding workaround above).
 
+### Phase 11C: resend/recover access link (not started, spec-only — no code written yet)
+
+Added by the spec update covering `decisions.md` #30–33 and `implementation-plan.md` §12, after local end-to-end testing of Phase 11B surfaced a real operational gap: a worker who closes the invite-link tab before setting a password has no way to get a working link again (`create-worker-account` correctly returns `already_linked` on a retry, but that leaves the worker linked and still passwordless), and the same gap applies to a worker who later simply forgets their password. This adds a **third**, permanent admin action — **"Reenviar enlace de acceso"** — alongside (never replacing) "Crear cuenta de acceso" and "Vincular cuenta existente".
+
+- [ ] Create `supabase/functions/resend-worker-access-link/index.ts` (new, separate Edge Function — not a branch inside `create-worker-account`, see decisions.md #30 for why). Request body `{ workerId }` only, same exact-shape validation precedent as `create-worker-account` (tasks.md Phase 11A's Codex-review fix).
+- [ ] Verify caller is admin by calling `current_app_role()` via the user-scoped client. Unlike `create-worker-account`, this function never calls `link_worker_account`, so it has no RPC to delegate the *real* check to — but this single check **is** the real, non-bypassable boundary here regardless, not just a UX fast-fail: `current_app_role()` is a `SECURITY DEFINER` function that resolves the role from the caller's actual `profiles` row using their cryptographically-verified forwarded JWT, not a client-supplied claim (see decisions.md #33's clarification of this point). No second, redundant check is needed for the same reason a single call to it is already trusted everywhere else in this design (RLS policies, `RoleGate`, and internally inside `link_worker_account` itself all ultimately rely on the same function).
+- [ ] Verify the worker has a linked `profiles` row with `role = 'worker'` — reject with a clear "usa 'Crear cuenta de acceso' primero" error if not, **before** sending any email. This is the opposite precondition from `create-worker-account`'s case 6 (decisions.md #33).
+- [ ] Resolve email from `public.workers.email` only — never accept a caller-supplied email (decisions.md #29, extended by #33).
+- [ ] Call `resetPasswordForEmail(email, { redirectTo: WORKER_INVITE_REDIRECT_URL })` using a plain anon-key client with no forwarded caller header (decisions.md #32) — no service-role client needed anywhere in this function.
+- [ ] Do not call `link_worker_account` or `unlink_worker_account`, and do not write to `profiles`, under any code path.
+- [ ] Add `[functions.resend-worker-access-link]` to `supabase/config.toml` with `verify_jwt = true`.
+- [ ] Reuse the existing `WORKER_INVITE_REDIRECT_URL` — no new env var, no new `.env.example` entry needed (decisions.md #31).
+- [ ] Add `resendWorkerAccessLink({ workerId })` to `src/services/apiProfiles.js`.
+- [ ] Create `src/features/authentication/useResendWorkerAccessLink.js`.
+- [ ] Add admin-only "Reenviar enlace de acceso" action to `WorkerRow.jsx`, alongside — not replacing — "Crear cuenta de acceso" and relabeled "Vincular cuenta existente".
+- [ ] Local verification: worker with a linked profile but no password set (simulating a stale/closed invite link) → clicking "Reenviar enlace de acceso" sends a new email, confirmed in Mailpit (recipient, valid link, redirects to local `WORKER_INVITE_REDIRECT_URL`), and the worker can complete `/set-password` and log in with the new password.
+- [ ] Local verification: worker with no linked profile → clicking (or attempting to invoke directly) returns the clear "not linked yet" error, no email sent, confirmed via Mailpit staying empty and no `profiles` row created.
+- [ ] Local verification: non-admin caller invoking the function directly (bypassing the UI) is rejected.
+- [ ] Confirm "Crear cuenta de acceso" and "Vincular cuenta existente" behavior is unchanged after this addition (regression check).
+- [ ] Confirm no `service_role` reference appears anywhere in `src/` (same standing check as Phase 11A/11B).
+- [ ] Confirm no remote deploy, `supabase link`, or `supabase secrets set` was run while implementing/testing this locally.
+
 **Not part of this phase (explicitly deferred, see spec.md Out of scope):**
-- Resend/revoke invitation UI, or a bulk view of pending invitations.
-- General self-service "forgot password" flow (distinct from the one-time `/set-password` activation page above).
+- Revoking a pending invitation, or a bulk view of pending invitations (resending for one specific worker is now in scope, above — a management panel covering revoke/bulk-view is not).
+- General self-service "forgot password" flow (distinct from both the one-time `/set-password` activation page and the admin-initiated "Reenviar enlace de acceso" action above — see decisions.md #30 for the exact distinction).
 - A `workers.email` format/uniqueness database constraint (database-plan.md §15).
-- Any "override email" input on `create-worker-account` — the manual "Vincular cuenta existente" flow is the sanctioned place for a typed email, permanently (decisions.md #4, #29).
+- Any "override email" input on `create-worker-account` or `resend-worker-access-link` — the manual "Vincular cuenta existente" flow is the sanctioned place for a typed email, permanently (decisions.md #4, #29, #33).
 
 ## Follow-up (separate future spec, not part of this feature)
 
@@ -196,4 +219,4 @@ Chains every step of the invitation flow in one uninterrupted pass, against a fr
 - [ ] "Promote to admin" UI (stays manual/Studio for this feature, decisions.md #5).
 - [ ] Make `profile_pictures` bucket reproducible locally via migration (carried over from `worker-document-uploads`).
 - [ ] `workers.email` format/uniqueness database constraint, once existing data is cleaned up (database-plan.md §15).
-- [ ] Invitation resend/revoke admin UI, general self-service password reset (superseded from a vaguer "invitation email flow" bullet now that Phase 11 defines the actual invitation flow concretely).
+- [ ] Invitation revoke admin UI, a bulk/pending-invitations view, and general self-service password reset (narrowed from a vaguer "invitation resend/revoke admin UI" bullet now that Phase 11C adds per-worker resend as in-scope, concrete work — see above; only revoke/bulk-view and general self-service recovery remain here as future, out-of-scope work).
