@@ -15,24 +15,35 @@
 
 ## Phase 2: Supabase schema — mapping and roles
 
-- [ ] Create migration for `public.profiles` table + constraints. **(security revision: no default value on `role`; `worker_id` FK is `ON DELETE RESTRICT`, not `CASCADE`.)**
-- [ ] Create migration for `current_app_role()` and `current_worker_id()` helper functions. **(security revision: `current_app_role()` returns `NULL` when no row exists — no `COALESCE(..., 'staff')`.)**
-- [ ] Create migration for `link_worker_account()` RPC function. **(security revision: reject if target account already has role `admin`/`staff`, already linked to a different worker, or the requested `worker_id` already has a different linked account — see `database-plan.md` §3.)**
-- [ ] **(security revision, new)** Create migration for `unlink_worker_account()` RPC function.
-- [ ] **(security revision, new)** Create migration for `grant_staff_role()` RPC function, for onboarding new staff after launch without an implicit default.
-- [ ] Create migration for `profiles` RLS policies (read-own, read-all-if-admin, no direct writes).
-- [ ] **(security revision, new, required)** Create the one-time backfill migration granting explicit `role = 'staff'` to every pre-existing `auth.users` row with no `profiles` row. Must ship in the same deployment as Phase 3's RLS changes, not before or after.
-- [ ] Decide and implement local-only bootstrap admin seed (or document the manual Studio step if not automated). This stays separate from the backfill migration above (decisions.md #18).
+- [x] Create migration for `public.profiles` table + constraints. **(security revision: no default value on `role`; `worker_id` FK is `ON DELETE RESTRICT`, not `CASCADE`.)** — `20260703002441_profiles.sql`
+- [x] Create migration for `current_app_role()` and `current_worker_id()` helper functions. **(security revision: `current_app_role()` returns `NULL` when no row exists — no `COALESCE(..., 'staff')`.)** — `20260703002444_profiles_helper_functions.sql`
+- [x] Create migration for `link_worker_account()` RPC function. **(security revision: reject if target account already has role `admin`/`staff`, already linked to a different worker, or the requested `worker_id` already has a different linked account — see `database-plan.md` §3.)** — `20260703002446_link_worker_account_function.sql`. Functional testing surfaced and fixed an additional NULL-safety bug not called out in the original checklist: the admin check used `<> 'admin'`, which is falsy (not true) for a `NULL` role and silently skipped the guard — changed to `IS DISTINCT FROM 'admin'`.
+- [x] **(security revision, new)** Create migration for `unlink_worker_account()` RPC function. — `20260703002448_unlink_worker_account_function.sql` (same `IS DISTINCT FROM` fix applied).
+- [x] **(security revision, new)** Create migration for `grant_staff_role()` RPC function, for onboarding new staff after launch without an implicit default. — `20260703002450_grant_staff_role_function.sql` (same `IS DISTINCT FROM` fix applied).
+- [x] Create migration for `profiles` RLS policies (read-own, read-all-if-admin, no direct writes). — `20260703002452_profiles_rls_policies.sql`
+- [x] **(security revision, new, required)** Create the one-time backfill migration granting explicit `role = 'staff'` to every pre-existing `auth.users` row with no `profiles` row. Must ship in the same deployment as Phase 3's RLS changes, not before or after. — `20260703002501_profiles_backfill_existing_users.sql`
+- [x] Decide and implement local-only bootstrap admin seed (or document the manual Studio step if not automated). This stays separate from the backfill migration above (decisions.md #18). — implemented: `supabase/seed.sql` now grants `role = 'admin'` to the existing seeded local user (`admin.local@enub.test`, `11111111-1111-1111-1111-111111111111`), since that user is created by the seed step itself (after migrations run), so the backfill migration alone wouldn't have covered it.
 
 ## Phase 3: Supabase schema — RLS tightening on existing tables
 
-- [ ] Migration: drop and recreate `workers` SELECT policy (staff/admin: all rows; worker: own row). **Use `DROP POLICY IF EXISTS`.**
-- [ ] Migration: drop and recreate `workers` UPDATE policy (staff/admin only, unchanged for them). **Use `DROP POLICY IF EXISTS`.**
-- [ ] Migration: drop and recreate the four `worker_documents` policies (staff/admin: all; worker: own `worker_id` only). **Use `DROP POLICY IF EXISTS`.**
-- [ ] Migration: drop and recreate the four `storage.objects` policies scoped to the `worker_documents` bucket (staff/admin: all; worker: own path prefix via `storage.foldername`). **Use `DROP POLICY IF EXISTS`.**
-- [ ] Confirm every policy check in this phase uses an explicit allow-list (`role IN ('staff','admin')` or `role = 'worker'`), never a negation of one role implying access for all others.
-- [ ] Run `bunx supabase db reset` and confirm no migration errors.
-- [ ] Run `bunx supabase db lint`.
+- [x] Migration: drop and recreate `workers` SELECT policy (staff/admin: all rows; worker: own row). **Use `DROP POLICY IF EXISTS`.** — `20260703002454_workers_rls_policies_update.sql`
+- [x] Migration: drop and recreate `workers` UPDATE policy (staff/admin only, unchanged for them). **Use `DROP POLICY IF EXISTS`.** — `20260703002454_workers_rls_policies_update.sql`
+- [x] Migration: drop and recreate the four `worker_documents` policies (staff/admin: all; worker: own `worker_id` only). **Use `DROP POLICY IF EXISTS`.** — `20260703002456_worker_documents_rls_policies_update.sql`
+- [x] Migration: drop and recreate the four `storage.objects` policies scoped to the `worker_documents` bucket (staff/admin: all; worker: own path prefix via `storage.foldername`). **Use `DROP POLICY IF EXISTS`.** — `20260703002459_worker_documents_storage_rls_policies_update.sql`
+- [x] Confirm every policy check in this phase uses an explicit allow-list (`role IN ('staff','admin')` or `role = 'worker'`), never a negation of one role implying access for all others. — confirmed by direct SQL testing (see below).
+- [x] Run `bunx supabase db reset` and confirm no migration errors. — clean.
+- [x] Run `bunx supabase db lint`. — no issues in any `public.*` function (only pre-existing, unrelated `extensions.*`/pgTAP internals warnings/errors, not introduced by this work).
+
+**Additional verification performed (beyond the checklist, via direct SQL against the reset local DB, all inside rolled-back transactions):**
+
+- No-profile-row session: `current_app_role()`/`current_worker_id()` return `NULL`; `link_worker_account`/`unlink_worker_account`/`grant_staff_role` all reject it with "Only admins can ...".
+- Seeded local admin (`admin.local@enub.test`) can `link_worker_account`; the resulting worker session can read only its own `workers` row and has zero visibility into other workers' `worker_documents`.
+- `link_worker_account` rejects: re-linking a `worker_id` that already has a different linked account.
+- `grant_staff_role` rejects converting an already-linked `worker` account.
+- A staff (non-admin) session is rejected by `unlink_worker_account`.
+- `profiles_worker_id_fkey` (`ON DELETE RESTRICT`) blocks deleting a linked `workers` row; deletion succeeds only after `unlink_worker_account` runs, and the unlinked account reverts to no role (`NULL`), not `staff`.
+
+**Known, expected side effect (not fixed, out of scope for Phase 2/3):** `bunx supabase test db --local` now fails 5 pre-existing assertions in `supabase/tests/database/worker_documents_rls.test.sql` (tests 11–14, 19). Those assertions check for one policy per command (`cmd = 'SELECT'/'INSERT'/'UPDATE'/'DELETE'`), but this feature intentionally replaced that shape with combined `FOR ALL` staff/admin + worker-ownership policies (as specified in `database-plan.md` §8–9 and reviewed in `decisions.md` #13). Updating/replacing that test file is Phase 9 work (`worker_documents_ownership_rls.test.sql`, `workers_rls.test.sql`), which was not part of this implementation request.
 
 ## Phase 4: Data access layer
 
@@ -70,16 +81,18 @@
 
 ## Phase 9: Database tests (pgTAP, following the existing `supabase/tests/database/` pattern)
 
-- [ ] `profiles_schema.test.sql` — table/constraint shape, `role` check constraint values, `worker_id` uniqueness, **`role` has no column default**, **`worker_id` FK is `ON DELETE RESTRICT`**.
-- [ ] `profiles_rls.test.sql` — RLS enabled; no `authenticated` INSERT/UPDATE/DELETE policy exists; anon has no access.
-- [ ] `worker_documents_ownership_rls.test.sql` — staff/admin policy and worker-ownership policy both present with expected `USING`/`WITH CHECK` shape (adapting the existing `worker_documents_rls.test.sql` style).
-- [ ] `workers_rls.test.sql` — confirm `anon` no longer has SELECT/UPDATE on `workers` (regression guard against the pre-existing open policy).
-- [ ] **(security revision, new)** `current_app_role_default_deny.test.sql` — insert an `auth.users` row with no `profiles` row, assert `current_app_role()` and `current_worker_id()` return `NULL` for it, not `'staff'`.
-- [ ] `link_worker_account_function.test.sql` — function exists, is `SECURITY DEFINER`, rejects non-admin callers. **(security revision, expanded)** also assert: rejects linking to an account with existing role `admin`/`staff`; rejects re-linking an already-linked worker account; rejects when the target `worker_id` already has a different linked account.
-- [ ] **(security revision, new)** `unlink_worker_account_function.test.sql` — admin-only; removes the profile row; account has no role afterward (not staff).
-- [ ] **(security revision, new)** `grant_staff_role_function.test.sql` — admin-only; rejects converting an existing `worker` row; sets role to `staff` otherwise.
-- [ ] **(security revision, new)** `profiles_worker_deletion_restrict.test.sql` — attempting to delete a `workers` row with a linked `profiles` row fails; deleting succeeds after `unlink_worker_account`.
-- [ ] **(security revision, new)** `profiles_backfill.test.sql` — every pre-existing `auth.users` row (as of the backfill migration) has a corresponding `profiles` row with `role = 'staff'`.
+- [x] `profiles_schema.test.sql` — table/constraint shape, `role` check constraint values, `worker_id` uniqueness, **`role` has no column default**, **`worker_id` FK is `ON DELETE RESTRICT`** (plus a behavioral RESTRICT check and an `ON DELETE CASCADE` check for `profiles_id_fkey`).
+- [x] `profiles_rls.test.sql` — RLS enabled; no `authenticated` INSERT/UPDATE/DELETE policy exists; anon has no access; behavioral checks that a worker sees only its own row, an admin sees all, and a direct authenticated INSERT is denied.
+- [x] `worker_documents_ownership_rls.test.sql` — behavioral: worker sessions see/insert/delete only their own `worker_id`'s rows, staff/admin see everything, a no-role session sees nothing. (Structural policy-shape assertions were folded into the updated `worker_documents_rls.test.sql` instead of duplicated here, since that file already owns policy-metadata checks for this table.)
+- [x] `workers_rls.test.sql` — confirms `anon` no longer has SELECT/UPDATE on `workers` (regression guard against the pre-existing open policy), plus behavioral checks that staff sees all workers, a worker sees only its own row, and a no-role session sees none.
+- [x] **(security revision, new)** `current_app_role_default_deny.test.sql` — covers a real unlinked `auth.users` row, a uuid with no `auth.users` row at all, and no JWT claim set at all; asserts `current_app_role()`/`current_worker_id()` return `NULL` in every case, not `'staff'`, plus a sanity check that a linked account resolves normally.
+- [x] `link_worker_account_function.test.sql` — function exists, is `SECURITY DEFINER`, rejects a caller with **no** `profiles` row (the exact bug class found during implementation) and a staff (non-admin) caller. **(security revision, expanded)** also asserts: rejects linking to an account with existing role `admin`/`staff`; rejects re-linking an already-linked worker account; rejects when the target `worker_id` already has a different linked account; happy path produces the correct `role`/`worker_id`.
+- [x] **(security revision, new)** `unlink_worker_account_function.test.sql` — rejects a no-role caller and a staff caller; is a safe no-op for an unlinked `worker_id`; admin can unlink; the account has **no** role afterward (not staff).
+- [x] **(security revision, new)** `grant_staff_role_function.test.sql` — rejects a no-role caller and a worker caller; rejects converting an existing `worker` row; rejects a nonexistent email; sets role to `staff` (`worker_id = NULL`) for a brand-new account; is a safe no-op for an already-staff account.
+- [x] **(security revision, new)** `profiles_worker_deletion_restrict.test.sql` — deleting a linked `workers` row fails (`ON DELETE RESTRICT`); succeeds after `unlink_worker_account`; the unlinked account has no role afterward (not staff).
+- [x] **(security revision, new)** `profiles_backfill.test.sql` — tests the backfill migration's exact SQL statement (not a live re-run of the migration itself, since it already executed once at reset time over whatever existed then — documented in the file): grants `role = 'staff'` to a simulated pre-existing user with no profile, does not clobber a user already migrated to a non-staff role, and is idempotent on a second run.
+- [x] **(not originally listed, added for completeness)** `worker_documents_storage_rls.test.sql` — behavioral: staff/admin see all objects in the `worker_documents` bucket, a worker sees only objects under its own path prefix, inserts under another worker's prefix or a non-matching prefix are rejected.
+- [x] Updated the pre-existing `worker_documents_rls.test.sql`: replaced the stale one-policy-per-command assertions (tests 11–14, storage count=4) with assertions matching the actual `FOR ALL` ownership-scoped policy shape this feature introduced.
 
 ## Phase 10: Verification
 

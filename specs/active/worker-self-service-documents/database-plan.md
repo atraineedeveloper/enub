@@ -93,7 +93,11 @@ DECLARE
     target_auth_id uuid;
     existing_role text;
 BEGIN
-    IF "public"."current_app_role"() <> 'admin' THEN
+    -- IS DISTINCT FROM (not <>): current_app_role() returns NULL for a
+    -- caller with no profiles row, and plain `<>` with NULL evaluates to
+    -- NULL, which "IF ... THEN" treats as false -- silently skipping this
+    -- guard instead of raising. IS DISTINCT FROM is NULL-safe.
+    IF "public"."current_app_role"() IS DISTINCT FROM 'admin' THEN
         RAISE EXCEPTION 'Only admins can link worker accounts';
     END IF;
 
@@ -119,7 +123,7 @@ BEGIN
 
     IF EXISTS (
         SELECT 1 FROM "public"."profiles"
-        WHERE "worker_id" = "link_worker_account"."worker_id"
+        WHERE "profiles"."worker_id" = "link_worker_account"."worker_id"
     ) THEN
         RAISE EXCEPTION 'Worker % already has a linked account; unlink it first', "link_worker_account"."worker_id";
     END IF;
@@ -134,6 +138,8 @@ GRANT EXECUTE ON FUNCTION "public"."link_worker_account"(bigint, text) TO "authe
 
 **What changed from the original draft:** the original used `ON CONFLICT ("id") DO UPDATE` unconditionally, which would have silently overwritten an existing `admin`/`staff` row (or re-pointed an existing `worker` row to a different worker) if `link_worker_account` were called with an email that already had a role. This is now checked explicitly and rejected with a descriptive error before any write happens (decisions.md #16). A benign check-then-insert race between two concurrent admin calls is accepted as out of scope — this is a low-frequency, admin-only action, not a hot path.
 
+**Bug found during implementation, now fixed in the snippet above:** the admin check originally read `IF public.current_app_role() <> 'admin' THEN`. In PL/pgSQL, `NULL <> 'admin'` evaluates to `NULL`, and `IF NULL THEN ...` is treated as false — so a caller with **no** `profiles` row (the exact case this feature's default-deny model is supposed to catch) would have silently skipped the admin check entirely instead of being rejected. Functional testing against a reset local database surfaced this. Fixed by using `IS DISTINCT FROM 'admin'`, which is NULL-safe. The same fix applies to `unlink_worker_account` and `grant_staff_role` below. The `EXISTS (...)` check just above this note is also shown with the column reference qualified as `"profiles"."worker_id"` — `db lint` flagged the unqualified form as ambiguous against the PL/pgSQL parameter of the same name.
+
 ## 4. `unlink_worker_account` RPC (new)
 
 ```sql
@@ -144,12 +150,15 @@ SECURITY DEFINER
 SET "search_path" = ''
 AS $$
 BEGIN
-    IF "public"."current_app_role"() <> 'admin' THEN
+    -- IS DISTINCT FROM (not <>): NULL-safe, so a caller with no profiles
+    -- row (current_app_role() = NULL) is correctly rejected instead of
+    -- silently passing this guard. See link_worker_account for the same fix.
+    IF "public"."current_app_role"() IS DISTINCT FROM 'admin' THEN
         RAISE EXCEPTION 'Only admins can unlink worker accounts';
     END IF;
 
     DELETE FROM "public"."profiles"
-    WHERE "worker_id" = "unlink_worker_account"."worker_id" AND "role" = 'worker';
+    WHERE "profiles"."worker_id" = "unlink_worker_account"."worker_id" AND "profiles"."role" = 'worker';
 END;
 $$;
 
@@ -171,7 +180,10 @@ DECLARE
     target_auth_id uuid;
     existing_role text;
 BEGIN
-    IF "public"."current_app_role"() <> 'admin' THEN
+    -- IS DISTINCT FROM (not <>): NULL-safe, so a caller with no profiles
+    -- row (current_app_role() = NULL) is correctly rejected instead of
+    -- silently passing this guard. See link_worker_account for the same fix.
+    IF "public"."current_app_role"() IS DISTINCT FROM 'admin' THEN
         RAISE EXCEPTION 'Only admins can grant staff role';
     END IF;
 
