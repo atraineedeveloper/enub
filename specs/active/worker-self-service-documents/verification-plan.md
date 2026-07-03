@@ -76,6 +76,60 @@ These scenarios verify the core fix and should be checked before anything else, 
 
 - [ ] Using an unauthenticated Supabase client (anon key, no session), confirm `workers` SELECT/UPDATE that previously succeeded (per the original `worker-document-uploads` decisions) now fails or returns zero rows.
 
+## (new) Server-side worker account provisioning by invitation
+
+Covers `decisions.md` #21–29, `implementation-plan.md` §11, `tasks.md` Phase 11. Not applicable until that phase is implemented — included here now so verification isn't designed after the fact. No open design questions remain for this scope (see the "open questions resolved" revision note at the top of `decisions.md`).
+
+### Local functional verification
+
+- [ ] `bunx supabase start` + `supabase functions serve create-worker-account --env-file <local env file>`; confirm the function starts without error using only auto-injected `SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY` plus the one custom `WORKER_INVITE_REDIRECT_URL`.
+- [ ] Case 1: pick a `workers` row with a valid, unused email and no linked profile. As admin, click "Crear cuenta de acceso". Confirm: a new `auth.users` row exists, and a `profiles` row now exists with `role = 'worker'` and the correct `worker_id`.
+- [ ] Case 1 (content verification, required — decisions.md #28, not optional): open the local Mailpit inbox (port 54324). Confirm the invite email:
+  - appears at all (not just that the API call returned no error);
+  - is addressed to the exact `workers.email` value used for this worker;
+  - contains a link that is well-formed and not broken/placeholder text;
+  - when followed, redirects to the configured local `WORKER_INVITE_REDIRECT_URL`;
+  - and that redirect URL points at the local app (`127.0.0.1`-style), never at any production domain.
+  - Also confirm no real remote Auth account and no real email were created/sent anywhere during this — everything happened inside the local stack.
+- [ ] Case 2: pick (or reuse) a `workers` row whose email already matches an existing `auth.users` row with no profile yet. Click "Crear cuenta de acceso". Confirm: no duplicate `auth.users` row is created, and the existing account is linked (`profiles` row appears, `role = 'worker'`).
+- [ ] Case 3: pick a `workers` row with `email` empty/null. Click "Crear cuenta de acceso" (or confirm it's disabled with a hint in the UI). Confirm: clear error, no `auth.users` row created, no `profiles` row created. Confirm there is no way to type/supply an alternate email into this specific action to work around the block (decisions.md #29) — the only way to unblock is editing `workers.email` itself, or using "Vincular cuenta existente" separately.
+- [ ] Case 4: temporarily set a `workers.email` to an obviously invalid value (e.g. `not-an-email`). Confirm: clear error, no Admin API call made.
+- [ ] Case 5: temporarily set two `workers` rows to the same email. Attempt provisioning for either. Confirm: clear "duplicated across workers" error, no Admin API call made, no `profiles` row created for either.
+- [ ] Case 6: attempt "Crear cuenta de acceso" again for a worker provisioned in case 1 or 2. Confirm: a clear "already linked" message, and confirm (e.g. via Studio) that no second invite email was sent and no `auth.users` row was created/touched a second time.
+- [ ] Case 7: call the Edge Function directly (e.g. via `curl` with a valid staff, non-admin JWT, or via the browser console using the app's already-authenticated client) bypassing the UI entirely. Confirm rejection — both the early `current_app_role()` check and, if that were somehow bypassed, `link_worker_account`'s own admin check.
+- [ ] Confirm the frontend network tab never shows a service-role key anywhere in any request — only the anon key, consistent with every other Supabase call this app makes.
+- [ ] Confirm `grep -r "service_role\|SERVICE_ROLE" src/` (or equivalent) returns nothing.
+- [ ] Confirm "Vincular cuenta existente" (the pre-existing manual flow) is still visible and functional for an admin after "Crear cuenta de acceso" ships — it is a permanent fallback (decisions.md #4), not replaced or removed.
+
+### Companion page verification
+
+- [ ] Complete case 1 above, open the invite email from the local Mailpit inbox, click the link. Confirm it lands on `/set-password` with an active (invite-derived) session.
+- [ ] Set a password on `/set-password`. Confirm `supabase.auth.updateUser({ password })` succeeds, a clear success state is shown, and the page redirects specifically to `/my-documents` (not `/dashboard`, not a generic landing page).
+- [ ] Confirm an error state (e.g. a password that fails Supabase's own validation) is shown clearly, not silently swallowed or a raw stack trace.
+- [ ] Confirm `/set-password` does not create or touch any `profiles` row — the worker's profile was already linked by `create-worker-account` before the invite was sent; this page only sets a password.
+- [ ] Confirm no service-role key or call appears anywhere in this page's network requests.
+- [ ] Log out, log back in with the newly-set password. Confirm it works, and confirm the resulting session's access is governed exactly like any other worker session (`RoleGate`/RLS) — `/set-password` did not introduce any separate authorization path.
+- [ ] This is the actual proof the invitation flow is usable end-to-end, not just that an email was sent. **Per decisions.md #27, worker Auth provisioning is not considered complete until every check in this subsection passes.**
+
+### Production smoke test (real mailbox, not Mailpit — decisions.md #28, resolved)
+
+Required before the first real production rollout, and again after any change to email templates or `WORKER_INVITE_REDIRECT_URL` configuration. Mailpit does not exist in production — none of these checks can be satisfied by looking at the local inbox.
+
+- [ ] Use a **controlled test worker** record with an email address the team actually controls (an internal test mailbox) — explicitly **not** a real employee's email for this first check.
+- [ ] As admin, trigger `create-worker-account` against the deployed remote function for that controlled test worker.
+- [ ] Confirm the invite email actually arrives in the real, controlled mailbox (check the actual inbox, not just the function's response).
+- [ ] Confirm the link in that real email redirects to the **production** `WORKER_INVITE_REDIRECT_URL` (the remote secret, not the local one).
+- [ ] Complete `/set-password` against production with that test account, then log out and log back in with the new password — confirm the full loop works against the real deployed stack, not just locally.
+- [ ] Clean up the test worker/Auth account afterward if it isn't meant to represent a real institutional worker (avoid leaving throwaway test data in production).
+
+### Environment/secrets verification
+
+- [ ] Confirm the Edge Function source contains no literal Supabase URL (local or remote) anywhere — only `Deno.env.get(...)` calls.
+- [ ] Confirm the Edge Function source contains no literal service-role key, anon key, or `WORKER_INVITE_REDIRECT_URL` value anywhere.
+- [ ] Confirm any local env file used for `--env-file` is excluded by `.gitignore` and was never committed (`git log --all --full-history -- <path>` should show nothing).
+- [ ] Confirm the function is **not** deployed to the remote project by default — `supabase functions list --project-ref <remote-ref>` (read-only, safe) should not show `create-worker-account` until someone has explicitly run the deploy step.
+- [ ] Confirm remote deployment and `supabase secrets set` were both treated as explicit, human-approved actions, not run automatically as part of any script or CI step introduced by this feature.
+
 ## Cleanup
 
 - [ ] Confirm no `.env`, service role key, or access token was committed.

@@ -362,3 +362,35 @@ Following the existing `YYYYMMDDHHMMSS_description.sql` convention seen in `work
 11. `..._profiles_seed_data.sql` — local-only bootstrap admin (section 12), if applicable.
 
 Actual timestamps assigned at implementation time via `bunx supabase migration new <name>`.
+
+## 14. Server-side provisioning by invitation: no new migration required
+
+Added alongside `decisions.md` #21–28. The Edge Function `create-worker-account` (see `implementation-plan.md` §11) reuses, unmodified:
+
+- `public.link_worker_account(worker_id, worker_email)` (section 3) for the admin-authorization check and the `profiles` write.
+- `public.current_app_role()` (section 2) for the Edge Function's early fast-fail check.
+- The existing `workers` SELECT RLS policy (section 7) for reading `worker_id`'s email and checking for duplicate emails across workers.
+- The existing `profiles` SELECT RLS policy (section 6, "Admins can read all profiles") for checking whether a worker already has a linked profile before attempting any invite.
+
+No table, column, function, or policy changes are needed to support this. This section exists to make that explicit, rather than leave "why isn't there a migration for this" unstated.
+
+## 15. `workers.email` data quality (considered, deferred)
+
+`public.workers.email` (from the pre-existing `remote_schema.sql`) is `character varying`, nullable, with no `CHECK` constraint and no `UNIQUE`/partial-unique index. This feature's Edge Function validates email presence/format/uniqueness **at request time** (decisions.md #23, #24 — cases 3/4/5) rather than adding a database constraint, for one concrete reason: existing rows almost certainly already violate a `NOT NULL`, format, or uniqueness constraint (the column has never been validated), so adding one now would require a data-cleanup pass first or the migration itself would fail on `db reset`/`db push` against real data.
+
+**Possible future migration (not part of this pass):**
+
+```sql
+-- Illustrative only -- NOT part of this feature's migrations.
+-- Would require a prior data-cleanup step (backfilling/deduping bad emails)
+-- before it could be applied without failing.
+ALTER TABLE "public"."workers"
+    ADD CONSTRAINT "workers_email_format_check"
+    CHECK ("email" IS NULL OR "email" ~* '^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
+CREATE UNIQUE INDEX "workers_email_key"
+    ON "public"."workers" (lower("email"))
+    WHERE "email" IS NOT NULL AND "email" <> '';
+```
+
+If this is ever implemented, it would let the Edge Function drop its own duplicate/format checks in favor of a database-level guarantee — but that's a separate, larger cleanup task, not scoped here.

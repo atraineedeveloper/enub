@@ -47,37 +47,40 @@
 
 ## Phase 4: Data access layer
 
-- [ ] Add `getWorkerById(id)` to `src/services/apiWorkers.js`.
-- [ ] Create `src/services/apiProfiles.js` with `getCurrentProfile()`, `linkWorkerAccount(...)`, `unlinkWorkerAccount(...)`, `grantStaffRole(...)`. **`getCurrentProfile()` must return `role: null` (not `'staff'`) when no row exists.**
+- [x] Add `getWorkerById(id)` to `src/services/apiWorkers.js`.
+- [x] Create `src/services/apiProfiles.js` with `getCurrentProfile()`. **`getCurrentProfile()` returns `role: null` (not `'staff'`) when no row exists** — verified against `useProfile.js` behavior.
+- [x] Add `linkWorkerAccount({ workerId, email })` to `apiProfiles.js`, calling `supabase.rpc('link_worker_account', ...)`. Surfaces the RPC's own exception message as the thrown `Error` (not a generic fallback), per decisions.md #16.
+- [ ] Add `unlinkWorkerAccount(...)`, `grantStaffRole(...)` to `apiProfiles.js`. **Still deferred** — unlink UI and staff-granting UI were explicitly out of scope for this pass; adding unused RPC wrappers now would be speculative/half-finished code with nothing consuming them yet.
 
 ## Phase 5: React Query hooks
 
-- [ ] Create `src/features/workers/useWorker.js`.
-- [ ] Create `src/features/authentication/useProfile.js`, exposing `role` (nullable), `isStaffOrAdmin`, `isWorker`, `isAdmin`, and `hasNoAccess` as distinct, explicit values.
-- [ ] Create `src/features/authentication/useLinkWorkerAccount.js`.
-- [ ] **(security revision, new)** Create `src/features/authentication/useUnlinkWorkerAccount.js`.
-- [ ] **(security revision, new)** Create `src/features/authentication/useGrantStaffRole.js`.
+- [x] Create `src/features/workers/useWorker.js`.
+- [x] Create `src/features/authentication/useProfile.js`, exposing `role` (nullable), `isStaffOrAdmin`, `isWorker`, `isAdmin`, and `hasNoAccess` as distinct, explicit values.
+- [x] Create `src/features/authentication/useLinkWorkerAccount.js`. Wraps `linkWorkerAccount`, used by the admin-only "Vincular cuenta" action added in Phase 8.
+- [ ] **(security revision, new)** Create `src/features/authentication/useUnlinkWorkerAccount.js`. **Deferred to Phase 8.**
+- [ ] **(security revision, new)** Create `src/features/authentication/useGrantStaffRole.js`. **Deferred to Phase 8.**
 
 ## Phase 6: Reuse — split `WorkerDocuments.jsx`
 
-- [ ] Extract `src/features/workers/documents/WorkerDocumentsView.jsx` from the current page body, parametrized by `workerId` prop.
-- [ ] Switch the extracted view from `useWorkers({ fullDetails: false })` + `.find()` to `useWorker(workerId)`.
-- [ ] Thin `src/pages/Records/WorkerDocuments.jsx` down to a `useParams` wrapper around the shared view.
-- [ ] Confirm staff/admin behavior at `/workers/:id/documents` is unchanged after the split.
+- [x] Extract `src/features/workers/documents/WorkerDocumentsView.jsx` from the current page body, parametrized by `workerId` prop. Upload, replace, view, download, semester selector, category display, and report download logic copied verbatim — no behavior change.
+- [x] Switch the extracted view from `useWorkers({ fullDetails: false })` + `.find()` to `useWorker(workerId)`.
+- [x] Thin `src/pages/Records/WorkerDocuments.jsx` down to a `useParams` wrapper around the shared view.
+- [x] `src/pages/MyDocuments.jsx` now renders `WorkerDocumentsView` with `workerId` from `useProfile()` (never from the URL), replacing the earlier placeholder text.
+- [ ] Confirm staff/admin behavior at `/workers/:id/documents` is unchanged after the split. **Not done in this pass** — `bun run build`/`bun run lint` confirm the code compiles and resolves correctly, but no manual/browser verification of the actual route was performed. Still open per `verification-plan.md`.
 
 ## Phase 7: Worker self-service route and access gate
 
-- [ ] Create `src/pages/MyDocuments.jsx` — **must** check `role === 'worker' && workerId != null`, redirect staff/admin to `/dashboard`, redirect everyone else (including no-role) to `/pending-access`.
-- [ ] **(security revision, new)** Create `src/pages/PendingAccess.jsx` for authenticated sessions with no resolvable role.
-- [ ] Create the minimal worker layout (no staff nav), reused by both `MyDocuments` and `PendingAccess`.
-- [ ] **(security revision — renamed/redesigned)** Create `RoleGate` guard component (replaces the earlier "StaffRoute" concept): allow-list `role IN ('staff','admin')` only; explicitly redirect `worker` to `/my-documents` and everything else to `/pending-access`. Apply it to all existing staff routes in `src/App.jsx`.
-- [ ] Add the `my-documents` and `pending-access` routes in `src/App.jsx`.
+- [x] Create `src/pages/MyDocuments.jsx` — checks `role === 'worker' && workerId != null`, redirects staff/admin to `/dashboard`, redirects everyone else (including no-role) to `/pending-access`. Renders the real expediente view (`WorkerDocumentsView`, added in Phase 6) with `workerId` resolved entirely from `useProfile()`, never from the URL.
+- [x] **(security revision, new)** Create `src/pages/PendingAccess.jsx` for authenticated sessions with no resolvable role.
+- [ ] Create the minimal worker layout (no staff nav), reused by both `MyDocuments` and `PendingAccess`. **Not done** — both pages currently render standalone (no shared layout component), consistent with this task's file scope not including a `WorkerAppLayout`. Worth revisiting now that `MyDocuments` renders `WorkerDocumentsView` (Phase 6) without any surrounding layout/nav.
+- [x] **(security revision — renamed/redesigned)** Create `RoleGate` guard component (replaces the earlier "StaffRoute" concept): allow-list `role IN ('staff','admin')` only; explicitly redirects `worker` to `/my-documents` and everything else to `/pending-access`. Applied to all existing staff routes in `src/App.jsx` (wraps `AppLayout`, so it covers every nested staff route, including `workers/:id/documents`).
+- [x] Add the `my-documents` and `pending-access` routes in `src/App.jsx`.
 
 ## Phase 8: Admin account management UI
 
-- [ ] Add an admin-only "Vincular cuenta" action to `WorkerTable.jsx` / `WorkerRow.jsx`, gated on `useProfile().isAdmin`. Surface RPC rejection reasons (already-staff, already-linked, etc.) distinctly, not as a generic error.
-- [ ] **(security revision, new)** Add an admin-only "Desvincular cuenta" action, wired to `useUnlinkWorkerAccount()` — required for the `ON DELETE RESTRICT` FK to be usable in practice.
-- [ ] **(security revision, new)** Add a "Grant staff access" admin action (placement TBD at implementation time), wired to `useGrantStaffRole()`.
+- [x] Add an admin-only "Vincular cuenta" action to `WorkerRow.jsx`, gated on `useProfile().isAdmin`. Opens a small `LinkWorkerAccountForm` (new, `src/features/workers/LinkWorkerAccountForm.jsx`) asking for the email of an Auth account already created manually in Supabase Studio; calls `useLinkWorkerAccount()` (new, `src/features/authentication/useLinkWorkerAccount.js`). RPC rejection reasons (already-staff, already-linked, no account found, etc.) surface via `react-hot-toast` as the RPC's own message, not a generic error. The RPC (`link_worker_account`, unchanged) remains the actual security boundary — hiding the action for non-admins in the UI is convenience only, verified already-tested at the database layer in an earlier phase.
+- [ ] **(security revision, new)** Add an admin-only "Desvincular cuenta" action, wired to `useUnlinkWorkerAccount()` — required for the `ON DELETE RESTRICT` FK to be usable in practice. **Explicitly out of scope for this pass.**
+- [ ] **(security revision, new)** Add a "Grant staff access" admin action (placement TBD at implementation time), wired to `useGrantStaffRole()`. **Explicitly out of scope for this pass.**
 
 ## Phase 9: Database tests (pgTAP, following the existing `supabase/tests/database/` pattern)
 
@@ -112,9 +115,41 @@ See [[verification-plan]] for the full manual scenario list. Summary:
 - [ ] Manually verify admin-only linking/unlinking/staff-granting UI and its rejection for non-admins.
 - [ ] Confirm no `.env` or secrets were committed.
 
+## Phase 11: Server-side worker account provisioning by invitation (new — not yet implemented)
+
+Added by the spec update covering `decisions.md` #21–29, `database-plan.md` §14–15, and `implementation-plan.md` §11. This entire phase is planning only as of this update — no code exists yet. **Design status: no open questions remain (see the "open questions resolved" revision note at the top of `decisions.md`) — ready for implementation once picked up.**
+
+- [ ] Create `supabase/functions/create-worker-account/index.ts` (Deno Edge Function). Two Supabase clients: user-scoped (forwarded JWT) for `current_app_role()`/`workers`/`profiles` reads and the `link_worker_account` call; service-role (server env only) for `admin.inviteUserByEmail` only.
+- [ ] Confirm the request body is `{ workerId }` only — no `email` field is ever added to this endpoint's contract (decisions.md #29). The email always comes from `public.workers.email`, never from caller input.
+- [ ] Implement case 1 (valid email, no existing Auth user → invite).
+- [ ] Implement case 2 (valid email, existing Auth user → skip invite, proceed straight to `link_worker_account`, no duplicate created).
+- [ ] Implement case 3 (empty/null `workers.email` → block with clear error, no Admin API call, **no manually-typed fallback email accepted**).
+- [ ] Implement case 4 (invalid email format → block with clear error, no Admin API call).
+- [ ] Implement case 5 (email duplicated across `workers` rows → block with clear error, no Admin API call).
+- [ ] Implement case 6 (worker already has a linked `profiles` row → short-circuit with a clear "already linked" message, checked before any Admin API call).
+- [ ] Implement case 7 (non-admin caller → early `current_app_role()` fast-fail for UX, with `link_worker_account`'s own admin check as the real, non-bypassable boundary).
+- [ ] Add `[functions.create-worker-account]` to `supabase/config.toml` with `verify_jwt = true` (must not be disabled).
+- [ ] Add `createWorkerAccount({ workerId })` to `src/services/apiProfiles.js`.
+- [ ] Create `src/features/authentication/useCreateWorkerAccount.js`.
+- [ ] Add admin-only "Crear cuenta de acceso" action to `WorkerRow.jsx`; relabel the existing "Vincular cuenta" to "Vincular cuenta existente" to read as the fallback — kept permanently (decisions.md #4), not removed once the automatic flow ships.
+- [ ] Disable "Crear cuenta de acceso" in the UI (with a hint) when `worker.email` is empty — convenience only, the function blocks it either way, and never offers a manual-email override in this specific action (decisions.md #29).
+- [ ] Create the companion `src/pages/SetPassword.jsx` at route `/set-password`, matching the exact minimum scope in `decisions.md` #27 / `implementation-plan.md` §11.3 (reads invite session, sets password, clear success/error states, redirects to `/my-documents`, no general password recovery, no service_role exposure, no profile creation/linking, no new authorization logic). **This is a completion gate, not a nice-to-have** — Phase 11 is not done until this page exists and passes the companion-page checks in `verification-plan.md`.
+- [ ] Add the `/set-password` route in `src/App.jsx`.
+- [ ] Document the local `.env` file for `supabase functions serve --env-file` (illustrative sketch already in `decisions.md` #26 — create the real, git-ignored local file at implementation time, not committed).
+- [ ] Confirm `.gitignore` already excludes any local function env file before creating one (check, don't assume).
+- [ ] Local verification: confirm the invite email's actual content in Mailpit (recipient, valid link, redirect to local `WORKER_INVITE_REDIRECT_URL`, never production) — not just that the API call succeeded (decisions.md #28, resolved).
+- [ ] Production verification (first rollout, and after any email/redirect config change): use a controlled test worker mailbox (never a real employee), confirm real delivery, confirm redirect to the production `WORKER_INVITE_REDIRECT_URL`, confirm the full set-password-then-login loop works. Never rely on Mailpit for this (decisions.md #28, resolved).
+
+**Not part of this phase (explicitly deferred, see spec.md Out of scope):**
+- Resend/revoke invitation UI, or a bulk view of pending invitations.
+- General self-service "forgot password" flow (distinct from the one-time `/set-password` activation page above).
+- A `workers.email` format/uniqueness database constraint (database-plan.md §15).
+- Any "override email" input on `create-worker-account` — the manual "Vincular cuenta existente" flow is the sanctioned place for a typed email, permanently (decisions.md #4, #29).
+
 ## Follow-up (separate future spec, not part of this feature)
 
 - [ ] Differentiate `staff` vs `admin` document-review permissions (decisions.md #6).
 - [ ] "Promote to admin" UI (stays manual/Studio for this feature, decisions.md #5).
-- [ ] Self-service password reset / invitation email flow for workers.
 - [ ] Make `profile_pictures` bucket reproducible locally via migration (carried over from `worker-document-uploads`).
+- [ ] `workers.email` format/uniqueness database constraint, once existing data is cleaned up (database-plan.md §15).
+- [ ] Invitation resend/revoke admin UI, general self-service password reset (superseded from a vaguer "invitation email flow" bullet now that Phase 11 defines the actual invitation flow concretely).

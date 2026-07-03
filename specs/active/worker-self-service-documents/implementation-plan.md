@@ -163,6 +163,108 @@ Not building: a way to promote/demote `admin` role, or a bulk view of all linked
 
 `apiAuth.js`'s `login()` already works for any Supabase Auth account regardless of role; the same `/login` route and `LoginForm.jsx` serve staff, worker, and not-yet-linked accounts alike. Post-login routing is entirely handled by `RoleGate` (§5), `MyDocuments.jsx` (§6), and `PendingAccess.jsx` (§4) — no change to `Login.jsx` or `useLogin.js`.
 
+## 11. Server-side worker account provisioning by invitation (new)
+
+**No code is written yet — this section is a design, same as the rest of this document.** Adds the new primary provisioning flow from `decisions.md` #21–28, alongside the existing manual "Vincular cuenta existente" fallback (§9, kept as-is).
+
+### 11.1 Edge Function: `supabase/functions/create-worker-account/index.ts` (new, not yet created)
+
+Request: `POST`, invoked from the client as `supabase.functions.invoke('create-worker-account', { body: { workerId } })` — the anon-key client already used everywhere else; no new client-side credential.
+
+Request body is `{ workerId }` **only** — no `email` field, ever (decisions.md #29). The function always resolves the email from `public.workers.email` for that `workerId`; there is no fallback path that accepts a caller-supplied email in this endpoint. (The manual "Vincular cuenta existente" flow, §9, is the place a caller-supplied email belongs — kept as a permanent, separate action, not merged into this one.)
+
+Two Supabase clients constructed inside the function:
+
+- A **user-scoped** client, built from the incoming request's forwarded `Authorization` header (the caller's own JWT) and `Deno.env.get("SUPABASE_URL")` / `Deno.env.get("SUPABASE_ANON_KEY")`. Used for every step that should be authorized exactly like the rest of the app: reading `workers`, reading `profiles`, calling `current_app_role()`, calling `link_worker_account`.
+- A **service-role** client, built from `Deno.env.get("SUPABASE_URL")` / `Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")` (both auto-injected — decisions.md #25). Used **only** for `admin.inviteUserByEmail`.
+
+Pseudocode (illustrative, not final implementation):
+
+```ts
+// supabase/functions/create-worker-account/index.ts (NOT YET IMPLEMENTED)
+serve(async (req) => {
+  const { workerId } = await req.json();
+  const userClient = createUserScopedClient(req); // forwards caller's JWT
+  const adminClient = createServiceRoleClient();  // service role, server-only
+
+  // Fast-fail UX only -- NOT the security boundary (decisions.md #24, case 7).
+  const { data: role } = await userClient.rpc("current_app_role");
+  if (role !== "admin") return jsonError(403, "Solo un administrador puede crear cuentas de acceso");
+
+  const { data: worker, error: workerError } = await userClient
+    .from("workers").select("id, email").eq("id", workerId).single();
+  if (workerError || !worker) return jsonError(404, "Trabajador no encontrado");
+
+  const email = worker.email?.trim();
+  if (!email) return jsonError(400, "Este trabajador no tiene correo registrado; actualiza su correo antes de continuar"); // case 3
+  if (!isValidEmailFormat(email)) return jsonError(400, "El correo del trabajador no es válido"); // case 4
+
+  const { count } = await userClient
+    .from("workers").select("id", { count: "exact", head: true }).eq("email", email);
+  if (count > 1) return jsonError(400, "Este correo está registrado en más de un trabajador; corrige los datos antes de continuar"); // case 5
+
+  const { data: existingProfile } = await userClient
+    .from("profiles").select("id").eq("worker_id", workerId).maybeSingle();
+  if (existingProfile) return jsonSuccess({ message: "Este trabajador ya tiene una cuenta vinculada" }); // case 6
+
+  const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
+    redirectTo: Deno.env.get("WORKER_INVITE_REDIRECT_URL"),
+  });
+  if (inviteError && !isAlreadyRegisteredError(inviteError)) {
+    return jsonError(502, "No se pudo invitar la cuenta; intenta de nuevo");
+  }
+  // inviteError of the "already registered" kind = case 2 (existing user); no error = case 1 (new invite).
+
+  const { error: linkError } = await userClient.rpc("link_worker_account", {
+    worker_id: workerId,
+    worker_email: email,
+  });
+  if (linkError) return jsonError(409, linkError.message); // case 7 (redundant real check), or a race-condition collision
+
+  return jsonSuccess({ message: "Cuenta creada e invitación enviada" });
+});
+```
+
+Config addition (to `supabase/config.toml`, not made in this pass): a `[functions.create-worker-account]` section with `verify_jwt = true` (the default — must not be set to `false`), so the platform itself rejects unauthenticated requests before the function body even runs, on top of the `current_app_role()`/`link_worker_account` checks inside it.
+
+### 11.2 Frontend additions (not yet implemented)
+
+- `src/services/apiProfiles.js`: add `createWorkerAccount({ workerId })`, calling `supabase.functions.invoke('create-worker-account', { body: { workerId } })` and surfacing the function's own error message as a thrown `Error`, same convention as `linkWorkerAccount`.
+- `src/features/authentication/useCreateWorkerAccount.js` (new): mutation hook mirroring `useLinkWorkerAccount.js` — `react-hot-toast` success/error, invalidates `["workers"]`/`["profile"]`.
+- `src/features/workers/WorkerRow.jsx`: add a new admin-only primary action **"Crear cuenta de acceso"** (calls `useCreateWorkerAccount`), alongside the existing **"Vincular cuenta"** action, relabeled **"Vincular cuenta existente"** to read as the fallback it now is. Both stay gated on `useProfile().isAdmin`.
+- If `worker.email` is empty, disable "Crear cuenta de acceso" in the UI with a hint to fill in the email first — a convenience mirroring case 3's server-side block, not a substitute for it (the Edge Function blocks it either way).
+
+### 11.3 New companion page: "activar cuenta" / set password (not yet implemented — see decisions.md #27, REVISED)
+
+**Required, not optional — provisioning is not considered complete without this page working end-to-end (decisions.md #27's hard gate).** A minimal, one-time page, `src/pages/SetPassword.jsx` at route `/set-password`. Exact minimum scope (deliberately small; nothing beyond this list belongs on this page):
+
+1. Route: `/set-password`.
+2. Relies on the session Supabase's client already establishes automatically from the invite/recovery link's URL fragment (`detectSessionInUrl`, already enabled) — no new session-handling logic.
+3. Presents a single password field + confirmation; lets the worker set/update their password.
+4. Calls `supabase.auth.updateUser({ password })`.
+5. Shows clear success and error states — not a silent no-op, not a raw error dump.
+6. On success, redirects to **`/my-documents` specifically** (not `/dashboard`, not a generic post-login redirect) — the person completing this page is, by definition, a worker.
+7. Does **not** implement general self-service forgot-password recovery — that stays out of scope (spec.md).
+8. Does **not** touch, request, or expose the service role key — plain client-side page, same anon-key client as everywhere else.
+9. Does **not** create or link any `profiles` row — that already happened via `link_worker_account` inside the Edge Function, before the invite was sent. This page only ever calls `updateUser`.
+10. Does **not** introduce its own authorization logic — once the worker logs in with the new password, `RoleGate`/`MyDocuments`/RLS resolve access exactly as they do for any other worker session; this page doesn't participate in that beyond the one redirect in step 6.
+
+This page is a **required companion** to §11.1 — the invite email is not usable end-to-end without it (decisions.md #27) — but is tracked as its own item in `tasks.md`, not bundled into the same implementation pass as the Edge Function itself. It must be built and verified (per `verification-plan.md`'s companion-page section) before Phase 11 is considered done.
+
+### 11.4 Local vs. remote — how the same code runs in both
+
+- **Local:** `supabase start` (already how this project runs) + `supabase functions serve` runs the function against the local stack; `SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY` are the local ones, auto-injected. Invite emails land in the local Mailpit-compatible inbox already configured at `[local_smtp]` (port 54324) — zero extra setup. `WORKER_INVITE_REDIRECT_URL` for local comes from a local-only env file passed via `--env-file` (sketch in decisions.md #26 — not created as a real file in this pass).
+- **Remote:** requires an explicit `supabase functions deploy create-worker-account --project-ref <remote-ref>` (human-approved, same class of action as `supabase db push` per `AGENTS.md`'s existing rules) and an explicit `supabase secrets set WORKER_INVITE_REDIRECT_URL=... --project-ref <remote-ref>`. Until both of those explicit steps happen, the function simply doesn't exist on the remote project — there is no accidental path to remote provisioning from local development.
+
+### 11.5 Verification approach differs by environment (decisions.md #28, RESOLVED)
+
+Not the same check in both places — this is deliberate, not an oversight:
+
+- **Local:** verify the invite email's actual *content* in the Mailpit inbox (port 54324) — recipient matches `workers.email`, the invite link is valid, and clicking it redirects to the local `WORKER_INVITE_REDIRECT_URL` (never a production URL). "The API call didn't error" is not sufficient on its own.
+- **Production:** Mailpit doesn't exist in production — there is nothing to inspect there. Verification instead uses a **controlled test worker email** (a real mailbox the team controls, never a real employee's email for the first smoke test), confirms the email actually arrives there, confirms the link redirects to the **production** `WORKER_INVITE_REDIRECT_URL`, and confirms the full loop — set password via `/set-password`, then log in.
+
+Full acceptance criteria for both are in `verification-plan.md`'s "Server-side worker account provisioning by invitation" section.
+
 ## Files touched/added summary
 
 New:
@@ -189,3 +291,14 @@ Unmodified (confirmed safe to leave untouched):
 - `src/services/apiAuth.js`
 - `src/services/apiWorkerDocuments.js`
 - All existing `features/workers/documents/*` hooks
+
+New, added by §11 (server-side provisioning by invitation — not yet implemented, this update is spec-only):
+- `supabase/functions/create-worker-account/index.ts`
+- `src/features/authentication/useCreateWorkerAccount.js`
+- `src/pages/SetPassword.jsx` (the required companion page, decisions.md #27)
+
+Modified, added by §11:
+- `src/services/apiProfiles.js` (add `createWorkerAccount({ workerId })`)
+- `src/features/workers/WorkerRow.jsx` (add "Crear cuenta de acceso"; relabel existing "Vincular cuenta" to "Vincular cuenta existente")
+- `src/App.jsx` (add `/set-password` route, once `SetPassword.jsx` exists)
+- `supabase/config.toml` (add a `[functions.create-worker-account]` section with `verify_jwt = true`)

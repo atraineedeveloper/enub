@@ -4,6 +4,14 @@
 
 This file was revised after a security review flagged that the original "no profile row defaults to staff" design was a privilege-escalation risk: a freshly created (but not-yet-linked) worker Auth account, or any future Auth account created for any reason, would be treated as full staff until someone explicitly linked it. Decision #7 below is **superseded** — see [[#7-revised-no-profiles-row-means-no-access-default-deny]]. Everywhere else in this document that referenced the old "default to staff" behavior has been updated to match.
 
+## Revision note (server-side provisioning by invitation)
+
+This file was revised again to add **server-side worker Auth provisioning**: an admin-triggered Supabase Edge Function that invites (or links, if already registered) an Auth account for a worker using `public.workers.email`, then links it via the existing `link_worker_account` RPC — no new migration required. This supersedes part of decision #3 (manual Studio creation is no longer the *only* path, though it remains a valid fallback) and adds decisions #21–#28 below. No code is written yet; this is spec-only. See the new "Environment and secrets" and "Cases" sections in `spec.md`, the new Edge Function design in `implementation-plan.md` §11, and the new phase in `tasks.md`.
+
+## Revision note (open questions resolved)
+
+The two open questions from the previous revision are now resolved: local email testing must verify actual content, not just API success (decision #28, revised below), and the `/set-password` companion page's exact minimum scope is now specified (decision #27, revised below). A new decision #29 makes explicit that the automatic provisioning flow must never accept a manually-typed fallback email — it is `workers.email` or nothing, by design, not by oversight. Decision #4 (manual fallback flow) gets its edge-case list spelled out concretely rather than gestured at. No new open questions were introduced by this revision.
+
 ## 1. Mapping model: a `profiles` table, not a column on `workers`
 
 We add a new table `public.profiles` keyed by `auth.users.id`, holding `role` and an optional `worker_id`, instead of adding a `user_id` column directly on `public.workers`.
@@ -22,18 +30,25 @@ The new `profiles.role` enum (`admin` / `staff` / `worker`) is a distinct, purel
 
 ## 3. Provisioning of the auth account itself
 
-Creating the actual `auth.users` row for a worker stays a **manual, admin-only step performed in Supabase Studio/Dashboard** (local or hosted), outside the app.
+**Partially superseded by decision #21 — see below.** Creating the actual `auth.users` row for a worker no longer has to be a manual Studio step: it can now happen server-side via an Edge Function using the Auth Admin API. Manual Studio/Dashboard creation remains a valid fallback (e.g. if email delivery is broken, or for a one-off account), but it is no longer the only path.
 
-Reason:
+The reasoning that still holds, unchanged:
 
-- The client only has the anon key. Creating users normally requires the Supabase Admin API (service role key), which must never be shipped to the browser.
-- Self-registration (`supabase.auth.signUp`) is explicitly out of scope — the institution wants controlled provisioning, not open sign-up.
+- The client only ever has the anon key. Creating users via the Admin API always requires the service role key, which must never be shipped to the browser — that constraint doesn't go away with decision #21, it just moves the service-role usage into a server-side Edge Function instead of a human using Studio.
+- Self-registration (`supabase.auth.signUp`) is still explicitly out of scope — the institution wants controlled, admin-triggered provisioning, not open sign-up. An Edge Function invited by an admin is controlled provisioning; a public sign-up form would not be.
 
-This is a hard constraint, not a preference — it was not part of the AskUserQuestion decision below.
-
-**Security consequence of this decision (new):** because account creation and role-linking are two separate steps, there is necessarily a window where an `auth.users` row exists with no `profiles` row at all — anyone who signs in during that window must be treated as having **no access**, not as staff. This is the core reasoning behind decision #7 below.
+**Security consequence of this decision (unchanged):** because account creation and role-linking can still be effectively two steps (an invited user hasn't accepted yet, or a manually-created Studio account hasn't been linked), there is necessarily a window where an `auth.users` row exists with no `profiles` row at all — anyone who signs in during that window must be treated as having **no access**, not as staff. This is the core reasoning behind decision #7 below, and it applies identically regardless of which provisioning path created the `auth.users` row.
 
 ## 4. Linking a provisioned auth account to a worker: in-app admin UI backed by a SECURITY DEFINER RPC
+
+**Now the fallback path — see decision #21 for the new primary path (server-side invitation). Confirmed: kept permanently, not a transitional shim.** This flow (manual Studio account + "Vincular cuenta existente") stays available because it covers concrete cases the automatic flow structurally cannot:
+
+- The worker's `auth.users` account was already created manually (e.g., before this feature existed, or via Studio for an unrelated reason).
+- An invitation email failed to deliver (bounced, spam-filtered, wrong provider config) but the `auth.users` row exists regardless — re-running `create-worker-account` would just re-attempt the same invite; the admin needs a way to link the already-existing account directly.
+- An admin needs to link a *different*, already-known Auth email than whatever is currently in `workers.email` — e.g., the worker uses a different personal/institutional address for their actual login than what's on file.
+- Migration/data-cleanup scenarios: bulk-fixing links after correcting bad `workers.email` data, or re-establishing links lost to some other issue.
+
+`link_worker_account` itself (the RPC) is not just kept as a fallback UI entry point — the new Edge Function in decision #21 calls this exact same RPC internally for the linking step, so this decision's reasoning is still load-bearing, not legacy.
 
 Confirmed via stakeholder question. Once an admin has created the `auth.users` row in Studio, they link it to the correct `workers` row **from inside the app**:
 
@@ -175,3 +190,134 @@ Why this is safe against the original bug report: previously, `ON DELETE CASCADE
 ## 20. Migration idempotency: `DROP POLICY IF EXISTS`
 
 Every `DROP POLICY` statement in this feature's migrations uses `DROP POLICY IF EXISTS "..." ON ...;` instead of a bare `DROP POLICY`. Reason: a bare `DROP POLICY` errors out the whole migration if the policy name doesn't exist under that exact name (e.g., diverged between local/hosted environments, or a future rename) — `IF EXISTS` makes the migration safe to re-run/reorder without blocking on a name mismatch. This applies to every policy drop in [[database-plan]] sections 5, 6, and 7.
+
+## 21. Server-side provisioning by invitation: an Edge Function, not a bigger RPC
+
+Instead of teaching the database more about Auth account creation (which it structurally cannot do — `auth.users` writes via the Admin API require the service role key, and SQL functions, even `SECURITY DEFINER` ones, cannot hold or use that key), provisioning moves into a new Supabase Edge Function, `create-worker-account`, that:
+
+1. Runs entirely server-side (Deno runtime managed by Supabase — locally via `supabase functions serve`/`supabase start`, remotely once explicitly deployed via `supabase functions deploy`).
+2. Holds the service role key **only** in its own server-side environment (injected automatically by the Supabase platform as `SUPABASE_SERVICE_ROLE_KEY` — see decision #25), never in `src/`, never in a Vite env var, never sent to the browser.
+3. Uses the service role key **only** for the one thing that structurally requires it: calling the Auth Admin API (`supabase.auth.admin.inviteUserByEmail(...)`) to create/invite the `auth.users` row.
+4. Delegates everything else — admin authorization and the actual `profiles` write — to the **existing, already-tested** `link_worker_account` RPC, called with the *caller's own forwarded JWT*, not the service role.
+
+Reason this shape, not a new all-in-one RPC: Postgres functions cannot make outbound HTTPS calls to the Auth Admin API (`/auth/v1/admin/...`) — that surface only exists over HTTP, not SQL. An Edge Function is the only place in the Supabase architecture that can both hold a service-role credential safely (server-side, never shipped to a browser) and call that HTTP API. Reusing `link_worker_account` for the linking half means:
+
+- Zero new SQL to audit for the admin-only check, the role-collision rejections (decision #16), or the `profiles` write shape — all of that is already implemented and already has pgTAP coverage.
+- The RPC's admin check is the **real** authorization boundary for case 7 (a non-admin caller is rejected inside the RPC, which runs with the caller's own JWT — not the Edge Function's service-role client). The Edge Function is not a second, separately-trusted authority; it's a thin orchestration layer in front of the same database rules.
+
+Rejected alternative: give the Edge Function's service-role client the job of writing directly to `profiles` (bypassing RLS entirely, since service role always bypasses RLS). Rejected because it would duplicate the admin check, the role-collision checks, and the `worker_role_consistency` reasoning in a second place (Deno/TypeScript) that has to be kept in sync with the SQL version forever, doubling the audit surface for exactly the part of this feature that has already had one privilege-escalation bug found and fixed (decisions #7, #16). Calling the existing RPC with the *caller's* JWT (not service role) means the exact same tested SQL path runs regardless of whether the profile was linked via the old manual flow or the new invitation flow.
+
+## 22. Invitation over temporary passwords
+
+`inviteUserByEmail` is the only method this feature implements for creating the `auth.users` row. Directly creating a user with a server-generated temporary password (`admin.createUser({ email, password, email_confirm: true })`) is not implemented.
+
+Reason:
+
+- Invitation email is Supabase's built-in flow for "this account exists but the person hasn't set a password yet" — it sends the person a link, they set their own password, no secret ever has to be communicated out-of-band (Slack, a sticky note, a phone call) where it could leak or be reused.
+- A temporary password requires a second, separate communication channel to tell the worker what it is, and a policy for forcing a change on first login that this app does not have infrastructure for (no forced-password-change flow exists).
+
+Not rejected forever — noted as a possible future fallback (e.g., if email deliverability to some workers is unreliable) but not built in this pass, consistent with keeping this change minimal.
+
+## 23. `public.workers.email` is the source of truth, with known data-quality gaps
+
+The Edge Function reads `public.workers.email` for the worker being provisioned rather than asking the admin to type an email a second time (unlike the fallback `link_worker_account` flow, where the admin types the email directly, precisely because that flow supports linking to *any* existing Auth account, not necessarily one matching `workers.email`).
+
+`public.workers.email` today: nullable, no format constraint, no uniqueness constraint (confirmed against the live schema — `character varying`, no `CHECK`, no `UNIQUE`/partial index). This feature does **not** add a schema constraint to fix that (see [[database-plan#14-workers-email-data-quality-considered-deferred]] for why) — instead the Edge Function validates at request time (cases 3, 4, 5 below) and blocks with a clear error rather than silently proceeding with bad data.
+
+## 24. Case-by-case provisioning behavior
+
+Concrete handling for the seven cases named in the request, all enforced **inside the Edge Function**, before any Admin API call is made (so a request that's going to be blocked never triggers a wasted invite email):
+
+1. **Valid email, no existing Auth user:** `inviteUserByEmail(email, { redirectTo: <configured URL> })` succeeds → call `link_worker_account(workerId, email)` with the caller's JWT → success.
+2. **Valid email, Auth user already exists:** `inviteUserByEmail` returns a "user already registered"/`email_exists`-class error → the Edge Function treats this as expected, not a failure, and proceeds straight to `link_worker_account(workerId, email)`, which resolves the existing `auth.users` row by email itself (unchanged RPC behavior) → success. No duplicate Auth user is ever created.
+3. **Worker has empty/null email:** blocked before any Admin API call, with a clear "este trabajador no tiene correo registrado; actualiza su correo antes de continuar" error. No invite is attempted.
+4. **Worker email fails a basic format check:** blocked the same way, before any Admin API call, with a clear "el correo del trabajador no es válido" error.
+5. **Worker email is duplicated across multiple `workers` rows:** blocked before any Admin API call — the Edge Function checks `count(*) from workers where email = <this email>` (readable by the caller under the existing staff/admin `workers` SELECT policy) and refuses with "este correo está registrado en más de un trabajador; corrige los datos antes de continuar" if the count is greater than one. Reason to block rather than guess: silently picking "the worker being provisioned right now" while a duplicate exists risks a future admin provisioning the *other* worker with the same email and creating a confusing cross-linked mess; forcing a data fix first is cheap and avoids that.
+6. **Worker already has a linked `profiles` row:** checked **before** any Admin API call (via the caller's own admin-readable `profiles` SELECT policy) — if `profiles.worker_id` already has a row, the Edge Function short-circuits with a clear "este trabajador ya tiene una cuenta vinculada" message and never calls `inviteUserByEmail` at all. See decision #26 for why this is a clear message rather than a deeper idempotency check.
+7. **Caller is not admin:** rejected **inside `link_worker_account`**, which runs with the caller's own forwarded JWT and already contains the `current_app_role() IS DISTINCT FROM 'admin'` check (decisions #7, #16). The Edge Function additionally makes an early `current_app_role()` call for fast, clear UI feedback (avoiding a wasted invite email if the request will be rejected anyway) — but that early check is a UX optimization, not the security boundary. Even if the Edge Function's early check were buggy or skipped, `link_worker_account` still rejects a non-admin caller on its own, exactly as it does today for the manual flow. This satisfies "reject server-side, not only in UI" without inventing a second, parallel authorization system to keep in sync with the first.
+
+## 25. Environment and secrets model
+
+- **No hardcoded URLs anywhere.** The Edge Function never contains a literal `http://127.0.0.1:54321` or a literal remote project URL. It reads `Deno.env.get("SUPABASE_URL")`.
+- **Supabase auto-injects the basics.** Every Edge Function, both under local `supabase functions serve` and once deployed remotely, automatically receives `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` as environment variables scoped to whichever project is actually running it — the CLI does this without any manual `supabase secrets set` step for these three. This is *why* the same function code works unmodified in both environments: the platform, not the code, decides which project's URL/keys are injected, based on whether you're running `supabase start`/`serve` locally or have deployed to a linked remote project.
+- **Only one custom secret is needed:** `WORKER_INVITE_REDIRECT_URL` — where the invite email's link sends the worker to finish setting a password (decision #27). This *does* need to differ per environment (a `127.0.0.1`-style local URL vs. the real deployed app URL) and is exactly the kind of value that must come from configuration, not code:
+  - Local: set in a local-only env file consumed by `supabase functions serve --env-file <path>` (see decision #26's `.env.example` sketch — not created as a real file in this pass).
+  - Remote: set via `supabase secrets set WORKER_INVITE_REDIRECT_URL=https://<real-domain>/set-password` (or the equivalent Dashboard "Edge Function secrets" UI) — an explicit, human-run command against the linked remote project, never automatic.
+- **No service role key in `src/`, Vite env vars, or any frontend bundle, ever.** The frontend only ever calls `supabase.functions.invoke('create-worker-account', { body: { workerId } })` using the same anon-key client it already uses everywhere else. It never sees, requests, or needs the service role key — that key exists only inside the Edge Function's own server-side runtime.
+- **Remote provisioning requires an explicit, separate action.** Nothing about writing this Edge Function's code or running it locally touches the remote project. Making it usable in production requires a human to run `supabase functions deploy create-worker-account --project-ref <remote-ref>` and to set `WORKER_INVITE_REDIRECT_URL` for that project — both are the kind of explicit, human-approved, remote-affecting actions `AGENTS.md`'s existing Supabase safety rules already gate (`supabase login`, `supabase link`, `supabase db push` all require explicit approval today; function deploys and remote secret-setting are the same class of action and should be treated the same way when this is implemented).
+
+## 26. Local testing must not accidentally reach the remote project
+
+Because `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` are injected by whichever CLI context is running the function (decision #25), the only way local testing could accidentally provision a real remote Auth user is if a developer manually ran the deploy/link commands against the remote project while testing — an explicit, human-initiated action, not something that happens by running the function locally. Nothing in the function code itself can "reach" the remote project; there is no fallback URL, no default project ref baked in.
+
+Sketch of a local-only `.env.example` for this function (illustrative only — **not created as a real file in this pass**, since this update is spec-only):
+
+```
+# supabase/functions/create-worker-account/.env.example
+# Local-only. Copy to .env.local and fill in for `supabase functions serve --env-file`.
+# SUPABASE_URL, SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY are injected
+# automatically by the Supabase CLI/platform and do NOT need to be set here.
+WORKER_INVITE_REDIRECT_URL=http://127.0.0.1:3000/set-password
+```
+
+No real secret values appear in this sketch — `SUPABASE_SERVICE_ROLE_KEY` is deliberately absent from the example entirely, since it should never be typed into a file by hand; it's always platform-injected.
+
+## 27. REVISED: a minimal "accept invitation / set password" page is required — provisioning is not complete without it
+
+**This is a real gap the review surfaced, not a design preference.** Supabase's invite email sends the worker a link that establishes a session (via the standard `detectSessionInUrl` behavior already active in this app's Supabase client) but leaves them with **no password set**. Without a page that captures a new password and calls `supabase.auth.updateUser({ password })`, a worker who clicks their invite link lands on some arbitrary route of the app with a half-finished session and no way to actually finish activating their account — the feature would send an email that leads nowhere useful.
+
+The current `spec.md` (before this update) listed "Recuperación avanzada de contraseña / flujo de invitación por correo" as out of scope. That exclusion meant *self-service forgot-password recovery* and *building an invitation flow* generically — it did not anticipate this feature itself introducing invitations. Decision: carve out a **minimal, one-time "activar cuenta" page** (`/set-password`, `src/pages/SetPassword.jsx`) as newly in-scope, necessary companion work for decision #21 — not the advanced, general-purpose password recovery flow that stays out of scope.
+
+**Hard gate (resolved, not open anymore): worker Auth provisioning is not considered complete — not for this feature, not for Phase 11, not for a production rollout — until `/set-password` exists *and* has been verified end-to-end** (per `verification-plan.md`'s companion-page section: invite link → session established → password set → logout → log back in with the new password). Shipping `create-worker-account` alone, without this page working, is shipping an invite email that leads nowhere — that is treated as an incomplete feature, not a smaller/faster version of it.
+
+**Minimum scope for `/set-password`** (deliberately small — anything beyond this list is out of scope for this page):
+
+- Route: `/set-password`.
+- Reads the Supabase Auth session already established by the invitation (or password-recovery) link's redirect — no new session-handling code, relies on the existing `detectSessionInUrl` client behavior.
+- Lets the worker set/update their password (a password field + confirmation, calling `supabase.auth.updateUser({ password })`).
+- Shows clear success and error states (not a silent no-op, not a raw stack trace).
+- On success, redirects to `/my-documents` — **not** to `/dashboard`, `/login`, or a generic landing page; the person who just activated an invited account is, by definition, a worker.
+- Does **not** implement general forgot-password / self-service recovery for already-active accounts — that stays out of scope (spec.md's Out-of-scope section).
+- Does **not** touch or expose the service role key in any way — this is a plain client-side page using the already-established session and the existing anon-key client, same as every other page in the app.
+- Does **not** create or link any `profiles` row — that already happened (or will happen) via `link_worker_account`, called from the Edge Function *before* the invite email was ever sent (decisions #21, #24). This page only sets a password on an Auth account that is already linked.
+- Authorization after the worker logs in with their new password stays exactly as already specified elsewhere in this document — `RoleGate`/`MyDocuments` resolve access from `profiles`/RLS the same way as any other worker session; `/set-password` itself does not participate in or alter that logic.
+
+See `spec.md`'s revised Out-of-scope section and `implementation-plan.md` §11.3 for this page's design, and `tasks.md`'s Phase 11 for tracking it as its own work item.
+
+## 28. RESOLVED: local invite-email testing must verify content, not just API success; production must not rely on Mailpit
+
+**Previously an open question; now decided.** Supabase local dev already runs a local SMTP testing inbox (`[local_smtp]` in `supabase/config.toml`, a Mailpit-compatible web UI on port 54324) that captures every email the local Auth stack would otherwise send, including invites — this already works today with zero extra configuration, simply by using `inviteUserByEmail` against the local stack.
+
+### Local: content verification is required, not optional
+
+"The `inviteUserByEmail` call returned no error" is **not** sufficient local verification on its own. Reason: this feature's actual value depends on the worker receiving a *usable* link — a successful API response says nothing about whether the redirect URL is correct, whether the email template renders sensibly, or whether the link that arrives actually works. A bug in `WORKER_INVITE_REDIRECT_URL` configuration, for example, would still produce a "successful" API call while sending every worker a broken link.
+
+Local acceptance criteria (all required, tracked in `verification-plan.md`):
+
+- After invoking `create-worker-account` locally, the invite email appears in the local Mailpit inbox (port 54324).
+- The email is addressed to the `workers.email` value used for that provisioning request (not some other address).
+- The email contains a valid invite/confirmation link (not a broken/placeholder URL).
+- Clicking that link redirects to the configured local `WORKER_INVITE_REDIRECT_URL`.
+- That redirect URL points at the local app (`127.0.0.1`-style), never at a production domain — confirming local testing cannot leak into pointing a real worker at production by a misconfiguration.
+- No real remote Auth account and no real email are created/sent during local testing — everything above happens entirely within the local stack.
+
+### Production: verification must use a real mailbox, not Mailpit
+
+Mailpit only exists in the local stack — it is not a stand-in for verifying production email delivery, which goes through whatever SMTP provider is actually configured for the remote project's Supabase Auth. Production acceptance criteria (all required before the first real rollout, and again after any change to email/redirect configuration):
+
+- Use a **controlled test worker** with an email the team actually controls (e.g., an internal test mailbox) for the first production smoke test — never a real employee's email for this initial check.
+- Confirm the invite email actually arrives in that real, controlled mailbox (not just that the API call succeeded).
+- Confirm the link in that real email redirects to the **production** `WORKER_INVITE_REDIRECT_URL` (not a local or staging URL — this is the production-side mirror of the local check above).
+- Confirm the test worker can complete the full loop: set a password via `/set-password`, then log in successfully with it.
+
+Both halves of this decision exist for the same reason: an API call succeeding is a necessary but not sufficient signal — the thing actually being shipped is a working link a real person clicks, and that has to be verified as such, locally with Mailpit content and in production with a real controlled mailbox.
+
+Simulating a real SMTP provider locally (pointing local `[auth.email.smtp]` at a sandbox account) was considered and rejected as unnecessary for this feature's scope — the local Mailpit content check above already catches the class of bug (bad redirect URL, broken template, wrong recipient) that would matter here; actual SMTP-provider deliverability issues are a production-environment concern, covered by the production smoke test instead.
+
+## 29. The automatic provisioning flow never accepts a manually-typed fallback email
+
+`create-worker-account`'s request body is `{ workerId }` only — there is no `email` field, and there must never be one added to this specific endpoint. The Edge Function always resolves the email from `public.workers.email` for the given `worker_id`, full stop.
+
+Reason: the entire point of decision #23 (`workers.email` as source of truth) is that the automatic flow trusts one specific column. Accepting a caller-supplied email as a fallback "in case the worker record doesn't have one" would silently defeat cases 3/4/5's blocking behavior — an admin could route around an empty/invalid/duplicated `workers.email` by just typing something into a form field, which is exactly the workaround decision #23/#24 case 3 exists to prevent. If `workers.email` is empty or wrong, the correct fix is to correct `workers.email` (a data-quality fix, visible and auditable), not to let the provisioning UI quietly accept a different value that the worker's own record doesn't reflect.
+
+This is not a limitation of the fallback flow — "Vincular cuenta existente" (decision #4) already exists precisely for the case where an admin needs to type a specific, known email that doesn't (or shouldn't) come from `workers.email`. The two flows are deliberately asymmetric: the automatic one is rigid and always matches `workers.email`; the manual one is flexible and always takes admin input directly. Blurring that line — e.g., adding an "override email" option to `create-worker-account` — would erode the reason the automatic flow is safe to trust by default.
