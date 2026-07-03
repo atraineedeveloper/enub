@@ -6,10 +6,17 @@ import Menus from "../../ui/Menus";
 import CreateEditWorkerForm from "./CreateEditWorkerForm";
 import LinkWorkerAccountForm from "./LinkWorkerAccountForm";
 import { getProfilePicturePublicUrl } from "../../services/apiWorkers";
-import { HiDocumentText, HiLink, HiPencil, HiUserPlus } from "react-icons/hi2";
+import {
+  HiDocumentText,
+  HiLink,
+  HiPaperAirplane,
+  HiPencil,
+  HiUserPlus,
+} from "react-icons/hi2";
 import { useNavigate } from "react-router-dom";
 import { useProfile } from "../authentication/useProfile";
 import { useCreateWorkerAccount } from "../authentication/useCreateWorkerAccount";
+import { useResendWorkerAccessLink } from "../authentication/useResendWorkerAccessLink";
 
 const Img = styled.img`
   display: block;
@@ -40,6 +47,7 @@ function WorkerRow({ worker }) {
   const navigate = useNavigate();
   const { isAdmin } = useProfile();
   const { createAccount } = useCreateWorkerAccount();
+  const { resendAccessLink } = useResendWorkerAccessLink();
   const { profile_picture, name, type_worker, status } = worker;
   const profilePictureUrl = getProfilePicturePublicUrl(profile_picture);
   const initials = name
@@ -79,6 +87,14 @@ function WorkerRow({ worker }) {
                   onClick={() => createAccount({ workerId: worker.id })}
                 >
                   Crear cuenta de acceso
+                </Menus.Button>
+              )}
+              {isAdmin && (
+                <Menus.Button
+                  icon={<HiPaperAirplane />}
+                  onClick={() => resendAccessLink({ workerId: worker.id })}
+                >
+                  Reenviar enlace de acceso
                 </Menus.Button>
               )}
               {isAdmin && (

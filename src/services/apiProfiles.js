@@ -62,11 +62,28 @@ async function extractFunctionErrorMessage(error) {
 // Request body is { workerId } only -- never an email (decisions.md #29).
 // The Edge Function always resolves the worker's email from
 // public.workers.email itself; this function must never accept or forward
-// a caller-supplied email. It never touches auth.admin or service_role --
-// those exist only inside the Edge Function's own server-side runtime.
+// a caller-supplied email.
 export async function createWorkerAccount({ workerId }) {
   const { data, error } = await supabase.functions.invoke(
     "create-worker-account",
+    { body: { workerId } }
+  );
+
+  if (error) {
+    const message = await extractFunctionErrorMessage(error);
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+// Request body is { workerId } only -- same convention as createWorkerAccount
+// (decisions.md #29, extended by #33). This is a separate action for a
+// worker who already has a linked account (decisions.md #30): it never
+// creates or links a profile.
+export async function resendWorkerAccessLink({ workerId }) {
+  const { data, error } = await supabase.functions.invoke(
+    "resend-worker-access-link",
     { body: { workerId } }
   );
 
