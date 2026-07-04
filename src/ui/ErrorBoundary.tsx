@@ -1,4 +1,4 @@
-import { Component } from "react";
+import { Component, type ErrorInfo, type ReactNode } from "react";
 import styled from "styled-components";
 import Button from "./Button";
 
@@ -33,18 +33,28 @@ const ButtonGroup = styled.div`
   gap: 1.2rem;
 `;
 
-class ErrorBoundary extends Component {
-  constructor(props) {
+interface ErrorBoundaryProps {
+  children: ReactNode;
+  fallback?: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null };
     this.handleReset = this.handleReset.bind(this);
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error, info) {
+  componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("ErrorBoundary:", error, info.componentStack);
   }
 

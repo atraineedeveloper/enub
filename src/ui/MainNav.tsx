@@ -81,7 +81,11 @@ const StyledNavLink = styled(NavLink)`
   }
 `;
 
-function MainNav({ onNavigate = () => {} }) {
+interface MainNavProps {
+  onNavigate?: () => void;
+}
+
+function MainNav({ onNavigate = () => {} }: MainNavProps) {
   const [isOpen, setIsOpen] = useState(true);
   return (
     <nav>

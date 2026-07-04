@@ -53,7 +53,11 @@ const IconsContainer = styled.div`
   align-items: center;
 `;
 
-function Header({ onToggleSidebar }) {
+interface HeaderProps {
+  onToggleSidebar?: () => void;
+}
+
+function Header({ onToggleSidebar }: HeaderProps) {
   return (
     <StyledHeader>
       {onToggleSidebar ? (

@@ -2,7 +2,7 @@ import styled from "styled-components";
 import { HiXMark } from "react-icons/hi2";
 import MainNav from "./MainNav";
 
-const StyledSidebar = styled.aside`
+const StyledSidebar = styled.aside<{ $isOpen: boolean }>`
   background-color: var(--color-grey-0);
   border-right: 1px solid var(--color-grey-100);
   display: flex;
@@ -52,7 +52,13 @@ const CloseButton = styled.button`
   }
 `;
 
-function Sidebar({ isOpen, onClose, onNavigate }) {
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onNavigate?: () => void;
+}
+
+function Sidebar({ isOpen, onClose, onNavigate }: SidebarProps) {
   return (
     <StyledSidebar $isOpen={isOpen}>
       <CloseButton aria-label="Cerrar menú" onClick={onClose}>
