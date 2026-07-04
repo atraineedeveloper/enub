@@ -7,7 +7,8 @@ Enub is a React + Vite school management system using Supabase, TanStack Query, 
 ## Non-negotiable rules
 
 - Do not implement features directly from vague requests.
-- First create or update a spec under `specs/active/<feature-name>/`.
+- First create or update an OpenSpec change under `openspec/changes/<change-id>/`.
+- Keep existing `specs/active/` folders untouched until they are explicitly migrated or archived.
 - Follow existing project patterns before introducing new ones.
 - Do not add dependencies without explicit approval.
 - Keep changes small and focused.
