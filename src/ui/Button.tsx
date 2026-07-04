@@ -1,6 +1,14 @@
 import styled, { css } from "styled-components";
 
-const sizes = {
+type ButtonSize = "small" | "medium" | "large";
+type ButtonVariation = "primary" | "secondary" | "danger";
+
+interface ButtonOwnProps {
+  size?: ButtonSize;
+  variation?: ButtonVariation;
+}
+
+const sizes: Record<ButtonSize, ReturnType<typeof css>> = {
   small: css`
     font-size: 1.2rem;
     padding: 0.4rem 0.8rem;
@@ -20,7 +28,7 @@ const sizes = {
   `,
 };
 
-const variations = {
+const variations: Record<ButtonVariation, ReturnType<typeof css>> = {
   primary: css`
     color: var(--color-brand-50);
     background-color: var(--color-brand-600);
@@ -51,13 +59,13 @@ const variations = {
 
 const Button = styled.button.withConfig({
   shouldForwardProp: (prop) => !["variation", "size"].includes(prop),
-})`
+})<ButtonOwnProps>`
   border: none;
   border-radius: var(--border-radius-sm);
   box-shadow: var(--shadow-sm);
 
-  ${(props) => sizes[props.size]}
-  ${(props) => variations[props.variation]}
+  ${(props) => sizes[props.size!]}
+  ${(props) => variations[props.variation!]}
 `;
 
 Button.defaultProps = {
