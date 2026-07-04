@@ -1,6 +1,7 @@
 import styled from "styled-components";
+import type { ReactElement } from "react";
 
-const StyledFormRow = styled.div`
+const StyledFormRow = styled.div<{ $alignTop?: boolean }>`
   display: grid;
   align-items: ${({ $alignTop }) => ($alignTop ? "start" : "center")};
   grid-template-columns: 24rem 1fr 1.2fr;
@@ -48,7 +49,14 @@ const Error = styled.span`
   color: var(--color-red-700);
 `;
 
-function FormRow({ label, error, children, alignTop }) {
+interface FormRowProps {
+  label?: string;
+  error?: string;
+  alignTop?: boolean;
+  children: ReactElement<{ id?: string }>;
+}
+
+function FormRow({ label, error, children, alignTop }: FormRowProps) {
   return (
     <StyledFormRow $alignTop={alignTop}>
       {label && <Label htmlFor={children.props.id}>{label}</Label>}

@@ -1,6 +1,10 @@
 import styled from "styled-components";
 
-const Select = styled.select`
+interface SelectOwnProps {
+  type?: "white";
+}
+
+const Select = styled.select<SelectOwnProps>`
   font-size: 1.4rem;
   padding: 0.8rem 1.2rem;
   border: 1px solid
