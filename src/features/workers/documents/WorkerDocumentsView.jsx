@@ -6,10 +6,12 @@ import {
   HiArrowPath,
   HiArrowUpTray,
   HiEye,
+  HiTrash,
 } from "react-icons/hi2";
 
 import { useUploadWorkerDocument } from "./useUploadWorkerDocument";
 import { useReplaceWorkerDocument } from "./useReplaceWorkerDocument";
+import { useDeleteWorkerDocument } from "./useDeleteWorkerDocument";
 import { useWorkerDocumentCatalog } from "./useWorkerDocumentCatalog";
 import { useWorkerDocumentReportData } from "./useWorkerDocumentReportData";
 import { useWorkerDocuments } from "./useWorkerDocuments";
@@ -18,9 +20,11 @@ import { generateWorkerDocumentReportPdf } from "./generateWorkerDocumentReportP
 import { useSemesters } from "../../semesters/useSemesters";
 import { useWorker } from "../useWorker";
 import Button from "../../../ui/Button";
+import ConfirmDelete from "../../../ui/ConfirmDelete";
 import ErrorMessage from "../../../ui/ErrorMessage";
 import Heading from "../../../ui/Heading";
 import Input from "../../../ui/Input";
+import Modal from "../../../ui/Modal";
 import Row from "../../../ui/Row";
 import Select from "../../../ui/Select";
 import Spinner from "../../../ui/Spinner";
@@ -155,6 +159,19 @@ const FileLink = styled.button`
   }
 `;
 
+const DangerFileLink = styled(FileLink)`
+  color: var(--color-red-700);
+
+  &:hover {
+    color: var(--color-red-800);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
 const UploadArea = styled.div`
   display: grid;
   grid-template-columns: minmax(16rem, 1fr) auto;
@@ -245,6 +262,7 @@ function WorkerDocumentsView({ workerId }) {
   } = useWorkerDocumentReportData(workerId, selectedSemesterId || null);
   const { uploadDocument, isUploading } = useUploadWorkerDocument();
   const { replaceDocument, isReplacing } = useReplaceWorkerDocument();
+  const { deleteDocument, isDeleting } = useDeleteWorkerDocument();
 
   const permanentCategory = documentCatalog?.find(
     (category) => category.scope === "permanent"
@@ -424,6 +442,26 @@ function WorkerDocumentsView({ workerId }) {
                           >
                             <HiArrowDownTray /> Descargar archivo
                           </FileLink>
+                          <Modal.Open
+                            opens={`delete-worker-document-${document.id}`}
+                          >
+                            <DangerFileLink
+                              type="button"
+                              aria-label={`Eliminar ${document.file_name}`}
+                              disabled={isDeleting}
+                            >
+                              <HiTrash /> Eliminar
+                            </DangerFileLink>
+                          </Modal.Open>
+                          <Modal.Window
+                            name={`delete-worker-document-${document.id}`}
+                          >
+                            <ConfirmDelete
+                              resourceName={document.file_name}
+                              disabled={isDeleting}
+                              onConfirm={() => deleteDocument(document.id)}
+                            />
+                          </Modal.Window>
                         </FileActions>
                       </DocumentFile>
                     ))
@@ -505,76 +543,80 @@ function WorkerDocumentsView({ workerId }) {
   if (!worker) return <ErrorMessage message="El trabajador no existe." />;
 
   return (
-    <Row>
-      <PageHeader>
-        <WorkerSummary>
-          <Heading as="h1">Expediente documental</Heading>
-          <span>{worker.name}</span>
-          <span>{worker.type_worker}</span>
-        </WorkerSummary>
-        <HeaderActions>
-          <SelectorGroup>
-            <label htmlFor="semester">Semestre para documentos académicos</label>
-            <Select
-              id="semester"
-              value={selectedSemesterId}
-              onChange={(event) => setSelectedSemesterId(event.target.value)}
+    <Modal>
+      <Row>
+        <PageHeader>
+          <WorkerSummary>
+            <Heading as="h1">Expediente documental</Heading>
+            <span>{worker.name}</span>
+            <span>{worker.type_worker}</span>
+          </WorkerSummary>
+          <HeaderActions>
+            <SelectorGroup>
+              <label htmlFor="semester">
+                Semestre para documentos académicos
+              </label>
+              <Select
+                id="semester"
+                value={selectedSemesterId}
+                onChange={(event) => setSelectedSemesterId(event.target.value)}
+              >
+                {(semesters ?? []).map((semester) => (
+                  <option key={semester.id} value={semester.id}>
+                    {getSemesterLabel(semester)}
+                  </option>
+                ))}
+              </Select>
+            </SelectorGroup>
+            <Button
+              type="button"
+              variation="secondary"
+              disabled={isLoadingReportData}
+              onClick={handleDownloadReport}
             >
-              {(semesters ?? []).map((semester) => (
-                <option key={semester.id} value={semester.id}>
-                  {getSemesterLabel(semester)}
-                </option>
-              ))}
-            </Select>
-          </SelectorGroup>
-          <Button
-            type="button"
-            variation="secondary"
-            disabled={isLoadingReportData}
-            onClick={handleDownloadReport}
-          >
-            <HiArrowDownTray /> Descargar reporte
-          </Button>
-        </HeaderActions>
-      </PageHeader>
+              <HiArrowDownTray /> Descargar reporte
+            </Button>
+          </HeaderActions>
+        </PageHeader>
 
-      {!documentCatalog?.length && (
-        <EmptyState>No hay catálogo de documentos configurado.</EmptyState>
-      )}
+        {!documentCatalog?.length && (
+          <EmptyState>No hay catálogo de documentos configurado.</EmptyState>
+        )}
 
-      {permanentCategory && (
+        {permanentCategory && (
+          <Section>
+            <SectionHeader>
+              <Heading as="h2">{permanentCategory.name}</Heading>
+              <SectionHint>Documentos permanentes del trabajador</SectionHint>
+            </SectionHeader>
+            {renderDocumentRows(permanentCategory)}
+          </Section>
+        )}
+
         <Section>
           <SectionHeader>
-            <Heading as="h2">{permanentCategory.name}</Heading>
-            <SectionHint>Documentos permanentes del trabajador</SectionHint>
+            <Heading as="h2">Documentos por semestre</Heading>
+            <SectionHint>
+              {selectedSemester
+                ? getSemesterLabel(selectedSemester)
+                : "Selecciona un semestre"}
+            </SectionHint>
           </SectionHeader>
-          {renderDocumentRows(permanentCategory)}
+          {!semesters?.length && (
+            <EmptyState>
+              No hay semestres registrados para cargar documentos académicos.
+            </EmptyState>
+          )}
+          {selectedSemesterId &&
+            semesterCategories.map((category) => (
+              <Section key={category.id}>
+                <Heading as="h3">{category.name}</Heading>
+                {renderDocumentRows(category)}
+              </Section>
+            ))}
         </Section>
-      )}
-
-      <Section>
-        <SectionHeader>
-          <Heading as="h2">Documentos por semestre</Heading>
-          <SectionHint>
-            {selectedSemester
-              ? getSemesterLabel(selectedSemester)
-              : "Selecciona un semestre"}
-          </SectionHint>
-        </SectionHeader>
-        {!semesters?.length && (
-          <EmptyState>
-            No hay semestres registrados para cargar documentos académicos.
-          </EmptyState>
-        )}
-        {selectedSemesterId &&
-          semesterCategories.map((category) => (
-            <Section key={category.id}>
-              <Heading as="h3">{category.name}</Heading>
-              {renderDocumentRows(category)}
-            </Section>
-          ))}
-      </Section>
-    </Row>
+      </Row>
+    </Modal>
   );
 }
 

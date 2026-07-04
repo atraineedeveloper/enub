@@ -34,13 +34,26 @@ Status: Phase 1 and Phase 2 implemented and locally verified (service-level only
 
 ## Phase 4: Delete UI wiring
 
-- [ ] Add an "Eliminar" action (icon + `ButtonIcon`/`Button`, following the existing Ver/Descargar/Reemplazar action styling) for:
+- [x] Add an "Eliminar" action (`DangerFileLink`, a small red-colored extension of the existing `FileLink` styled-component, with `HiTrash`, following the existing Ver/Descargar action styling/placement) for:
   - Single-file document types that currently have a file.
   - Each individual file listed under a multi-file ("Evidencias") document type.
-- [ ] Wire "Eliminar" through `Modal.Open`/`Modal.Window` + the existing `ConfirmDelete.jsx` (decisions.md #4), passing the specific document type's label (and, for multi-file, the specific file name) as `resourceName`.
-- [ ] On confirm, call `useDeleteWorkerDocument`'s mutation with the correct `documentId` for that row/file (the mutation/service function resolves `storage_path` itself — see Phase 1).
-- [ ] Disable the confirm/cancel buttons in `ConfirmDelete` while the delete mutation is pending (existing `disabled` prop on that component already supports this).
-- [ ] After a successful single-file delete, confirm the row visually reverts to "Pendiente" with the styled file picker showing again (Phase 3), without a full page reload (React Query cache invalidation from Phase 2 should already produce this).
+- [x] Wire "Eliminar" through `Modal.Open`/`Modal.Window` + the existing `ConfirmDelete.jsx` (decisions.md #4), naming the specific document's `file_name` as `resourceName` (e.g. "Eliminar test-doc.pdf") — one `Modal.Open`/`Modal.Window` pair per document/file, keyed by `delete-worker-document-${document.id}`, all sharing a single `<Modal>` provider now wrapping the view's outer `<Row>`.
+- [x] On confirm, calls `useDeleteWorkerDocument`'s mutation with the correct `documentId` for that row/file (the mutation/service function resolves `storage_path` itself — see Phase 1).
+- [x] The confirm/cancel buttons in `ConfirmDelete` are disabled while the delete mutation is pending (existing `disabled` prop on that component), and the "Eliminar" trigger itself is also disabled while `isDeleting` — no double-submission.
+- [x] After a successful single-file delete, the row visually reverts to "Pendiente" with the existing (still-unstyled, Phase 3 not done in this pass) raw file input showing again, without a full page reload — this falls out of the existing reactive rendering (`uploaded = existingDocuments.length > 0`, derived from the same React Query cache Phase 2's `invalidateWorkerDocumentQueries` refreshes) with no extra code needed.
+- [x] Multi-file behavior needed no special-case code either, for the same reason: deleting one evidence file simply removes it from the invalidated/refetched list, leaving the others untouched; deleting the last one drops `existingDocuments.length` to zero, which already renders the pre-existing "Sin archivo cargado" empty state (decisions.md #8) with the upload control unconditionally still present.
+- [x] **Local verification, live** (Playwright, scratch-directory-only, against a freshly-reset local DB and Vite dev server), full checklist:
+  1. Uploaded a single-file document ("Acta de nacimiento") as a linked worker at `/my-documents`.
+  2. Deleted it via Eliminar → confirm modal ("Eliminar test-doc.pdf") → success toast.
+  3. Row reverted to "Pendiente".
+  4. Uploaded two evidence files to a multi-file ("Evidencias") type.
+  5. Deleted one evidence file.
+  6. Confirmed the other evidence file remained listed, still viewable/downloadable.
+  7. Deleted the last remaining evidence file.
+  8. Confirmed the type showed the plain empty/pending state ("Sin archivo cargado") with the upload control still present — no special "all deleted" state.
+  9. Confirmed the worker could delete their own documents throughout (steps 1–8, all as the linked worker session).
+  10. Logged in as the seeded local admin, opened `/workers/1/documents`, uploaded and then successfully deleted a document belonging to that worker — confirmed staff/admin deletion still works.
+  - Screenshots captured for the confirm modal, the two-evidence-file state, and the reverted-to-empty state.
 
 ## Phase 5: Cross-route consistency check
 
