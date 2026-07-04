@@ -1,5 +1,15 @@
 import styled from "styled-components";
-import Button from "./Button";
+import UntypedButton from "./Button";
+import type { ButtonHTMLAttributes, ComponentType } from "react";
+
+// Button.jsx is a plain, untyped styled-component whose size/variation props
+// are only consumed via runtime prop interpolation (see Button.jsx) — this
+// local cast describes its real contract without converting that file.
+type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  size?: "small" | "medium" | "large";
+  variation?: "primary" | "secondary" | "danger";
+};
+const Button = UntypedButton as ComponentType<ButtonProps>;
 
 const StyledPagination = styled.div`
   display: flex;
@@ -19,7 +29,19 @@ const ButtonGroup = styled.div`
   gap: 0.8rem;
 `;
 
-function Pagination({ currentPage, totalPages, totalCount, onPageChange }) {
+interface PaginationProps {
+  currentPage: number;
+  totalPages: number;
+  totalCount: number;
+  onPageChange: (page: number) => void;
+}
+
+function Pagination({
+  currentPage,
+  totalPages,
+  totalCount,
+  onPageChange,
+}: PaginationProps) {
   if (totalPages <= 1) return null;
 
   return (

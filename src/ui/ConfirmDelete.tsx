@@ -1,6 +1,16 @@
 import styled from "styled-components";
-import Button from "./Button";
+import UntypedButton from "./Button";
 import Heading from "./Heading";
+import type { ButtonHTMLAttributes, ComponentType } from "react";
+
+// Button.jsx is a plain, untyped styled-component whose size/variation props
+// are only consumed via runtime prop interpolation (see Button.jsx) — this
+// local cast describes its real contract without converting that file.
+type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  size?: "small" | "medium" | "large";
+  variation?: "primary" | "secondary" | "danger";
+};
+const Button = UntypedButton as ComponentType<ButtonProps>;
 
 const StyledConfirmDelete = styled.div`
   width: 40rem;
@@ -20,7 +30,19 @@ const StyledConfirmDelete = styled.div`
   }
 `;
 
-function ConfirmDelete({ resourceName, onConfirm, disabled, onCloseModal }) {
+interface ConfirmDeleteProps {
+  resourceName: string;
+  onConfirm?: () => void;
+  disabled?: boolean;
+  onCloseModal?: () => void;
+}
+
+function ConfirmDelete({
+  resourceName,
+  onConfirm,
+  disabled,
+  onCloseModal,
+}: ConfirmDeleteProps) {
   const handleDelete = () => {
     onConfirm?.();
     onCloseModal?.();
