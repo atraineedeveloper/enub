@@ -1,5 +1,6 @@
 import styled from "styled-components";
 import { HiMagnifyingGlass } from "react-icons/hi2";
+import type { ChangeEventHandler } from "react";
 
 const Wrapper = styled.div`
   position: relative;
@@ -30,7 +31,13 @@ const Icon = styled(HiMagnifyingGlass)`
   color: var(--color-grey-400);
 `;
 
-function SearchBar({ value, onChange, placeholder = "Buscar..." }) {
+interface SearchBarProps {
+  value: string;
+  onChange: ChangeEventHandler<HTMLInputElement>;
+  placeholder?: string;
+}
+
+function SearchBar({ value, onChange, placeholder = "Buscar..." }: SearchBarProps) {
   return (
     <Wrapper>
       <Icon />

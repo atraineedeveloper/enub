@@ -46,7 +46,16 @@ const Separator = styled.span`
   margin-inline: 0.2rem;
 `;
 
-function Breadcrumbs({ items = [] }) {
+interface BreadcrumbItem {
+  label: string;
+  to?: string;
+}
+
+interface BreadcrumbsProps {
+  items?: BreadcrumbItem[];
+}
+
+function Breadcrumbs({ items = [] }: BreadcrumbsProps) {
   if (!items.length) return null;
 
   return (
