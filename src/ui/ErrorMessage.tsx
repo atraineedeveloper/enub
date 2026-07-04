@@ -11,7 +11,13 @@ const StyledErrorMessage = styled.p`
   border-radius: var(--border-radius-sm);
 `;
 
-function ErrorMessage({ message = "Ocurrió un error al cargar los datos." }) {
+interface ErrorMessageProps {
+  message?: string;
+}
+
+function ErrorMessage({
+  message = "Ocurrió un error al cargar los datos.",
+}: ErrorMessageProps) {
   return <StyledErrorMessage>{message}</StyledErrorMessage>;
 }
 
