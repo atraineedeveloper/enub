@@ -1,4 +1,12 @@
-import { cloneElement, createContext, useContext, useState } from "react";
+import {
+  cloneElement,
+  createContext,
+  useContext,
+  useState,
+  type ReactElement,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { createPortal } from "react-dom";
 import { HiXMark } from "react-icons/hi2";
 import styled from "styled-components";
@@ -55,9 +63,19 @@ const Button = styled.button`
   }
 `;
 
-const ModalContext = createContext();
+interface ModalContextValue {
+  openName: string;
+  close: () => void;
+  open: (name: string) => void;
+}
 
-function Modal({ children }) {
+const ModalContext = createContext<ModalContextValue | undefined>(undefined);
+
+interface ModalProps {
+  children: ReactNode;
+}
+
+function Modal({ children }: ModalProps) {
   const [openName, setOpenName] = useState("");
 
   const close = () => setOpenName("");
@@ -70,15 +88,28 @@ function Modal({ children }) {
   );
 }
 
-function Open({ children, opens: opensWindowName }) {
-  const { open } = useContext(ModalContext);
+interface OpenProps {
+  children: ReactElement<{ onClick?: () => void }>;
+  opens: string;
+}
+
+function Open({ children, opens: opensWindowName }: OpenProps) {
+  const { open } = useContext(ModalContext)!;
 
   return cloneElement(children, { onClick: () => open(opensWindowName) });
 }
 
-function Window({ children, name }) {
-  const { openName, close } = useContext(ModalContext);
-  const ref = useOutsideClick(close);
+interface WindowProps {
+  children: ReactElement<{ onCloseModal?: () => void }>;
+  name: string;
+}
+
+function Window({ children, name }: WindowProps) {
+  const { openName, close } = useContext(ModalContext)!;
+  // useOutsideClick.js is untyped (out of scope for this change); its `ref`
+  // infers as MutableRefObject<undefined> from a bare useRef(). This cast
+  // describes its real runtime contract (a DOM ref) without converting it.
+  const ref = useOutsideClick(close) as unknown as RefObject<HTMLDivElement>;
   if (name !== openName) return null;
 
   return createPortal(

@@ -1,4 +1,11 @@
-import { createContext, useContext, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { createPortal } from "react-dom";
 import { HiEllipsisVertical } from "react-icons/hi2";
 import styled from "styled-components";
@@ -29,7 +36,12 @@ const StyledToggle = styled.button`
   }
 `;
 
-const StyledList = styled.ul`
+interface Position {
+  x: number;
+  y: number;
+}
+
+const StyledList = styled.ul<{ position: Position }>`
   position: fixed;
 
   background-color: var(--color-grey-0);
@@ -65,11 +77,25 @@ const StyledButton = styled.button`
   }
 `;
 
-const MenusContext = createContext();
+type MenuId = string | number;
 
-function Menus({ children }) {
-  const [openId, setOpenId] = useState("");
-  const [position, setPosition] = useState(null);
+interface MenusContextValue {
+  openId: MenuId;
+  close: () => void;
+  open: (id: MenuId) => void;
+  position: Position | null;
+  setPosition: (position: Position | null) => void;
+}
+
+const MenusContext = createContext<MenusContextValue | undefined>(undefined);
+
+interface MenusProps {
+  children: ReactNode;
+}
+
+function Menus({ children }: MenusProps) {
+  const [openId, setOpenId] = useState<MenuId>("");
+  const [position, setPosition] = useState<Position | null>(null);
 
   const close = () => setOpenId("");
   const open = setOpenId;
@@ -83,11 +109,16 @@ function Menus({ children }) {
   );
 }
 
-function Toggle({ id }) {
-  const { openId, close, open, setPosition } = useContext(MenusContext);
+interface ToggleProps {
+  id: MenuId;
+}
 
-  function handleClick(e) {
-    const rect = e.target.closest("button").getBoundingClientRect();
+function Toggle({ id }: ToggleProps) {
+  const { openId, close, open, setPosition } = useContext(MenusContext)!;
+
+  function handleClick(e: MouseEvent<HTMLButtonElement>) {
+    const target = e.target as HTMLElement;
+    const rect = target.closest("button")!.getBoundingClientRect();
     setPosition({
       x: window.innerWidth - rect.width - rect.x,
       y: rect.y + rect.height + 8,
@@ -103,22 +134,36 @@ function Toggle({ id }) {
   );
 }
 
-function List({ id, children }) {
-  const { openId, position, close } = useContext(MenusContext);
-  const ref = useOutsideClick(close);
+interface ListProps {
+  id: MenuId;
+  children: ReactNode;
+}
+
+function List({ id, children }: ListProps) {
+  const { openId, position, close } = useContext(MenusContext)!;
+  // useOutsideClick.js is untyped (out of scope for this change); its `ref`
+  // infers as MutableRefObject<undefined> from a bare useRef(). This cast
+  // describes its real runtime contract (a DOM ref) without converting it.
+  const ref = useOutsideClick(close) as unknown as RefObject<HTMLUListElement>;
 
   if (openId !== id) return null;
 
   return createPortal(
-    <StyledList position={position} ref={ref}>
+    <StyledList position={position!} ref={ref}>
       {children}
     </StyledList>,
     document.body
   );
 }
 
-function Button({ children, icon, onClick }) {
-  const { close } = useContext(MenusContext);
+interface ButtonProps {
+  children: ReactNode;
+  icon?: ReactNode;
+  onClick?: () => void;
+}
+
+function Button({ children, icon, onClick }: ButtonProps) {
+  const { close } = useContext(MenusContext)!;
 
   function handleClick() {
     onClick?.();
