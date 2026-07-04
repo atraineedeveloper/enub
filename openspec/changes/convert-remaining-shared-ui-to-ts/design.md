@@ -1,8 +1,7 @@
 # Design: Convert Remaining Shared UI to TS
 
-This is a multi-phase change. **Phase 1 and Phase 2 are implemented.** Phase 3
-(`Table`) is listed for planning continuity only — not started, not designed in
-detail yet, and must not be started without explicit instruction.
+This is a multi-phase change. **All three phases are implemented** — this is the
+final phase of the `src/ui/` shared-component migration.
 
 ## 0. Requested-vs-actual file list
 
@@ -247,9 +246,102 @@ Baseline going in: **271 problems (267 errors, 4 warnings)**.
       `Menus.jsx` deleted, `Modal.tsx`/`Menus.tsx` added, plus this change's own
       `proposal.md`/`design.md`/`tasks.md` updates. No other file.
 
-## Phase 3 — not started
+## Phase 3: `Table.jsx` — the highest-risk file, converted last as planned
 
-`Table.jsx`: the highest-risk remaining file per `openspec-ts-migration-foundation`'s
-original plan — large, render-prop-heavy prop surface (`data`, `render`, `columns`,
-compound `Table.Header`/`Table.Row`/etc.), deliberately converted last. Not designed
-or implemented in this pass; do not start without explicit instruction.
+### 1. Pre-conversion baseline (confirmed via `bun run lint`)
+
+`Table.jsx`: **8** `react/prop-types` errors — `columns`, `children` (×3, on `Table`,
+`Header`, `Row`), `data`, `render`, `data.length`, `data.map`. All disappear.
+
+### 2. `TableContext` — same non-null-assertion pattern as Phase 2
+
+`createContext()` with no default value in the original, immediately destructured in
+`Header`/`Row` (`const { columns } = useContext(TableContext);`) — the same "crash if
+used outside the provider" existing behavior already established for
+`ModalContext`/`MenusContext` in Phase 2. Typed as
+`createContext<{ columns: string } | undefined>(undefined)`, consumed via
+`useContext(TableContext)!` at both call sites — zero runtime change, same crash in
+the same misuse case, per the same reasoning as Phase 2 Section 2 (not repeated in
+full here).
+
+### 3. `columns: string` on `CommonRow`
+
+`CommonRow` (the base for both `StyledHeader` and `StyledRow`, via
+`styled(CommonRow)`) reads `props.columns` in its grid-template-columns
+interpolation. Typed `styled.div<{ columns: string }>` — confirmed via grep that
+every real `<Table columns="...">` call site (7 files: `DegreeTable`, `WorkerTable`,
+`WorkerDocumentsView`, `OtherTable`, `StudyProgramsTable`, `GroupTable`,
+`SubjectTable`) passes a literal CSS grid-template-columns string, never a computed
+or dynamic value. `Header`'s `as="header"` (styled-components' built-in polymorphic
+prop, changing the rendered tag while keeping `StyledHeader`'s CSS) coexists with the
+custom `columns` generic with no collision — verified via `bun run typecheck`, same
+non-issue already confirmed for `Heading.tsx`'s `as` prop in
+`convert-core-ui-components-to-ts`.
+
+### 4. `Table.Body` — the one real generic in this whole migration
+
+`Body`'s `data`/`render` is the single place across all 4 TS-migration changes so far
+where a generic type parameter is actually the right tool, not an overreach:
+
+```tsx
+interface BodyProps<T> {
+  data: T[];
+  render: (item: T) => ReactNode;
+}
+
+function Body<T>({ data, render }: BodyProps<T>) { ... }
+```
+
+Checked every real `render` call site (7 files) before choosing this: each is a
+single-argument function returning JSX (`(degree) => <DegreeRow degree={degree} .../>`,
+etc.) — never using the array-index second argument `.map` would otherwise provide.
+A non-generic alternative (`data: unknown[]`, `render: (item: unknown) => ReactNode`)
+was considered and rejected: it would make any *future* `.tsx` caller's narrower
+`render` (e.g. `render={(degree: Degree) => ...}`) a real type error, since a function
+accepting a specific type isn't assignable where one accepting `unknown` is expected
+(contravariance) — that would make the type actively wrong for the exact use case
+this component exists for, not just imprecise. The generic is the minimum correct
+typing, not a "complex abstraction" — `Table.Body = Body` (assigning the generic
+function as a static property) still lets JSX infer `T` per call site normally,
+confirmed by `bun run typecheck` passing against all 7 real, currently-`.jsx`
+(untyped) call sites without any cast or workaround needed.
+
+### 5. `Table.Footer` — unchanged, no wrapper
+
+`Table.Footer = Footer` assigns the bare `styled.footer` component directly, exactly
+as the original — no wrapper function, no extra prop interface, since it takes only
+native `<footer>` attributes/children, already covered by `styled-components`' own
+typing.
+
+### 6. Explicit-extension import check
+
+Grepped `src/` for `ui/Table.jsx` (the pattern that broke builds in
+`convert-core-ui-components-to-ts` and `convert-app-shell-to-ts`) before running the
+build. **Zero matches** — all 13 real files importing `Table` already do so
+extension-less.
+
+### 7. Verification plan — results
+
+Baseline going in: **261 problems (257 errors, 4 warnings)**.
+
+- [x] `bun run typecheck` — passes, no errors, on the first attempt (no
+      `useOutsideClick`-style surprise this time — `Table` has no other-file
+      dependency).
+- [ ] `bun run build` — implementer reported a clean pass, but independent review
+      using `timeout 180s bun run build` timed out after `$ vite build` with no Vite
+      diagnostics. Treat as an environment caveat and rerun locally before commit.
+- [x] `bun run lint` — total: **253 problems (249 errors, 4 warnings)**, down from
+      261 by exactly the predicted 8.
+- [x] `git status`/`git diff --stat` — changed-file set is exactly: `Table.jsx`
+      deleted, `Table.tsx` added, and this change's own `proposal.md`/`design.md`/
+      `tasks.md` updated. No other file.
+
+## Migration status: complete
+
+Phase 1, Phase 2, and Phase 3 are all implemented. Typecheck and lint are verified;
+build needs a clean local rerun because independent review timed out after Vite
+started. This closes out the `openspec-ts-migration-foundation`/
+`typescript-tooling-foundation` plan's originally scoped `src/ui/` shared-component
+list once the build transcript is confirmed. Cumulative lint movement across all 4
+TS-migration changes to date: 304 → 253 (a drop of 51 `react/prop-types` errors,
+zero regressions in any other rule, verified at every step rather than assumed).

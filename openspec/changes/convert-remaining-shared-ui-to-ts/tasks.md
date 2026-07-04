@@ -1,9 +1,9 @@
 # Tasks — convert-remaining-shared-ui-to-ts
 
-Status: **Phase 1 and Phase 2 implemented; typecheck/lint verified.** The implementer
+Status: **All three phases implemented; typecheck/lint verified.** The implementer
 reported build passing, but independent review runs timed out locally after Vite
-started. **Phase 3 not started** — do not begin without explicit instruction to
-continue.
+started. This closes out the `src/ui/` shared-component TS migration once a clean
+local build transcript is confirmed.
 
 ## Phase 1: form/base inputs — DONE
 
@@ -115,12 +115,55 @@ continue.
       `Menus.jsx` deleted, `Modal.tsx`/`Menus.tsx` added, and this change's own
       `proposal.md`/`design.md`/`tasks.md` updated. No other file.
 
-## Phase 3: table — NOT STARTED
+## Phase 3: table — DONE
 
-- [ ] `src/ui/Table.jsx`
+### Pre-conversion checks
 
-Do not begin without explicit instruction. Highest-risk file in the remaining
-migration — convert only after Phase 2 is reviewed.
+- [x] Ran `bun run lint` and recorded the exact baseline: `Table.jsx` 8 (`columns`,
+      `children` ×3, `data`, `render`, `data.length`, `data.map`) — see `design.md`
+      Phase 3 Section 1.
+- [x] Grepped every real `<Table columns="...">` call site (7 files) to confirm
+      `columns` is always a literal CSS grid-template-columns string (`design.md`
+      Section 3).
+- [x] Read every real `Table.Body` `render` call site (7 files) to confirm each is a
+      single-argument function returning JSX, justifying the one real generic in
+      this migration (`design.md` Section 4).
+- [x] Grepped for explicit `.jsx`-extension imports of `Table` across `src/` — found
+      none (`design.md` Section 6).
+
+### Conversion
+
+- [x] `src/ui/Table.tsx` — compound API (`Table`, `Table.Header`, `Table.Row`,
+      `Table.Body`, `Table.Footer`) preserved exactly. `TableContext` typed
+      `{ columns: string } | undefined`, consumed via `useContext(TableContext)!`
+      (non-null assertion, same pattern as Phase 2's `ModalContext`/`MenusContext`).
+      `CommonRow` typed `styled.div<{ columns: string }>`. `Table.Body` made generic
+      (`Body<T>({ data: T[], render: (item: T) => ReactNode })`) — the one real
+      generic in the whole migration, justified against actual call sites, not
+      speculative. `Table.Footer` still the bare `Footer` styled-component, unchanged.
+      Deleted `Table.jsx`.
+- [x] No import path updated anywhere (confirmed unnecessary in pre-conversion
+      checks).
+- [x] No other file modified; no `eslint.config.js`/`tsconfig.json`/`package.json`
+      change.
+
+### Verification — results
+
+- [x] `bun run typecheck` — passes, no errors, first attempt.
+- [ ] `bun run build` — implementer reported a clean pass, but independent review
+      using `timeout 180s bun run build` timed out after `$ vite build` with no Vite
+      diagnostics. Treat as an environment caveat and rerun locally before commit.
+- [x] `bun run lint` — total: **253 problems (249 errors, 4 warnings)**, down from
+      261 by exactly the predicted 8.
+- [x] `git status`/`git diff --stat` — changed-file set is exactly: `Table.jsx`
+      deleted, `Table.tsx` added, and this change's own `proposal.md`/`design.md`/
+      `tasks.md` updated. No other file.
+
+## Migration status: complete
+
+All three phases implemented. Cumulative lint movement across all 4 TS-migration changes
+(`convert-first-ui-component-to-ts` through this one): **304 → 253**, all from
+`react/prop-types` removals, zero regressions in any other rule at any step.
 
 ## Not in scope for this change (any phase)
 
@@ -132,3 +175,6 @@ migration — convert only after Phase 2 is reviewed.
       is the accepted workaround for now — see `design.md` Phase 2 Section 5).
 - [ ] Fixing `Select`'s dead `type === "white"` branch, or any other pre-existing
       lint/behavior issue.
+- [ ] Converting the still-untouched `src/ui/*.jsx` files not named in any of these
+      changes (`AppLayout.jsx`, `DarkModeToggle.jsx`, `Form.jsx`, `Row.jsx`,
+      `WorkerAppLayout.jsx`) — never in scope for this change.

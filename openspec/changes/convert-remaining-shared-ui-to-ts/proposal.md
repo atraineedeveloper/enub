@@ -2,14 +2,15 @@
 
 ## Status
 
-Draft — Phase 1 and Phase 2 implemented; Phase 3 (Table) not started.
+Draft — Phase 1, Phase 2, and Phase 3 all implemented. This is the final phase of the
+`src/ui/` shared-component migration.
 
 ## Why
 
 `convert-app-shell-to-ts` finished the app shell/navigation layer. This change covers
 the rest of `src/ui/`'s shared components, deliberately split into 3 phases inside one
 OpenSpec change so each phase can be reviewed independently before the next starts.
-Phase 1 and Phase 2 are implemented; Phase 3 remains deferred.
+All three phases are now implemented.
 
 ## Discrepancy found before implementation: 2 of 7 listed Phase 1 files don't exist
 
@@ -29,7 +30,7 @@ If a file input or checkbox component is needed, that's a separate, new-componen
 decision for the user to make explicitly — out of scope for a rename-only TS migration
 change.
 
-## What changes (Phase 1 only)
+## What changes (Phase 1)
 
 - `src/ui/FormRow.jsx` → `.tsx`: `FormRowProps`
   (`label?: string`, `error?: string`, `alignTop?: boolean`,
@@ -50,7 +51,8 @@ change.
 
 ## What does not change
 
-- No other component converted. `Table.jsx` (Phase 3) is explicitly deferred.
+- No other component converted in Phase 1. `Table.jsx` was deferred until Phase 3
+  and is now covered below.
 - No feature component, PDF component, Supabase/`services` file, or route page
   touched.
 - `children.props.id` access in `FormRow`/`FormRowVertical` preserved exactly — typed
@@ -119,3 +121,52 @@ new-feature decision, not a TS-migration rename.
 - **Affected code:** 2 files renamed `src/ui/*.jsx` → `src/ui/*.tsx`. No other file.
 - **Affected lint baseline:** `react/prop-types` errors disappear for `Modal` (3) and
   `Menus` (7) — 10 total.
+
+## What changes (Phase 3)
+
+- `src/ui/Table.jsx` → `.tsx`: compound API (`Table`, `Table.Header`, `Table.Row`,
+  `Table.Body`, `Table.Footer`) preserved exactly, including `Table.Footer` being the
+  bare `Footer` styled-component itself (no wrapper function — assigned directly, same
+  as the original).
+  - `TableContext` typed as `{ columns: string } | undefined`, consumed via a
+    non-null assertion (`useContext(TableContext)!`) at `Header`/`Row` — same
+    established pattern as Phase 2's `ModalContext`/`MenusContext`, preserving the
+    exact "crash if used outside `<Table>`" behavior rather than adding a new guard.
+  - `CommonRow` (and by extension `StyledHeader`/`StyledRow`, both `styled(CommonRow)`)
+    given a typed `columns: string` generic — confirmed via grep that every real
+    `<Table columns="...">` call site (7 files) passes a literal CSS
+    `grid-template-columns` string.
+  - `Table.Body` is generic: `function Body<T>({ data, render }: { data: T[]; render: (item: T) => ReactNode })`.
+    This is the one place in the whole migration where a real generic is used, per
+    the "generics only where the existing API clearly requires them" instruction —
+    confirmed necessary by checking all 7 real `render` call sites, which each accept
+    exactly one item and return JSX; a non-generic `data: unknown[]` would make
+    `render`'s narrower parameter type a real type error for any future `.tsx` caller
+    (contravariance), while a generic correctly relates `data`'s element type to
+    `render`'s parameter type without inventing any new API shape.
+
+## What does not change (Phase 3, additional to Phase 1/2)
+
+- No other component converted — this is the last file in
+  `openspec-ts-migration-foundation`'s Phase 3 (shared/complex components) list.
+- `Table`'s empty-state text, grid layout, responsive breakpoints, and footer
+  auto-hide (`:not(:has(*))`) CSS are byte-identical.
+- No new prop, no renamed prop, no restructured compound API member.
+
+## Impact (Phase 3)
+
+- **Affected code:** 1 file renamed `src/ui/Table.jsx` → `src/ui/Table.tsx`. No other
+  file (see `design.md` for the explicit-`.jsx`-import grep result).
+- **Affected lint baseline:** `react/prop-types` errors disappear for `Table` — 8
+  total (`columns`, `children` ×3, `data`, `render`, `data.length`, `data.map`).
+
+## Migration complete
+
+With Phase 3 done, every file in `src/ui/` that this 3-phase change and the three
+preceding changes (`convert-first-ui-component-to-ts`,
+`convert-simple-ui-components-to-ts`, `convert-core-ui-components-to-ts`,
+`convert-app-shell-to-ts`) targeted is now `.tsx`. Remaining `.jsx` in the repo is
+`src/features/**`, `src/pages/**`, `src/pdf/**`, `src/context/**`, and a handful of
+still-untouched `src/ui/*.jsx` files not named in any of these changes
+(`AppLayout.jsx`, `DarkModeToggle.jsx`, `Form.jsx`, `Row.jsx`, `WorkerAppLayout.jsx`) —
+none of which were in scope here and none of which this change touches.

@@ -1,4 +1,4 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import styled from "styled-components";
 
 const StyledTable = styled.div`
@@ -13,7 +13,7 @@ const StyledTable = styled.div`
   -webkit-overflow-scrolling: touch;
 `;
 
-const CommonRow = styled.div`
+const CommonRow = styled.div<{ columns: string }>`
   display: grid;
   grid-template-columns: ${(props) => props.columns};
   column-gap: 2.4rem;
@@ -77,9 +77,18 @@ const Empty = styled.p`
   margin: 2.4rem;
 `;
 
-const TableContext = createContext();
+interface TableContextValue {
+  columns: string;
+}
 
-function Table({ columns, children }) {
+const TableContext = createContext<TableContextValue | undefined>(undefined);
+
+interface TableProps {
+  columns: string;
+  children: ReactNode;
+}
+
+function Table({ columns, children }: TableProps) {
   return (
     <TableContext.Provider value={{ columns }}>
       <StyledTable role="table">{children}</StyledTable>
@@ -87,8 +96,12 @@ function Table({ columns, children }) {
   );
 }
 
-function Header({ children }) {
-  const { columns } = useContext(TableContext);
+interface HeaderProps {
+  children: ReactNode;
+}
+
+function Header({ children }: HeaderProps) {
+  const { columns } = useContext(TableContext)!;
   return (
     <StyledHeader role="row" columns={columns} as="header">
       {children}
@@ -96,8 +109,12 @@ function Header({ children }) {
   );
 }
 
-function Row({ children }) {
-  const { columns } = useContext(TableContext);
+interface RowProps {
+  children: ReactNode;
+}
+
+function Row({ children }: RowProps) {
+  const { columns } = useContext(TableContext)!;
   return (
     <StyledRow role="row" columns={columns}>
       {children}
@@ -105,7 +122,12 @@ function Row({ children }) {
   );
 }
 
-function Body({ data, render }) {
+interface BodyProps<T> {
+  data: T[];
+  render: (item: T) => ReactNode;
+}
+
+function Body<T>({ data, render }: BodyProps<T>) {
   if (!data.length) return <Empty>No hay registro de ningun dato.</Empty>;
 
   return <StyledBody>{data.map(render)}</StyledBody>;
