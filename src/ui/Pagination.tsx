@@ -1,15 +1,5 @@
 import styled from "styled-components";
-import UntypedButton from "./Button";
-import type { ButtonHTMLAttributes, ComponentType } from "react";
-
-// Button.jsx is a plain, untyped styled-component whose size/variation props
-// are only consumed via runtime prop interpolation (see Button.jsx) — this
-// local cast describes its real contract without converting that file.
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  size?: "small" | "medium" | "large";
-  variation?: "primary" | "secondary" | "danger";
-};
-const Button = UntypedButton as ComponentType<ButtonProps>;
+import Button from "./Button";
 
 const StyledPagination = styled.div`
   display: flex;

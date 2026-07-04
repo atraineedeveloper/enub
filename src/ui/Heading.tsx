@@ -1,6 +1,12 @@
 import styled, { css } from "styled-components";
 
-const Heading = styled.h1`
+type HeadingLevel = "h1" | "h2" | "h3" | "h4";
+
+interface HeadingOwnProps {
+  as?: HeadingLevel;
+}
+
+const Heading = styled.h1<HeadingOwnProps>`
   ${(props) =>
     props.as === "h1" &&
     css`
@@ -14,7 +20,7 @@ const Heading = styled.h1`
       font-size: 2rem;
       font-weight: 600;
     `}
-    
+
     ${(props) =>
     props.as === "h3" &&
     css`
@@ -29,7 +35,7 @@ const Heading = styled.h1`
       font-weight: 600;
       text-align: center;
     `}
-    
+
   line-height: 1.4;
 `;
 

@@ -5,7 +5,7 @@ import Button from "../ui/Button";
 import { useRoles } from "../features/roles/useRoles.js";
 import calculateSemesterGroup from "../helpers/calculateSemesterGroup.js";
 import capitalizeName from "../helpers/capitalizeFirstLetter.js";
-import Spinner from "../ui/Spinner.jsx";
+import Spinner from "../ui/Spinner.tsx";
 
 function transformDate(dateString) {
   const [year, month, day] = dateString.split("-");
