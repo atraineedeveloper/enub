@@ -1,8 +1,13 @@
 import Table from "../../ui/Table";
 import Menus from "../../ui/Menus";
 import { HiPencil } from "react-icons/hi2";
+import type { Degree } from "./useDegrees";
 
-function DegreeRow({ degree }) {
+interface DegreeRowProps {
+  degree: Degree;
+}
+
+function DegreeRow({ degree }: DegreeRowProps) {
   const { id, code, name } = degree;
 
   return (
