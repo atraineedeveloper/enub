@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 import styled from "styled-components";
 import {
@@ -23,7 +23,6 @@ import Button from "../../../ui/Button";
 import ConfirmDelete from "../../../ui/ConfirmDelete";
 import ErrorMessage from "../../../ui/ErrorMessage";
 import Heading from "../../../ui/Heading";
-import Input from "../../../ui/Input";
 import Modal from "../../../ui/Modal";
 import Row from "../../../ui/Row";
 import Select from "../../../ui/Select";
@@ -189,6 +188,21 @@ const UploadControls = styled.div`
   gap: 0.4rem;
 `;
 
+// Real, functional file input -- kept in the DOM and fully operable, just
+// visually hidden. Triggered via a styled Button + ref.click(), the same
+// technique CreateEditWorkerForm.jsx already uses for profile_picture, so
+// this doesn't introduce a second file-picker pattern in the codebase.
+const HiddenFileInput = styled.input`
+  display: none;
+`;
+
+const FilePicker = styled.div`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+`;
+
 const UploadHint = styled.span`
   color: var(--color-grey-500);
   font-size: 1.2rem;
@@ -230,6 +244,7 @@ function WorkerDocumentsView({ workerId }) {
   const [selectedSemesterId, setSelectedSemesterId] = useState("");
   const [selectedFiles, setSelectedFiles] = useState({});
   const [fileInputVersions, setFileInputVersions] = useState({});
+  const fileInputRefs = useRef({});
   const {
     worker,
     isLoading: isLoadingWorker,
@@ -471,10 +486,13 @@ function WorkerDocumentsView({ workerId }) {
                 </DocumentList>
                 <UploadArea>
                   <UploadControls>
-                    <Input
+                    <HiddenFileInput
                       key={`${documentType.id}-${
                         fileInputVersions[documentType.id] ?? 0
                       }`}
+                      ref={(element) => {
+                        fileInputRefs.current[documentType.id] = element;
+                      }}
                       id={fileInputId}
                       type="file"
                       accept={ACCEPTED_DOCUMENT_TYPES}
@@ -487,9 +505,24 @@ function WorkerDocumentsView({ workerId }) {
                         )
                       }
                     />
-                    {selectedFile && (
-                      <UploadHint>Seleccionado: {selectedFile.name}</UploadHint>
-                    )}
+                    <FilePicker>
+                      <Button
+                        type="button"
+                        variation="secondary"
+                        size="small"
+                        disabled={isWorking}
+                        onClick={() =>
+                          fileInputRefs.current[documentType.id]?.click()
+                        }
+                      >
+                        Seleccionar archivo
+                      </Button>
+                      <UploadHint>
+                        {selectedFile
+                          ? selectedFile.name
+                          : "Ningún archivo seleccionado"}
+                      </UploadHint>
+                    </FilePicker>
                   </UploadControls>
                   <Button
                     size="small"

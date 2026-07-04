@@ -28,9 +28,20 @@ Status: Phase 1 and Phase 2 implemented and locally verified (service-level only
 
 ## Phase 3: Styled file picker
 
-- [ ] In `WorkerDocumentsView.jsx`, replace the raw `<input type="file">` for each pending document with the `HiddenInput`-plus-styled-trigger pattern already established in `CreateEditWorkerForm.jsx` (decisions.md #1) — no new dependency.
-- [ ] Show the selected file's name next to the trigger once chosen, before the upload action runs.
-- [ ] Preserve existing accept/type/size validation behavior unchanged (`ACCEPTED_DOCUMENT_TYPES`, existing size/format checks in `apiWorkerDocuments.js` — not touched by this phase).
+- [x] In `WorkerDocumentsView.jsx`, replaced the raw visible `<input type="file">` for each document type with a visually-hidden `HiddenFileInput` (`display: none`, real and fully functional, unchanged `onChange`/`accept`/`disabled` wiring) plus a styled "Seleccionar archivo" trigger — the existing `Button` component with `variation="secondary"` `size="small"`, reused as-is rather than introducing new button styling. Triggered via a per-document-type ref map (`fileInputRefs`, a `useRef({})` keyed by `documentType.id`) and `.click()`, the same ref-plus-click technique `CreateEditWorkerForm.jsx` already uses for `profile_picture` (decisions.md #1) — no new dependency, no second file-picker pattern introduced.
+- [x] Shows the selected file's name next to the trigger once chosen (`selectedFile.name`); shows **"Ningún archivo seleccionado"** when nothing is selected yet (previously showed nothing in that state — new, explicit copy per the request's UX requirements).
+- [x] Preserved existing accept/type/size validation behavior unchanged (`ACCEPTED_DOCUMENT_TYPES`, existing size/format checks in `apiWorkerDocuments.js` — not touched). The existing `fileInputVersions`-keyed remount trick (used to reset the native input's uncontrolled value after a successful upload/replace) composes unchanged with the now-hidden input.
+- [x] No layout rewrite: the existing two-column `UploadArea` grid (file controls | action button) is unchanged; only the file-input control inside it was replaced. Ver/Descargar/Reemplazar/Eliminar action positions and labels are all unchanged from Phase 4.
+- [x] **Local verification, live** (Playwright, scratch-directory-only, against a freshly-reset local DB and Vite dev server), full checklist:
+  1. Selected a file for a pending document — confirmed the selected file's name appeared next to the trigger.
+  2. Uploaded the pending single-file document — succeeded, hint reverted to "Ningún archivo seleccionado" afterward.
+  3. Selected a new file and replaced the now-uploaded single-file document — succeeded, new filename shown.
+  4. Added two evidence files to a multi-file ("Evidencias") type via the same styled picker — both listed.
+  5. Confirmed Ver (opened a new tab), Descargar, and Eliminar (with confirmation) all still work — deleting one evidence file left the other intact.
+  6. Confirmed no raw "Choose File"/"No file chosen" text appears anywhere on the page (checked via full page text content).
+  7. Confirmed both `/my-documents` (worker) and `/workers/:id/documents` (admin) render the styled picker correctly, with the same "Seleccionar archivo" triggers present on the admin route too.
+  - Screenshots captured for the file-selected state, the post-upload state, and the post-replace state — all show styled "SELECCIONAR ARCHIVO" buttons with "Ningún archivo seleccionado"/filename text, no native file-input chrome anywhere.
+- [x] `bun run build` passes; `bun run lint` introduces no new errors in any touched file (304-problem baseline unchanged).
 
 ## Phase 4: Delete UI wiring
 
