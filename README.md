@@ -16,6 +16,10 @@ El sistema permite a los administradores gestionar de manera eficiente semestres
     -   Control de Asignaturas y Créditos.
     -   Gestión de Grupos y Semestres.
 -   **Administración de Personal**: Registro y gestión de trabajadores y asignación de roles.
+-   **Autoservicio para Trabajadores**: cada trabajador puede iniciar sesión con su propia cuenta y acceder únicamente a su propio expediente documental.
+-   **Expediente Documental**: los trabajadores pueden subir, reemplazar y eliminar sus propios documentos; el personal administrativo puede gestionar los documentos de cualquier trabajador.
+-   **Invitación de Cuentas**: un administrador puede crear una cuenta de acceso para un trabajador (invitación por correo) y reenviar el enlace de acceso si es necesario.
+-   **Activación de Cuenta por Correo**: el trabajador establece su contraseña siguiendo el enlace recibido por correo.
 -   **Interfaz Moderna & Responsive**: Diseño adaptativo optimizado para escritorio y dispositivos móviles.
 -   **Modo Oscuro (Dark Mode)**: Soporte nativo para preferencias de sistema y alternancia manual, persistente entre sesiones.
 -   **PWA (Progressive Web App)**: Instalable en dispositivos, soporte offline y rendimiento nativo.

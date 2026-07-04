@@ -72,29 +72,28 @@ Status: Phase 1 and Phase 2 implemented and locally verified (service-level only
 - [ ] Confirm the existing report-download (`generateWorkerDocumentReportPdf`) and semester-selector behavior is unaffected by the changes in this phase (regression check, not a new feature).
 - [ ] Confirm deleting the last file of a multi-file ("Evidencias") type leaves it showing the exact same empty/pending presentation as a type that never had a file, with the upload control still present (decisions.md #8, resolved) — at both routes.
 
-## Phase 6: Documentation update
+## Phase 6: Documentation update — done
 
-**`docs/ai/architecture.md`** (confirmed stale — see `decisions.md` #7) — add/refresh, at minimum:
+**`docs/ai/architecture.md`** (was stale — see `decisions.md` #7) — updated with:
 
-- [ ] **Routing**: the full current route list, including `/my-documents`, `/pending-access`, `/set-password`, `/workers/:id/documents`, and the `RoleGate`/`WorkerAppLayout` split between staff and worker layouts — not just the pre-`worker-self-service-documents` staff-only route list currently there.
-- [ ] **Worker self-service**: a short summary of the `/my-documents` flow and how `workerId` is resolved from the session, not the URL.
-- [ ] **Profiles/roles model**: the `profiles` table, the `admin`/`staff`/`worker`/no-row states, and the deny-by-default principle (cross-reference `worker-self-service-documents/decisions.md` #7 rather than duplicating its full reasoning).
-- [ ] **Staff/admin/worker routing**: how `RoleGate` and the two layout components (`AppLayout` vs. `WorkerAppLayout`) split staff/admin from worker sessions.
-- [ ] **Edge Functions**: both `create-worker-account` and `resend-worker-access-link` — one paragraph each, what they do and why they're separate (cross-reference `worker-self-service-documents/decisions.md` #21, #30).
-- [ ] **Email templates**: `supabase/templates/invite.html`/`recovery.html` and that they're configured via `supabase/config.toml`'s `[auth.email.template.*]`.
-- [ ] **Document module**: `WorkerDocumentsView.jsx` as the shared component behind both document routes, and — new in this feature — the upload/replace/delete behavior, including the delete-ordering rule from `decisions.md` #3.
-- [ ] **RLS as enforcement boundary**: an explicit statement that RLS (not UI hiding) is what actually enforces who can read/write/delete what, across `workers`, `profiles`, and `worker_documents`/storage — stated plainly, not just implied by scattered examples.
-- [ ] Fix the existing stale note at the bottom of `architecture.md` about `VITE_SUPABASE_ANON_KEY` vs `VITE_SUPABASE_KEY` while in the area, if still inaccurate at implementation time (unrelated pre-existing inconsistency, cheap to fix while updating this file — confirm first rather than assuming).
+- [x] **Routing**: full current route list, including `/my-documents`, `/pending-access`, `/set-password`, `/workers/:id/documents`, and the `RoleGate`/`WorkerAppLayout` split between staff and worker layouts — replaced the pre-`worker-self-service-documents` staff-only route list.
+- [x] **Auth/profile model**: `public.profiles`, the `admin`/`staff`/`worker`/no-row states, the deny-by-default principle, and that `worker` profiles link to a `worker_id` while staff/admin access is a separate concern from self-service.
+- [x] **Routing behavior**: staff/admin reach normal routes, workers get redirected to `/my-documents`, no-profile sessions get redirected to `/pending-access`, and `/set-password` is reachable regardless of role.
+- [x] **Edge Functions**: both `create-worker-account` and `resend-worker-access-link`, each documented with purpose, the admin-only caller requirement, `workerId`-only client input, server-side email resolution from `public.workers`, `WORKER_INVITE_REDIRECT_URL` usage, and service-role exposure (confined to `create-worker-account`'s own server-side runtime only; `resend-worker-access-link` uses no service-role key at all).
+- [x] **Email templates**: `supabase/templates/invite.html`/`recovery.html`, wired via `supabase/config.toml`'s `[auth.email.template.*]`, both using `{{ .ConfirmationURL }}` and pointing to `/set-password` — plus an explicit note that a remote/hosted Supabase project needs its own Dashboard (or equivalent remote) configuration for templates/redirect URLs; local `config.toml` changes don't apply there.
+- [x] **Worker documents module**: `WorkerDocumentsView.jsx` as the shared component behind both document routes, the delete-ordering rule (fetch row → delete DB row → delete storage object → no reinsert + warning toast on storage-cleanup failure, per `decisions.md` #3), the styled file picker, and the multi-file/evidencias per-file delete + empty-state behavior.
+- [x] **RLS as enforcement boundary**: explicit statement that RLS (not UI hiding) enforces access across `workers`, `profiles`, `worker_documents`, and the storage bucket, and that the frontend never uses `service_role`/the Admin API.
+- [x] Fixed the stale note at the bottom of `architecture.md` about `VITE_SUPABASE_ANON_KEY` vs `VITE_SUPABASE_KEY` — confirmed (via `src/services/supabase.js`) the client actually accepts `VITE_SUPABASE_ANON_KEY` (preferred, matches `.env.example`/`README.md`) with `VITE_SUPABASE_KEY` only as a fallback; the old note describing this as an unresolved conflict was itself stale and has been corrected.
 
-**`README.md`** — add a short, product-level addition (decisions.md #7), matching the existing bullet style/depth, with **no implementation details** (no table/column/file names, no RLS, no Edge Function names):
+**`README.md`** — added a short, product-level addition (decisions.md #7), matching the existing bullet style/depth, with **no implementation details**:
 
-- [ ] A short mention that workers can log in and manage their own document expediente (self-service access).
-- [ ] A short mention of worker document upload/replace/delete.
-- [ ] A short mention of admin account provisioning by invitation.
+- [x] A short mention that workers can log in and manage their own document expediente (self-service access).
+- [x] A short mention of worker document upload/replace/delete.
+- [x] A short mention of admin account provisioning by invitation and access-link resend.
 
-**`AGENTS.md`** — conditional only:
+**`AGENTS.md`** — left unchanged:
 
-- [ ] Leave unchanged unless implementation reveals a currently-listed instruction, command, or architecture statement that is now factually wrong — if so, fix only that specific stale statement, and note what was fixed and why in this file's own history (commit message), not by expanding `AGENTS.md`'s scope.
+- [x] Reviewed against the actual implemented behavior; nothing in it is factually wrong (routing is still centralized in `src/App.jsx`, pages still live in `src/pages`, feature UI/hooks still live in `src/features/<domain>`, Supabase calls still live in `src/services/api*.js` — all still true for the new worker self-service/document-delete code). No change made, per the instruction to leave it untouched absent a clearly-wrong statement.
 
 ## Phase 7: Verification
 
