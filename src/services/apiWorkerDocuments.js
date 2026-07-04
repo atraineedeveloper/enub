@@ -143,6 +143,21 @@ async function uploadWorkerDocumentFile(storagePath, file) {
   }
 }
 
+async function getWorkerDocumentForDelete(documentId) {
+  const { data, error } = await supabase
+    .from("worker_documents")
+    .select("id, worker_id, storage_path")
+    .eq("id", documentId)
+    .single();
+
+  if (error) {
+    console.error(error);
+    throw new Error("El documento no pudo cargarse");
+  }
+
+  return data;
+}
+
 async function removeWorkerDocumentFiles(storagePaths = []) {
   const pathsToRemove = storagePaths.filter(Boolean);
   if (!pathsToRemove.length) return;
@@ -394,6 +409,57 @@ export async function replaceWorkerDocument({
   }
 
   return newDocument;
+}
+
+// Deletes a single worker_documents row and its storage object.
+//
+// Takes only documentId -- never a caller-supplied storagePath -- and
+// fetches the row itself first (worker-self-service-documents/worker-
+// documents-ux-and-delete decisions.md #3). That fetch is RLS-scoped like
+// every other read on this table: a worker session can only ever fetch
+// their own document, so a non-owner's attempt fails here (a clear "could
+// not load" error), before any delete is attempted -- there is no
+// separate ownership check in this function, RLS is the boundary.
+//
+// Order matters: the DB row is deleted first, then the storage object.
+// - If the row delete fails, the storage object is never touched.
+// - If the row delete succeeds but the storage removal then fails, the
+//   row is NOT reinserted (the document is already correctly gone from
+//   the expediente). The result is returned with storageCleanupFailed:
+//   true instead of thrown, so callers can distinguish "fully deleted"
+//   from "deleted, but the file may need manual cleanup" rather than
+//   treating the second as an outright failure.
+export async function deleteWorkerDocument(documentId) {
+  if (!documentId) throw new Error("El documento es requerido");
+
+  const document = await getWorkerDocumentForDelete(documentId);
+
+  const { error: deleteError } = await supabase
+    .from("worker_documents")
+    .delete()
+    .eq("id", documentId);
+
+  if (deleteError) {
+    console.error(deleteError);
+    throw new Error("El documento no pudo eliminarse");
+  }
+
+  try {
+    await removeWorkerDocumentFiles([document.storage_path]);
+  } catch (cleanupError) {
+    console.error(cleanupError);
+    return {
+      documentId,
+      workerId: document.worker_id,
+      storageCleanupFailed: true,
+    };
+  }
+
+  return {
+    documentId,
+    workerId: document.worker_id,
+    storageCleanupFailed: false,
+  };
 }
 
 export async function getWorkerDocumentSignedUrl(storagePath) {

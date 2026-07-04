@@ -3,6 +3,7 @@ export { useWorkerDocuments } from "./useWorkerDocuments";
 export { useWorkerDocumentsBySemester } from "./useWorkerDocumentsBySemester";
 export { useUploadWorkerDocument } from "./useUploadWorkerDocument";
 export { useReplaceWorkerDocument } from "./useReplaceWorkerDocument";
+export { useDeleteWorkerDocument } from "./useDeleteWorkerDocument";
 export { useWorkerDocumentSignedUrl } from "./useWorkerDocumentSignedUrl";
 export { useWorkerDocumentReportData } from "./useWorkerDocumentReportData";
 export { workerDocumentKeys } from "./workerDocumentKeys";
