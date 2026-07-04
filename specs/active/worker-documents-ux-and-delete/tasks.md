@@ -106,6 +106,37 @@ See `verification-plan.md` for the full script.
 - [ ] Confirm no RLS/migration change was made (or, if one was, that it's documented in `database-plan.md` with the specific gap found).
 - [ ] Confirm `docs/ai/architecture.md` and `README.md` were both updated per Phase 6, and `AGENTS.md` was left untouched (or, if touched, that the change is limited to a specific now-incorrect statement, with the reason noted).
 
+## Phase 8: Semester-scoped layout — done
+
+The semester selector and "Descargar reporte" previously sat in the page-level header, above both the permanent ("Datos personales") and semester-based sections — misleading, since only the semester-based sections (Docencia, Tutoría, Asesoría, Investigación) depend on the selected semester.
+
+- [x] Moved the semester selector and "Descargar reporte" out of `PageHeader` (now just the worker's name/role title, no controls) and into the "Documentos por semestre" section itself, in a new `SemesterControls` row directly under that section's header/subtitle.
+- [x] Subtitle for "Documentos por semestre" is now a fixed instructional string ("Selecciona el semestre académico para consultar o subir documentos."); the previously-shared slot that alternated between that instruction and the selected semester's label was split — the dynamic label (e.g. "2026-A - 2025-2026", or "Selecciona un semestre" with none picked) now renders in its own `SemesterLabel` line below the controls.
+- [x] "Datos personales" (permanent documents) renders first, with its own unchanged subtitle ("Documentos permanentes del trabajador") and no semester controls anywhere near it — confirmed it does not re-render or change when the semester selection changes.
+- [x] Semester-dependent sections (Docencia, Tutoría, Asesoría, Investigación) render below the semester controls/label, unchanged internally.
+- [x] Improved actions-column spacing: `FilePicker` now stacks the "Seleccionar archivo" trigger above its helper text (was side-by-side, could crowd the adjacent "Subir archivo" button); `UploadArea`'s grid gap increased and aligned to `end`; `FileActions`' gap increased slightly. No table-to-card rewrite — the existing `Table` grid layout was sufficient to clean up with these smaller adjustments.
+- [x] Renamed the now-repurposed `HeaderActions` styled-component to `SemesterControls` to match its new scope; `PageHeader` simplified (no longer a two-column grid, since it only wraps the title/name/role now).
+- [x] **Local verification, live** (Playwright, scratch-directory-only, against a freshly-reset local DB and Vite dev server):
+  - Confirmed via DOM query that no `<select>` exists inside the "Datos personales" section.
+  - Confirmed the permanent-documents row's rendered text is byte-identical before and after switching the selected semester (2026-A → 2026-B).
+  - Confirmed the semester label text updates correctly after switching (screenshot-verified: "2026-A - 2025-2026" → "2026-B - 2026-2027").
+  - Confirmed upload and delete still work unchanged (uploaded and then deleted a permanent document via the relocated/restyled controls).
+  - Confirmed the "Seleccionar archivo" and "Subir evidencia" buttons' bounding boxes do not overlap.
+  - Confirmed both `/my-documents` and `/workers/:id/documents` render the new layout identically (same section order: Datos personales → Documentos por semestre with controls/label → semester categories).
+  - Screenshots captured for the initial state, the post-semester-switch state, and the admin route.
+- [x] `bun run build` passes; `bun run lint` introduces no new errors in `WorkerDocumentsView.jsx` (304-problem baseline unchanged).
+
+### Phase 8 addendum: compact action-group polish — done
+
+Follow-up visual pass on the same Acciones column. The `FilePicker`/`UploadArea`/`UploadControls` styled-components from the note above have since been **replaced**, not just adjusted:
+
+- [x] Introduced `ActionGroup` — a single, self-contained compact card (light `--color-grey-50` background, `--color-grey-200` border, capped `max-width: 21rem`) wrapping the file input, "Seleccionar archivo" trigger, helper text, and the upload/replace/evidence action button — reads as one intentionally-designed control group instead of loose buttons in a wide table cell.
+- [x] Introduced `ActionButton` (`styled(Button)`), used for both buttons in the group: full width of the card (so both buttons always line up at the same width, regardless of label length — "Subir archivo" vs. "Subir evidencia" vs. "Reemplazar archivo"), centered icon+label, `white-space: nowrap`, and — critically — a real `:disabled` style (`opacity: 0.5; box-shadow: none;`), since the shared `src/ui/Button.jsx` has no `:disabled` styling at all and a disabled button otherwise looks exactly as vivid as an enabled one.
+- [x] `UploadHint` (the selected-filename/"Ningún archivo seleccionado" text) now truncates with an ellipsis at the card's capped width instead of wrapping/overflowing, with the full name available via a `title` attribute on hover.
+- [x] No change to upload/replace/delete/view/download logic — purely the wrapping markup and styling around the same handlers/state.
+- [x] **Local verification, live** (Playwright, scratch-directory-only, freshly-reset local DB and Vite dev server): confirmed the upload button's computed `opacity` is `0.5` with no file selected and `1` once one is selected; confirmed upload and delete still work end-to-end; confirmed a long evidence file name truncates within the capped card width (bounding box confirmed ~184px, matching the `max-width`); confirmed the uploaded-document Ver/Descargar/Eliminar row still renders correctly alongside the restyled card.
+- [x] `bun run build` passes; `bun run lint` introduces no new errors in `WorkerDocumentsView.jsx` (304-problem baseline unchanged).
+
 ## Follow-up (separate future work, not part of this feature)
 
 - [ ] **Loading-state granularity for upload/replace.** Confirmed during Phase 3 UX polish (Codex review): `isUploading` (from `useUploadWorkerDocument`) and `isReplacing` (from `useReplaceWorkerDocument`) are each a single shared boolean for the whole `WorkerDocumentsView.jsx` instance, not scoped per document type or per row.

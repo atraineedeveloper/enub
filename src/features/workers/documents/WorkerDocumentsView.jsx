@@ -34,17 +34,8 @@ const ACCEPTED_DOCUMENT_TYPES =
   ".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp";
 
 const PageHeader = styled.div`
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 2.4rem;
-  align-items: end;
   padding-bottom: 1.2rem;
   border-bottom: 1px solid var(--color-grey-200);
-
-  @media (max-width: 700px) {
-    grid-template-columns: 1fr;
-    align-items: stretch;
-  }
 `;
 
 const WorkerSummary = styled.div`
@@ -71,11 +62,21 @@ const SelectorGroup = styled.div`
   }
 `;
 
-const HeaderActions = styled.div`
+// Controls scoped to the "Documentos por semestre" section only -- the
+// semester selector and report download both depend on the selected
+// semester, so they live next to that section's own header, not the page
+// header (permanent/personal documents don't depend on either).
+const SemesterControls = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: 1.2rem;
-  align-items: stretch;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 1.6rem;
+`;
+
+const SemesterLabel = styled.p`
+  color: var(--color-grey-700);
+  font-weight: 600;
+  font-size: 1.4rem;
 `;
 
 const Section = styled.section`
@@ -135,7 +136,7 @@ const Meta = styled.span`
 const FileActions = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 0.8rem;
+  gap: 1.2rem;
 `;
 
 const FileLink = styled.button`
@@ -171,21 +172,22 @@ const DangerFileLink = styled(FileLink)`
   }
 `;
 
-const UploadArea = styled.div`
-  display: grid;
-  grid-template-columns: minmax(16rem, 1fr) auto;
-  gap: 0.8rem;
-  align-items: center;
-
-  @media (max-width: 700px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const UploadControls = styled.div`
+// A small, self-contained "card" for the pending-upload controls -- reads as
+// one intentionally-designed control group rather than two loose buttons
+// floating in a wide table cell. Capped width so it stays compact even in a
+// much wider Acciones column, and stays a consistent size regardless of
+// which row's button label is longest ("Subir archivo" vs. "Subir
+// evidencia" vs. "Reemplazar archivo").
+const ActionGroup = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.8rem;
+  width: 100%;
+  max-width: 21rem;
+  padding: 1.2rem;
+  background-color: var(--color-grey-50);
+  border: 1px solid var(--color-grey-200);
+  border-radius: var(--border-radius-sm);
 `;
 
 // Real, functional file input -- kept in the DOM and fully operable, just
@@ -196,16 +198,35 @@ const HiddenFileInput = styled.input`
   display: none;
 `;
 
-const FilePicker = styled.div`
+// Shared by both the "Seleccionar archivo" trigger and the "Subir
+// archivo"/"Reemplazar archivo"/"Subir evidencia" action -- same width and
+// alignment so the two stack cleanly, and a real :disabled style (the
+// shared Button.jsx has none), so a disabled button reads as visually
+// inactive instead of just as loud as an enabled one.
+const ActionButton = styled(Button)`
+  width: 100%;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 0.8rem;
+  justify-content: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+
+  &:disabled {
+    opacity: 0.5;
+    box-shadow: none;
+    cursor: not-allowed;
+  }
 `;
 
+// Secondary to the buttons -- truncates instead of wrapping/overflowing the
+// compact card, with the full name available on hover via title.
 const UploadHint = styled.span`
   color: var(--color-grey-500);
   font-size: 1.2rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 const EmptyState = styled.p`
@@ -484,47 +505,45 @@ function WorkerDocumentsView({ workerId }) {
                     <Meta>Sin archivo cargado</Meta>
                   )}
                 </DocumentList>
-                <UploadArea>
-                  <UploadControls>
-                    <HiddenFileInput
-                      key={`${documentType.id}-${
-                        fileInputVersions[documentType.id] ?? 0
-                      }`}
-                      ref={(element) => {
-                        fileInputRefs.current[documentType.id] = element;
-                      }}
-                      id={fileInputId}
-                      type="file"
-                      accept={ACCEPTED_DOCUMENT_TYPES}
-                      aria-label={`Seleccionar archivo para ${documentType.name}`}
-                      disabled={isWorking}
-                      onChange={(event) =>
-                        handleFileChange(
-                          documentType.id,
-                          event.target.files?.[0] ?? null
-                        )
-                      }
-                    />
-                    <FilePicker>
-                      <Button
-                        type="button"
-                        variation="secondary"
-                        size="small"
-                        disabled={isWorking}
-                        onClick={() =>
-                          fileInputRefs.current[documentType.id]?.click()
-                        }
-                      >
-                        Seleccionar archivo
-                      </Button>
-                      <UploadHint>
-                        {selectedFile
-                          ? selectedFile.name
-                          : "Ningún archivo seleccionado"}
-                      </UploadHint>
-                    </FilePicker>
-                  </UploadControls>
-                  <Button
+                <ActionGroup>
+                  <HiddenFileInput
+                    key={`${documentType.id}-${
+                      fileInputVersions[documentType.id] ?? 0
+                    }`}
+                    ref={(element) => {
+                      fileInputRefs.current[documentType.id] = element;
+                    }}
+                    id={fileInputId}
+                    type="file"
+                    accept={ACCEPTED_DOCUMENT_TYPES}
+                    aria-label={`Seleccionar archivo para ${documentType.name}`}
+                    disabled={isWorking}
+                    onChange={(event) =>
+                      handleFileChange(
+                        documentType.id,
+                        event.target.files?.[0] ?? null
+                      )
+                    }
+                  />
+                  <ActionButton
+                    type="button"
+                    variation="secondary"
+                    size="small"
+                    disabled={isWorking}
+                    onClick={() =>
+                      fileInputRefs.current[documentType.id]?.click()
+                    }
+                  >
+                    Seleccionar archivo
+                  </ActionButton>
+                  <UploadHint
+                    title={selectedFile ? selectedFile.name : undefined}
+                  >
+                    {selectedFile
+                      ? selectedFile.name
+                      : "Ningún archivo seleccionado"}
+                  </UploadHint>
+                  <ActionButton
                     size="small"
                     type="button"
                     aria-label={`${actionLabel} para ${documentType.name}`}
@@ -548,8 +567,8 @@ function WorkerDocumentsView({ workerId }) {
                     {documentType.allows_multiple &&
                       !isWorking &&
                       ` ${actionLabel}`}
-                  </Button>
-                </UploadArea>
+                  </ActionButton>
+                </ActionGroup>
               </Table.Row>
             );
           }}
@@ -584,7 +603,32 @@ function WorkerDocumentsView({ workerId }) {
             <span>{worker.name}</span>
             <span>{worker.type_worker}</span>
           </WorkerSummary>
-          <HeaderActions>
+        </PageHeader>
+
+        {!documentCatalog?.length && (
+          <EmptyState>No hay catálogo de documentos configurado.</EmptyState>
+        )}
+
+        {permanentCategory && (
+          <Section>
+            <SectionHeader>
+              <Heading as="h2">{permanentCategory.name}</Heading>
+              <SectionHint>Documentos permanentes del trabajador</SectionHint>
+            </SectionHeader>
+            {renderDocumentRows(permanentCategory)}
+          </Section>
+        )}
+
+        <Section>
+          <SectionHeader>
+            <Heading as="h2">Documentos por semestre</Heading>
+            <SectionHint>
+              Selecciona el semestre académico para consultar o subir
+              documentos.
+            </SectionHint>
+          </SectionHeader>
+
+          <SemesterControls>
             <SelectorGroup>
               <label htmlFor="semester">
                 Semestre para documentos académicos
@@ -609,32 +653,14 @@ function WorkerDocumentsView({ workerId }) {
             >
               <HiArrowDownTray /> Descargar reporte
             </Button>
-          </HeaderActions>
-        </PageHeader>
+          </SemesterControls>
 
-        {!documentCatalog?.length && (
-          <EmptyState>No hay catálogo de documentos configurado.</EmptyState>
-        )}
+          <SemesterLabel>
+            {selectedSemester
+              ? getSemesterLabel(selectedSemester)
+              : "Selecciona un semestre"}
+          </SemesterLabel>
 
-        {permanentCategory && (
-          <Section>
-            <SectionHeader>
-              <Heading as="h2">{permanentCategory.name}</Heading>
-              <SectionHint>Documentos permanentes del trabajador</SectionHint>
-            </SectionHeader>
-            {renderDocumentRows(permanentCategory)}
-          </Section>
-        )}
-
-        <Section>
-          <SectionHeader>
-            <Heading as="h2">Documentos por semestre</Heading>
-            <SectionHint>
-              {selectedSemester
-                ? getSemesterLabel(selectedSemester)
-                : "Selecciona un semestre"}
-            </SectionHint>
-          </SectionHeader>
           {!semesters?.length && (
             <EmptyState>
               No hay semestres registrados para cargar documentos académicos.
