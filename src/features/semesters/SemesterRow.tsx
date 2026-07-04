@@ -2,6 +2,7 @@ import styled from "styled-components";
 import Button from "../../ui/Button";
 import { Link } from "react-router-dom";
 import { FaCalendar } from "react-icons/fa";
+import type { Semester } from "./useSemesters";
 
 const Card = styled.div`
   background-color: var(--color-grey-0);
@@ -49,7 +50,11 @@ const SchoolYear = styled.p`
   color: var(--color-grey-500);
 `;
 
-function SemesterRow({ semester }) {
+interface SemesterRowProps {
+  semester: Semester;
+}
+
+function SemesterRow({ semester }: SemesterRowProps) {
   const { semester: semesterRecord, school_year, id } = semester;
   return (
     <Card>

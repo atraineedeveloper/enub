@@ -17,7 +17,7 @@ function CreateGroupForm() {
   const { register, handleSubmit, reset, formState } = useForm();
   const { errors } = formState;
 
-  const { mutate, isLoading: isCreating } = useMutation({
+  const mutation = useMutation({
     mutationFn: createGroup,
     onSuccess: () => {
       toast.success("El registro se creó correctamente");
@@ -26,10 +26,18 @@ function CreateGroupForm() {
     },
     onError: (err) => toast.error(err.message),
   });
+  const { mutate } = mutation;
+  // TanStack Query v5's useMutation has no `isLoading` (only `isPending`) —
+  // this was already always `undefined` at runtime before this file had any
+  // type checking at all, so `disabled={isCreating}` below has never
+  // actually disabled anything during submission. Preserved exactly, not
+  // fixed, per "do not change runtime behavior" — see design.md.
+  const isCreating = (mutation as unknown as { isLoading?: boolean })
+    .isLoading;
 
   if (isLoading) return <Spinner />;
 
-  function onSubmit(data) {
+  function onSubmit(data: object) {
     mutate(data);
   }
 
@@ -37,7 +45,7 @@ function CreateGroupForm() {
     <Form onSubmit={handleSubmit(onSubmit)}>
       <FormRow
         label="Año de admisión"
-        error={errors?.year_of_admission?.message}
+        error={errors?.year_of_admission?.message as string | undefined}
       >
         <Input
           type="text"
@@ -48,7 +56,7 @@ function CreateGroupForm() {
           })}
         />
       </FormRow>
-      <FormRow label="Letra (Grupo)" error={errors?.letter?.message}>
+      <FormRow label="Letra (Grupo)" error={errors?.letter?.message as string | undefined}>
         <Input
           type="text"
           id="letter"
@@ -58,7 +66,7 @@ function CreateGroupForm() {
           })}
         />
       </FormRow>
-      <FormRow label="Carrera" error={errors?.degree_id?.message}>
+      <FormRow label="Carrera" error={errors?.degree_id?.message as string | undefined}>
         <Select
           id="degree_id"
           disabled={isCreating}
@@ -67,7 +75,7 @@ function CreateGroupForm() {
           })}
         >
           <option value="">Seleccione</option>
-          {degrees.map((degree) => (
+          {degrees!.map((degree) => (
             <option value={degree.id} key={degree.id}>
               {degree.code}
             </option>
@@ -75,10 +83,12 @@ function CreateGroupForm() {
         </Select>
       </FormRow>
       <FormRow>
-        <Button variation="secondary" type="reset">
-          Cancelar
-        </Button>
-        <Button>Agregar Grupo</Button>
+        <>
+          <Button variation="secondary" type="reset">
+            Cancelar
+          </Button>
+          <Button>Agregar Grupo</Button>
+        </>
       </FormRow>
     </Form>
   );

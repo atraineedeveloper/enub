@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 import styled from "styled-components";
 import Spinner from "../../ui/Spinner";
 import SemesterRow from "./SemesterRow";
@@ -35,11 +35,11 @@ function SemesterTable() {
 
   const filtered = (semesters ?? []).filter(
     (sem) =>
-      sem.semester.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      sem.school_year.toLowerCase().includes(searchTerm.toLowerCase())
+      sem.semester!.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sem.school_year!.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  function handleSearch(e) {
+  function handleSearch(e: ChangeEvent<HTMLInputElement>) {
     setSearchTerm(e.target.value);
   }
 
