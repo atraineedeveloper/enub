@@ -4,6 +4,9 @@ import styled from "styled-components";
 import calculateSemesterGroup from "../../helpers/calculateSemesterGroup";
 import TeacherAssignmentPDF from "../../pdf/Schedules/TeacherAssignmentPDF";
 import capitalizeName from "../../helpers/capitalizeFirstLetter";
+import type { ScheduleAssignment } from "./useScheduleAssignments";
+import type { ScheduleTeacher } from "./useScheduleTeachers";
+import type { Worker } from "../workers/useWorkers";
 
 const Table = styled.div`
   border: 1px solid var(--color-grey-200);
@@ -57,27 +60,47 @@ const LongRow = styled.div`
 `;
 
 // Extract Subjects
-const groupData = (array, key) => {
-  return array.reduce((result, currentValue) => {
-    // Obtén el valor de la propiedad por la que vamos a agrupar
-    const groupKey = currentValue[key];
+// Decision 5: kept independently typed in place, in every file that already
+// had its own copy -- not consolidated into a shared helper.
+const groupData = (
+  array: ScheduleAssignment[],
+  key: "subject_id" | "group_id"
+) => {
+  return array.reduce(
+    (result: Record<string, ScheduleAssignment[]>, currentValue) => {
+      // Obtén el valor de la propiedad por la que vamos a agrupar
+      const groupKey = String(currentValue[key]);
 
-    // Si el grupo aún no existe, créalo
-    if (!result[groupKey]) {
-      result[groupKey] = [];
-    }
+      // Si el grupo aún no existe, créalo
+      if (!result[groupKey]) {
+        result[groupKey] = [];
+      }
 
-    // Agrega el elemento actual al grupo correspondiente
-    result[groupKey].push(currentValue);
+      // Agrega el elemento actual al grupo correspondiente
+      result[groupKey].push(currentValue);
 
-    return result;
-  }, {});
+      return result;
+    },
+    {}
+  );
 };
 
-function TeacherAssignment({ workers, scheduleTeachers, scheduleAssignments }) {
-  const [selectedWorkerId, setSelectedWorkerId] = useState(null);
+interface TeacherAssignmentProps {
+  workers: Worker[];
+  scheduleTeachers: ScheduleTeacher[];
+  scheduleAssignments: ScheduleAssignment[];
+}
 
-  const handleWorkerChange = (workerId) => {
+function TeacherAssignment({
+  workers,
+  scheduleTeachers,
+  scheduleAssignments,
+}: TeacherAssignmentProps) {
+  const [selectedWorkerId, setSelectedWorkerId] = useState<number | null>(
+    null
+  );
+
+  const handleWorkerChange = (workerId: string) => {
     setSelectedWorkerId(workerId ? +workerId : null);
   };
 
@@ -108,16 +131,19 @@ function TeacherAssignment({ workers, scheduleTeachers, scheduleAssignments }) {
   // Extract Teacher Schedules
 
   const countTeacherSchedules = useMemo(() => {
-    return filteredSchedulesTeacher.reduce((acc, item) => {
-      const trimmedAcitivity = item.activity.trim();
+    return filteredSchedulesTeacher.reduce(
+      (acc: Record<string, number>, item) => {
+        const trimmedAcitivity = item.activity!.trim();
 
-      if (acc[trimmedAcitivity]) {
-        acc[trimmedAcitivity]++;
-      } else {
-        acc[trimmedAcitivity] = 1;
-      }
-      return acc;
-    }, {});
+        if (acc[trimmedAcitivity]) {
+          acc[trimmedAcitivity]++;
+        } else {
+          acc[trimmedAcitivity] = 1;
+        }
+        return acc;
+      },
+      {}
+    );
   }, [filteredSchedulesTeacher]);
 
   const uniqueTeacherSchedule = useMemo(() => {
@@ -164,8 +190,8 @@ function TeacherAssignment({ workers, scheduleTeachers, scheduleAssignments }) {
         </TableHeader>
         {Object.keys(groupedSubjects).map((subject) => (
           <TableRow key={subject}>
-            <p>{groupedSubjects[subject][0].subjects.name}</p>
-            <p>{groupedSubjects[subject][0].groups.degrees.code}</p>
+            <p>{groupedSubjects[subject][0].subjects!.name}</p>
+            <p>{groupedSubjects[subject][0].groups!.degrees!.code}</p>
             <p>
               {Object.keys(groupData(groupedSubjects[subject], "group_id")).map(
                 (group) => (
@@ -175,13 +201,13 @@ function TeacherAssignment({ workers, scheduleTeachers, scheduleAssignments }) {
                       {calculateSemesterGroup(
                         groupData(groupedSubjects[subject], "group_id")[
                           group
-                        ][0].groups.year_of_admission
+                        ][0].groups!.year_of_admission
                       )}
                       ° "
                       {
                         groupData(groupedSubjects[subject], "group_id")[
                           group
-                        ][0].groups.letter
+                        ][0].groups!.letter
                       }
                       ") &nbsp; &nbsp; &nbsp;
                     </span>

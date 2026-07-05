@@ -5,8 +5,8 @@ import { deleteScheduleTeachers as deleteScheduleTeachersApi } from "../../servi
 export function useDeleteScheduleTeacher() {
   const queryClient = useQueryClient();
 
-  const { isLoading: isDeleting, mutate: deleteScheduleTeachers } = useMutation(
-    {
+  const { isPending: isDeleting, mutate: deleteScheduleTeachers } =
+    useMutation({
       mutationFn: deleteScheduleTeachersApi,
       onSuccess: () => {
         toast.success("Horario eliminado con éxito");
@@ -16,8 +16,7 @@ export function useDeleteScheduleTeacher() {
         });
       },
       onError: (err) => toast.error(err.message),
-    }
-  );
+    });
 
   return { isDeleting, deleteScheduleTeachers };
 }

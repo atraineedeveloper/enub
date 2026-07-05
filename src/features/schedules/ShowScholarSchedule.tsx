@@ -4,6 +4,8 @@ import Select from "../../ui/Select";
 import calculateSemesterGroup from "../../helpers/calculateSemesterGroup";
 import { useMemo, useState } from "react";
 import ScheduleGroupPDF from "../../pdf/Schedules/ScheduleGroupPDF";
+import type { ScheduleAssignment } from "./useScheduleAssignments";
+import type { Group } from "../groups/useGroups";
 
 const Table = styled.div`
   border: 1px solid var(--color-grey-200);
@@ -29,7 +31,15 @@ const TableHeader = styled.header`
   padding: 1.6rem 2.4rem;
 `;
 
-function ShowScholarSchedule({ scheduleAssignments, groups }) {
+interface ShowScholarScheduleProps {
+  scheduleAssignments: ScheduleAssignment[];
+  groups: Group[];
+}
+
+function ShowScholarSchedule({
+  scheduleAssignments,
+  groups,
+}: ShowScholarScheduleProps) {
   const [selectedGroupId, setSelectedGroupId] = useState("");
 
   const filteredSchedules = useMemo(() => {
@@ -46,7 +56,7 @@ function ShowScholarSchedule({ scheduleAssignments, groups }) {
         {groups.map((group) => (
           <option key={group.id} value={group.id}>
             {calculateSemesterGroup(group.year_of_admission)}° "{group.letter}"
-            - {group.degrees.code}
+            - {group.degrees!.code}
           </option>
         ))}
       </Select>

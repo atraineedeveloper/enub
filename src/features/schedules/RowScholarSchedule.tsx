@@ -1,5 +1,6 @@
 import styled from "styled-components";
 import HourScheduleSubject from "./HourScheduleSubject";
+import type { ScheduleAssignment } from "./useScheduleAssignments";
 
 const TableRow = styled.div`
   display: grid;
@@ -23,7 +24,11 @@ const LongRow = styled.div`
   text-align: center;
 `;
 
-function RowScholarSchedule({ schedules }) {
+interface RowScholarScheduleProps {
+  schedules: ScheduleAssignment[];
+}
+
+function RowScholarSchedule({ schedules }: RowScholarScheduleProps) {
   return (
     <>
       <TableRow role="row">

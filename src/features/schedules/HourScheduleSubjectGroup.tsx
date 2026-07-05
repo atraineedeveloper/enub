@@ -1,14 +1,34 @@
 import { FaEdit, FaTrash } from "react-icons/fa";
 import Row from "../../ui/Row";
 import calculateSemesterGroup from "../../helpers/calculateSemesterGroup";
-import { useState } from "react";
+import { useState, type ComponentType } from "react";
 import Modal from "../../ui/Modal";
 import CreateScholarSchedule from "./EditScholarSchedule";
 import ConfirmDelete from "../../ui/ConfirmDelete";
 import { useDeleteScheduleAssignment } from "./useDeleteScheduleAssignment";
-import CreateEditScholarSchedule from "./CreateEditScholarSchedule";
+import UntypedCreateEditScholarSchedule from "./CreateEditScholarSchedule";
+import type { ScheduleAssignment } from "./useScheduleAssignments";
 
-function HourScheduleSubjectGroup({ schedules, weekday, startTime }) {
+// CreateEditScholarSchedule.jsx is untyped and out of scope (Phase 3) -- see
+// HourScheduleSubject.tsx for the full explanation of why `semesterId` needs
+// this cast.
+const CreateEditScholarSchedule = UntypedCreateEditScholarSchedule as ComponentType<{
+  semesterId?: string;
+  scheduleToEdit?: ScheduleAssignment;
+  onCloseModal?: () => void;
+}>;
+
+interface HourScheduleSubjectGroupProps {
+  schedules: ScheduleAssignment[];
+  weekday: string;
+  startTime: string;
+}
+
+function HourScheduleSubjectGroup({
+  schedules,
+  weekday,
+  startTime,
+}: HourScheduleSubjectGroupProps) {
   const { isDeleting, deleteScheduleAssignment } =
     useDeleteScheduleAssignment();
   const schedulesHour = schedules.filter((schedule) => {
@@ -23,7 +43,7 @@ function HourScheduleSubjectGroup({ schedules, weekday, startTime }) {
       <>
         {schedulesHour.map((schedule) => (
           <div key={schedule.id}>
-            <b>{schedule?.subjects.name.toUpperCase()}</b>
+            <b>{schedule?.subjects!.name!.toUpperCase()}</b>
             <br />
             <em>
               {calculateSemesterGroup(schedule?.groups?.year_of_admission)}° "
