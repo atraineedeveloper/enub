@@ -4,7 +4,7 @@ import Button from "../../ui/Button.tsx";
 import { useRoles } from "../../features/roles/useRoles.ts";
 import { useStateRoles } from "../../features/stateRoles/useStateRoles.js";
 import Spinner from "../../ui/Spinner.tsx";
-import filterHour from "./filterHour.js";
+import filterHour from "./filterHour.ts";
 import calculateSemesterGroup from "../../helpers/calculateSemesterGroup.js";
 import capitalizeName from "../../helpers/capitalizeFirstLetter.js";
 import { useUtilities } from "../../features/otherData/useUtilities.js";

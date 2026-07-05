@@ -4,8 +4,8 @@ import Button from "../../ui/Button.tsx";
 import Spinner from "../../ui/Spinner.tsx";
 import { useRoles } from "../../features/roles/useRoles.ts";
 import { useStateRoles } from "../../features/stateRoles/useStateRoles.js";
-import filterHourGroup from "./filterHourGroup.js";
-import filterHourActivity from "./filterHourActivity.js";
+import filterHourGroup from "./filterHourGroup.ts";
+import filterHourActivity from "./filterHourActivity.ts";
 import capitalizeName from "../../helpers/capitalizeFirstLetter.js";
 import { useUtilities } from "../../features/otherData/useUtilities.js";
 

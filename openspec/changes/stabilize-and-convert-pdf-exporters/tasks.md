@@ -27,37 +27,44 @@
 - [x] Verify no other line in either file changes (repair is limited to the
       identified unsafe accesses, per the `pdf-exporter-safety` spec's
       "PDF repairs are minimal and data-shape explicit" requirement).
-- [ ] Manually re-run the export action for both PDFs against the local
+- [x] Manually re-run the export action for both PDFs against the local
       seeded database (1 row each in `roles`/`state_roles`) and confirm no
       error is thrown and the PDF downloads.
 - [x] `bun run typecheck`
 - [x] `bun run build`
 - [x] `bun run lint` (record before/after counts in Verification Results)
 
-## 2. Phase 2 — Convert ScheduleGroupPDF and ScheduleTeacherPDF to TypeScript
+## 2. Phase 2 — Convert PDF helper modules to TypeScript
 
-- [ ] Convert `src/pdf/Schedules/ScheduleGroupPDF.jsx` to `ScheduleGroupPDF.tsx`,
-      typing `schedules` as `ScheduleAssignment[]` (from
-      `src/features/schedules/useScheduleAssignments.ts`), typing `Role`/
-      `state_roles` data per `design.md`'s Data-Shape Analysis, and adding the
-      `JsPdfWithAutoTable` cast for `autoTable`.
-- [ ] Convert `src/pdf/Schedules/ScheduleTeacherPDF.jsx` to
-      `ScheduleTeacherPDF.tsx`, typing `schedulesScholar` as
-      `ScheduleAssignment[]`, `scheduleTeacher` as `ScheduleTeacher[]` (from
-      `useScheduleTeachers.ts`), `totalHours` as `number`, same `Role`/
-      `state_roles`/`autoTable` typing as above.
-- [ ] Decide (per `design.md` Decision 6) whether `filterHour.js`,
-      `filterHourGroup.js`, `filterHourActivity.js` need conversion to `.ts`
-      to eliminate an implicit-`any` typecheck error; convert only if
-      required, otherwise leave as `.js`.
-- [ ] Update `src/features/schedules/ShowScholarSchedule.tsx` and
-      `ShowTeacherSchedule.tsx` import paths/extensions if required by the
-      conversion; no prop or behavior changes.
-- [ ] Manually re-run both export actions and compare output against Phase 1's
+> Scope note: Phase 2 was re-scoped (per explicit approval) to convert the
+> three PDF helper modules first, ahead of the PDF component conversions.
+> Component conversion (`ScheduleGroupPDF.jsx`/`ScheduleTeacherPDF.jsx` to
+> `.tsx`, originally listed here) moves to a later phase; see Verification
+> Results below.
+
+- [x] Convert `src/pdf/Schedules/filterHour.js` to `filterHour.ts`, typing
+      `schedules` as `ScheduleAssignment[]` (from
+      `src/features/schedules/useScheduleAssignments.ts`); preserve filtering
+      and return-value behavior exactly, using non-null assertions at the
+      existing (already-unguarded) `subjects`/`workers`/`.name` dereference
+      sites rather than adding new guards.
+- [x] Convert `src/pdf/Schedules/filterHourGroup.js` to `filterHourGroup.ts`,
+      typing `schedules` as `ScheduleAssignment[]`; same non-null-assertion
+      treatment for `subjects`/`groups`/`degrees`/`.name` dereferences.
+- [x] Convert `src/pdf/Schedules/filterHourActivity.js` to
+      `filterHourActivity.ts`, typing `schedules` as `ScheduleTeacher[]` (from
+      `useScheduleTeachers.ts`); no null-safety additions needed (`.activity`
+      is read only inside a template literal).
+- [x] Update `src/pdf/Schedules/ScheduleGroupPDF.jsx`'s and
+      `ScheduleTeacherPDF.jsx`'s import specifiers for the three renamed
+      helper modules (`.js` → `.ts`, matching the explicit-`.ts`-extension
+      convention already used for `useRoles.ts` in these same files); no
+      other line in either component file changed.
+- [x] Manually re-run both export actions and compare output against Phase 1's
       post-repair baseline (structure/labels/fonts/margins unchanged).
-- [ ] `bun run typecheck`
-- [ ] `bun run build`
-- [ ] `bun run lint` (record before/after counts)
+- [x] `bun run typecheck`
+- [x] `bun run build`
+- [x] `bun run lint` (record before/after counts)
 
 ## 3. Phase 3 — Convert TeacherAssignmentPDF to TypeScript
 
@@ -123,10 +130,25 @@
   passes; `bun run typecheck` clean; `bun run build` succeeds; `bun run lint`
   is 129 problems (125 errors, 4 warnings) both before and after the repair
   (0 delta — confirmed by stashing the Phase 1 diff and re-running lint).
-- Phase 1 manual repair check (ScheduleGroupPDF / ScheduleTeacherPDF): _pending_
-  — not performed in this turn (no browser/dev-server session available);
-  must be done before Phase 2 begins
-- Phase 2 manual check: _pending_
+- Phase 1 manual repair check (ScheduleGroupPDF / ScheduleTeacherPDF): done.
+  Human smoke test performed in the browser after the Phase 1 repair: both
+  `ScheduleTeacherPDF` and `ScheduleGroupPDF` exports were run against the
+  local seeded database; the previous `.role` error no longer appears; both
+  PDFs generate successfully; basic structure/header/table output was
+  visually confirmed. Confirms the Phase 1 repair works at runtime.
+- Phase 2 code conversion: done. `bunx @fission-ai/openspec validate ... --strict`
+  passes; `bun run typecheck` clean; `bun run build` succeeds; `bun run lint`
+  is 129 problems (125 errors, 4 warnings) — identical to the Phase 1
+  baseline (0 delta). `filterHour.js`/`filterHourGroup.js`/`filterHourActivity.js`
+  converted to `.ts`; `ScheduleGroupPDF.jsx`/`ScheduleTeacherPDF.jsx` untouched
+  except their three import specifiers. Phase 2's original scope (converting
+  `ScheduleGroupPDF`/`ScheduleTeacherPDF` to `.tsx`) is deferred to a later
+  phase.
+- Phase 2 manual check: done. Human smoke test performed in the browser after
+  converting the PDF helper modules to TypeScript: both `ScheduleTeacherPDF`
+  and `ScheduleGroupPDF` exports were run; both PDFs generate successfully;
+  the previous `.role` error did not return; basic structure/header/table
+  output was visually confirmed.
 - Phase 3 manual check: _pending_
 - Phase 4 manual check: _pending_
 - Final manual smoke pass (4/4 PDFs): _pending_

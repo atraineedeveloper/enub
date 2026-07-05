@@ -1,4 +1,10 @@
-function filterHourActivity(schedules, weekday, startTime) {
+import type { ScheduleTeacher } from "../../features/schedules/useScheduleTeachers";
+
+function filterHourActivity(
+  schedules: ScheduleTeacher[],
+  weekday: string,
+  startTime: string
+) {
   const activitytHour = schedules.filter((schedule) => {
     return schedule.weekday === weekday && schedule.start_time === startTime;
   });
