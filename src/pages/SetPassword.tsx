@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import styled from "styled-components";
 import Heading from "../ui/Heading";
 import Form from "../ui/Form";
@@ -52,7 +52,7 @@ function SetPassword() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [formError, setFormError] = useState("");
 
-  function handleSubmit(e) {
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     if (!newPassword) {
