@@ -4,6 +4,9 @@ import { useState, useEffect, useMemo } from "react";
 import RowTeacherSchedule from "./RowTeacherSchedule";
 import ScheduleTeacherPDF from "../../pdf/Schedules/ScheduleTeacherPDF";
 import capitalizeName from "../../helpers/capitalizeFirstLetter";
+import type { ScheduleAssignment } from "./useScheduleAssignments";
+import type { ScheduleTeacher } from "./useScheduleTeachers";
+import type { Worker } from "../workers/useWorkers";
 
 const Table = styled.div`
   border: 1px solid var(--color-grey-200);
@@ -30,35 +33,51 @@ const TableHeader = styled.header`
   padding: 1.6rem 2.4rem;
 `;
 
-const groupData = (array, key) => {
-  return array.reduce((result, currentValue) => {
-    // Obtén el valor de la propiedad por la que vamos a agrupar
-    const groupKey = currentValue[key];
+// Decision 5: kept independently typed in place, in every file that already
+// had its own copy -- not consolidated into a shared helper.
+const groupData = (array: ScheduleAssignment[], key: "subject_id") => {
+  return array.reduce(
+    (result: Record<string, ScheduleAssignment[]>, currentValue) => {
+      // Obtén el valor de la propiedad por la que vamos a agrupar
+      const groupKey = String(currentValue[key]);
 
-    // Si el grupo aún no existe, créalo
-    if (!result[groupKey]) {
-      result[groupKey] = [];
-    }
+      // Si el grupo aún no existe, créalo
+      if (!result[groupKey]) {
+        result[groupKey] = [];
+      }
 
-    // Agrega el elemento actual al grupo correspondiente
-    result[groupKey].push(currentValue);
+      // Agrega el elemento actual al grupo correspondiente
+      result[groupKey].push(currentValue);
 
-    return result;
-  }, {});
+      return result;
+    },
+    {}
+  );
 };
+
+interface ShowTeacherScheduleProps {
+  workers: Worker[];
+  scheduleTeachers: ScheduleTeacher[];
+  scheduleAssignments: ScheduleAssignment[];
+  semesterId?: string;
+}
 
 function ShowTeacherSchedule({
   workers,
   scheduleTeachers,
   scheduleAssignments,
   semesterId,
-}) {
-  const [filteredSchedulesTeacher, setFilteredSchedulesTeacher] = useState([]);
+}: ShowTeacherScheduleProps) {
+  const [filteredSchedulesTeacher, setFilteredSchedulesTeacher] = useState<
+    ScheduleTeacher[]
+  >([]);
   const [filteredSchedulesAssignments, setFilteredSchedulesAssignments] =
-    useState([]);
-  const [selectedWorkerId, setSelectedWorkerId] = useState(null);
+    useState<ScheduleAssignment[]>([]);
+  const [selectedWorkerId, setSelectedWorkerId] = useState<number | null>(
+    null
+  );
 
-  function selectingWorker(workerId) {
+  function selectingWorker(workerId: string | number) {
     setSelectedWorkerId(workerId ? +workerId : null);
     const scheduleTeacherFilter = scheduleTeachers.filter((schedule) => {
       return schedule.worker_id === +workerId;
@@ -91,8 +110,8 @@ function ShowTeacherSchedule({
 
   const uniqueTeacherSchedule = useMemo(() => {
     const countTeacherSchedules = filteredSchedulesTeacher.reduce(
-      (acc, item) => {
-        const trimmedAcitivity = item.activity.trim();
+      (acc: Record<string, number>, item) => {
+        const trimmedAcitivity = item.activity!.trim();
 
         if (acc[trimmedAcitivity]) {
           acc[trimmedAcitivity]++;

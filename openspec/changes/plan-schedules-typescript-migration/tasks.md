@@ -1,10 +1,10 @@
 # Tasks — plan-schedules-typescript-migration
 
-Status: **Phase 0 (confirmations relevant to Phases 1–3), Phase 1 (query/
-mutation hooks), Phase 2 (leaf cell components), and Phase 3 (forms)
-implemented and verified.** Phases 4–6 not started — do not begin without
-explicit instruction to continue. Do not check off any item without actually
-doing the work and re-verifying it.
+Status: **Phase 0 (confirmations relevant to Phases 1–4), Phase 1 (query/
+mutation hooks), Phase 2 (leaf cell components), Phase 3 (forms), and
+Phase 4 (show/list containers) implemented and verified.** Phases 5–6 not
+started — do not begin without explicit instruction to continue. Do not
+check off any item without actually doing the work and re-verifying it.
 
 ## 1. Planning artifacts (this change)
 
@@ -45,8 +45,11 @@ doing the work and re-verifying it.
 - [x] Confirm the `subjects.semester == semesterFound` comparison (Decision 4)
       will be preserved via local type normalization/cast, not rewritten to
       strict equality
-- [ ] Confirm the 3 duplicated `groupData` helper copies (Decision 5) will
-      each be typed independently in place, with no consolidation
+- [x] Confirm the 3 duplicated `groupData` helper copies (Decision 5) will
+      each be typed independently in place, with no consolidation — 2 of the
+      3 in-scope copies (`ShowTeacherSchedule.tsx`, `TeacherAssignment.tsx`)
+      are now typed independently in Phase 4; the third remains in the
+      out-of-scope PDF exporters, untouched
 
 ## 3. Phase 1 — query/mutation hooks
 
@@ -119,16 +122,28 @@ doing the work and re-verifying it.
 
 ## 6. Phase 4 — show/list containers
 
-- [ ] Convert `ShowScholarSchedule.jsx` → `.tsx` (local cast for the
-      out-of-scope `ScheduleGroupPDF` call site)
-- [ ] Convert `ShowTeacherSchedule.jsx` → `.tsx` (local cast for the
-      out-of-scope `ScheduleTeacherPDF` call site)
-- [ ] Convert `TeacherAssignment.jsx` → `.tsx` (local cast for the
-      out-of-scope `TeacherAssignmentPDF` call site)
-- [ ] Type each file's own copy of the `groupData` helper in place, per
-      Decision 5 — do not extract a shared helper module
-- [ ] Run `bun run typecheck`, `bun run build`, `bun run lint` after Phase 4;
-      resolve before continuing
+- [x] Convert `ShowScholarSchedule.jsx` → `.tsx` — no local cast was needed
+      for `ScheduleGroupPDF`: unlike `WorkerSheetSemester.jsx`, its
+      destructured `{ schedules }` prop has no default value, so TS never
+      narrowed it to `never[]`
+- [x] Convert `ShowTeacherSchedule.jsx` → `.tsx` — same finding: no local
+      cast needed for `ScheduleTeacherPDF` (its `{ schedulesScholar,
+      scheduleTeacher, totalHours }` props also have no destructured
+      defaults)
+- [x] Convert `TeacherAssignment.jsx` → `.tsx` — same finding: no local cast
+      needed for `TeacherAssignmentPDF` (its `{ groupedSubjects,
+      uniqueTeacherSchedule, currentWorker }` props also have no
+      destructured defaults)
+- [x] Type each file's own copy of the `groupData` helper in place, per
+      Decision 5 — do not extract a shared helper module — typed
+      independently in `ShowTeacherSchedule.tsx` (`key: "subject_id"`) and
+      `TeacherAssignment.tsx` (`key: "subject_id" | "group_id"`, since that
+      file also calls it recursively grouping by `group_id`)
+- [x] Run `bun run typecheck`, `bun run build`, `bun run lint` after Phase 4;
+      resolve before continuing — typecheck clean on the first pass (no
+      casts or follow-up fixes needed), build clean (`✓ built in 6.50s`),
+      lint dropped to 138 problems (134 errors, 4 warnings) from the 156
+      baseline
 
 ## 7. Phase 5 — tab containers
 
