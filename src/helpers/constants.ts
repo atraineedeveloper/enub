@@ -4,7 +4,7 @@ export const WEEKDAYS = [
   { value: "Miercoles", label: "Miercoles" },
   { value: "Jueves", label: "Jueves" },
   { value: "Viernes", label: "Viernes" },
-];
+] as const;
 
 export const START_TIMES = [
   { value: "07:00:00", label: "7:00" },
@@ -12,7 +12,7 @@ export const START_TIMES = [
   { value: "11:10:00", label: "11:10" },
   { value: "13:10:00", label: "13:10" },
   { value: "17:00:00", label: "17:00" },
-];
+] as const;
 
 export const END_TIMES = [
   { value: "08:50:00", label: "8:50" },
@@ -20,4 +20,4 @@ export const END_TIMES = [
   { value: "13:00:00", label: "13:00" },
   { value: "15:00:00", label: "15:00" },
   { value: "19:00:00", label: "19:00" },
-];
+] as const;

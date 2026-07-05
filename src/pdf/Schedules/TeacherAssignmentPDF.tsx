@@ -5,8 +5,8 @@ import Button from "../../ui/Button";
 import Spinner from "../../ui/Spinner";
 import { useRoles } from "../../features/roles/useRoles";
 import { useStateRoles } from "../../features/stateRoles/useStateRoles.js";
-import calculateSemesterGroup from "../../helpers/calculateSemesterGroup.js";
-import capitalizeName from "../../helpers/capitalizeFirstLetter.js";
+import calculateSemesterGroup from "../../helpers/calculateSemesterGroup";
+import capitalizeName from "../../helpers/capitalizeFirstLetter";
 import type { ScheduleAssignment } from "../../features/schedules/useScheduleAssignments";
 import type { Worker } from "../../features/workers/useWorkers";
 

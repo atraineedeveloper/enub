@@ -18,7 +18,7 @@ const collator = new Intl.Collator("es-MX", {
   numeric: true,
 });
 
-function getSurnameSortKey(fullName = "") {
+function getSurnameSortKey(fullName: string = "") {
   const parts = fullName
     .trim()
     .split(/\s+/)
@@ -39,7 +39,14 @@ function getSurnameSortKey(fullName = "") {
   return parts.slice(surnameStart).join(" ");
 }
 
-function sortWorkersBySurname(workers = []) {
+// Generic so the return type mirrors whatever caller-specific worker shape
+// (e.g. Worker[], WorkerWithDetails[]) is passed in -- this helper only ever
+// reads `.name`.
+interface WorkerWithName {
+  name?: string | null;
+}
+
+function sortWorkersBySurname<T extends WorkerWithName>(workers: T[] = []): T[] {
   return [...workers].sort((leftWorker, rightWorker) => {
     const leftSurname = getSurnameSortKey(leftWorker?.name ?? "");
     const rightSurname = getSurnameSortKey(rightWorker?.name ?? "");

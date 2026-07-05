@@ -7,7 +7,7 @@ import { useRoles } from "../../features/roles/useRoles";
 import { useStateRoles } from "../../features/stateRoles/useStateRoles.js";
 import filterHourGroup from "./filterHourGroup";
 import filterHourActivity from "./filterHourActivity";
-import capitalizeName from "../../helpers/capitalizeFirstLetter.js";
+import capitalizeName from "../../helpers/capitalizeFirstLetter";
 import { useUtilities } from "../../features/otherData/useUtilities.js";
 import type { ScheduleAssignment } from "../../features/schedules/useScheduleAssignments";
 import type { ScheduleTeacher } from "../../features/schedules/useScheduleTeachers";

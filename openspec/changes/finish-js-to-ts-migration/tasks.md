@@ -81,18 +81,59 @@
 
 ## 2. Phase 2 — Helpers
 
-- [ ] Convert `src/helpers/calculateSemesterGroup.js` → `.ts`.
-- [ ] Convert `src/helpers/capitalizeFirstLetter.js` → `.ts`.
-- [ ] Convert `src/helpers/constants.js` → `.ts`.
-- [ ] Convert `src/helpers/detectScheduleConflict.js` → `.ts`.
-- [ ] Convert `src/helpers/sortWorkersBySurname.js` → `.ts`.
-- [ ] Audit every caller for import-path breakage.
+- [x] Convert `src/helpers/calculateSemesterGroup.js` → `.ts`, widening
+      `entryYear` to `number | null | undefined` (matches real callers'
+      `year_of_admission` field, some accessed via optional chaining) and
+      using non-null assertions at the two `new Date(entryYear!, ...)` call
+      sites — preserves the exact original coercion behavior for
+      null/undefined rather than adding a guard. Also switched
+      `now - startDate` to `now.getTime() - startDate.getTime()` (required:
+      TS doesn't allow arithmetic directly between two `Date` objects even
+      though the runtime result is identical via `valueOf()` coercion). The
+      3 pre-existing unused local variables (`currentYear`/`currentMonth`/`currentDay`)
+      were left exactly as-is, not removed.
+- [x] Convert `src/helpers/capitalizeFirstLetter.js` → `.ts`, widening
+      `name` to `string | null | undefined` (several already-converted call
+      sites pass a nullable `Worker.name` directly with no `!`) with an
+      internal `name!` non-null assertion preserving the exact
+      throw-on-null/undefined behavior — no new guard added.
+- [x] Convert `src/helpers/constants.js` → `.ts`, adding `as const` to all
+      three arrays (safe: every importer only ever `.map()`s read-only, never
+      mutates); export names/values/style unchanged.
+- [x] Convert `src/helpers/detectScheduleConflict.js` → `.ts`. `data` typed
+      with minimal per-function structural interfaces
+      (`ScheduleConflictWorkerItem`/`ScheduleConflictGroupItem`); a per-item
+      cast (`item as ScheduleConflictWorkerItem`) is applied inside `.some()`
+      rather than narrowing the `existingSchedules` parameter itself, because
+      `existingSchedules` is called with `unknown[]` at one already-typed
+      call site (`CreateEditScholarSchedule.tsx`'s `SemesterContext`-sourced
+      array) as well as concrete `ScheduleAssignment[]`/`ScheduleTeacher[]`
+      arrays elsewhere — narrowing the parameter itself would have broken
+      the first call site. Preserved the exact `+x !== +y` numeric-coercion
+      operator (not switched to `Number(...)`) and the exact `<` time-range
+      comparison, both via non-null assertions rather than behavior changes.
+- [x] Convert `src/helpers/sortWorkersBySurname.js` → `.ts`, made generic
+      (`sortWorkersBySurname<T extends { name?: string | null }>`) so the
+      return type mirrors whatever caller-specific worker shape flows in;
+      preserved the non-mutating `[...workers].sort(...)` (spread-then-sort,
+      never in-place), the exact particle-based surname-key algorithm, and
+      the collator options.
+- [x] Audit every caller for import-path breakage. Result: the 4
+      already-converted PDF files under `src/pdf/**`
+      (`ScheduleGroupPDF.tsx`, `ScheduleTeacherPDF.tsx`,
+      `TeacherAssignmentPDF.tsx`, `WorkerSheetSemester.tsx`) hardcoded
+      explicit `.js` extensions for `calculateSemesterGroup`/`capitalizeFirstLetter`
+      imports (7 import lines total) — updated to drop the extension, since
+      the old `.js` files no longer exist; every other caller (schedules
+      features, `GroupTable.tsx`, `ScheduleDashboard.tsx`,
+      `CreateEditTeacherSchedule.tsx`, `filterHour.ts`/`filterHourGroup.ts`)
+      already used extension-less imports and needed no change.
 - [ ] Manually verify one call site per helper still produces the same
       output (e.g. a schedule PDF's semester-group label, a worker name's
       capitalization, a schedule-conflict warning).
-- [ ] `bun run typecheck`
-- [ ] `bun run build`
-- [ ] `bun run lint` (record before/after counts)
+- [x] `bun run typecheck`
+- [x] `bun run build`
+- [x] `bun run lint` (record before/after counts)
 
 ## 3. Phase 3 — Services
 
@@ -318,7 +359,43 @@
   orphaned files, Montserrat files, or config/generated-type files changed.
 - Phase 1 manual check: _pending_ — not performed in this turn (no
   browser/dev-server session available); must be done before Phase 2 begins
-- Phase 2 code conversion + manual check: _pending_
+- Phase 2 code conversion: done. `bunx @fission-ai/openspec validate ...
+  --strict` passes; `bun run typecheck` clean; `bun run build` succeeds;
+  `bun run lint` is 82 problems (78 errors, 4 warnings) — unchanged from the
+  Phase 1 baseline (0 delta). The only pre-existing lint issues among these
+  5 files were `calculateSemesterGroup.js`'s 3 unused-variable errors
+  (`currentYear`/`currentMonth`/`currentDay`, confirmed via isolated-file
+  lint of the pre-conversion source), which persist unchanged under
+  `@typescript-eslint/no-unused-vars` instead of core `no-unused-vars` — not
+  removed. `find src -type f \( -name "*.js" -o -name "*.jsx" \)` returns
+  exactly **44** files (down from 49). `git status --short` confirms exactly
+  5 helper files renamed plus 4 already-converted PDF files
+  (`ScheduleGroupPDF.tsx`, `ScheduleTeacherPDF.tsx`,
+  `TeacherAssignmentPDF.tsx`, `WorkerSheetSemester.tsx`) touched, each only
+  for the mandatory `.js`→extension-less import-path fix described above —
+  no other line in any of those 4 files changed (confirmed via
+  `git diff --stat`). Two type-widening corrections were required beyond
+  what the phase's own file-reading anticipated, both discovered only by
+  checking real call sites rather than assumed shapes: (1)
+  `calculateSemesterGroup`'s param needed `| undefined` in addition to
+  `| null`, since `HourScheduleSubjectGroup.tsx` calls it through optional
+  chaining; (2) `detectScheduleConflict`'s `existingSchedules` parameter
+  could not be narrowed to a specific interface at all (kept as `unknown[]`
+  with a per-item cast inside), since `CreateEditScholarSchedule.tsx` passes
+  a `SemesterContext`-sourced array still typed `unknown[]` upstream in
+  `ScheduleDashboard.tsx` (an already-converted, out-of-scope file) — a
+  narrower parameter type would have broken that existing call site's
+  typecheck.
+- Phase 2 manual check: _pending_ — not performed in this turn (no
+  browser/dev-server session available); must be done before Phase 3 begins.
+  No helper in this phase is flagged high-risk enough to require a dedicated
+  browser session before Phase 3 starts — `bun run typecheck`/`build`
+  already exercise every real call site's argument types across the whole
+  app, which is the primary risk surface for pure-function helpers with no
+  I/O. A lightweight targeted check (one schedule PDF export, one
+  create/edit-schedule form submission to exercise the conflict-detection
+  path) is still recommended before merge, per `design.md`'s Manual
+  Smoke-Check Plan.
 - Phase 3 code conversion + manual check: _pending_
 - Phase 4 code conversion + manual check: _pending_
 - Phase 5 code conversion + manual check: _pending_
