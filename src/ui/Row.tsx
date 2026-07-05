@@ -1,6 +1,10 @@
 import styled, { css } from "styled-components";
 
-const Row = styled.div`
+interface RowOwnProps {
+  type?: "horizontal" | "vertical";
+}
+
+const Row = styled.div<RowOwnProps>`
   display: flex;
   padding: 1rem 0;
 

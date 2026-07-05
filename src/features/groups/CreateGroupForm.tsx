@@ -17,7 +17,7 @@ function CreateGroupForm() {
   const { register, handleSubmit, reset, formState } = useForm();
   const { errors } = formState;
 
-  const mutation = useMutation({
+  const { mutate, isPending: isCreating } = useMutation({
     mutationFn: createGroup,
     onSuccess: () => {
       toast.success("El registro se creó correctamente");
@@ -26,14 +26,6 @@ function CreateGroupForm() {
     },
     onError: (err) => toast.error(err.message),
   });
-  const { mutate } = mutation;
-  // TanStack Query v5's useMutation has no `isLoading` (only `isPending`) —
-  // this was already always `undefined` at runtime before this file had any
-  // type checking at all, so `disabled={isCreating}` below has never
-  // actually disabled anything during submission. Preserved exactly, not
-  // fixed, per "do not change runtime behavior" — see design.md.
-  const isCreating = (mutation as unknown as { isLoading?: boolean })
-    .isLoading;
 
   if (isLoading) return <Spinner />;
 
@@ -83,12 +75,10 @@ function CreateGroupForm() {
         </Select>
       </FormRow>
       <FormRow>
-        <>
-          <Button variation="secondary" type="reset">
-            Cancelar
-          </Button>
-          <Button>Agregar Grupo</Button>
-        </>
+        <Button variation="secondary" type="reset">
+          Cancelar
+        </Button>
+        <Button>Agregar Grupo</Button>
       </FormRow>
     </Form>
   );

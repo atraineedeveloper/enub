@@ -11,7 +11,7 @@ interface EditRoleVariables {
 export function useEditRole() {
   const queryClient = useQueryClient();
 
-  const mutation = useMutation({
+  const { mutate: editRole, isPending: isEditing } = useMutation({
     mutationFn: ({ newRole, id }: EditRoleVariables) =>
       createEditRoles(newRole, id),
     onSuccess: () => {
@@ -20,11 +20,6 @@ export function useEditRole() {
     },
     onError: (err) => toast.error(err.message),
   });
-  const { mutate: editRole } = mutation;
-  // TanStack Query v5's useMutation has no `isLoading` (only `isPending`) —
-  // this was already always `undefined` at runtime before this file had any
-  // type checking at all. Preserved exactly, not fixed — see design.md.
-  const isEditing = (mutation as unknown as { isLoading?: boolean }).isLoading;
 
   return { isEditing, editRole };
 }
