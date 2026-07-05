@@ -2,16 +2,16 @@
 
 ## 0. Phase 0 — Inventory/importer audit and decision confirmation
 
-- [ ] Re-run a full-tree grep for every one of the 59 originally-listed files
+- [x] Re-run a full-tree grep for every one of the 59 originally-listed files
       to confirm current importer counts still match `design.md`'s findings
       (repo state may have shifted slightly since this document was written).
-- [ ] Re-confirm `src/features/authentication/UpdatePasswordForm.jsx` and
+- [x] Re-confirm `src/features/authentication/UpdatePasswordForm.jsx` and
       `UpdateUserDataForm.jsx` still have zero importers and still reference
       a non-existent `useUpdateUser` module (the newly-discovered dead files,
       Closed Decision 11).
-- [ ] Re-confirm all 3 orphaned schedule files still have zero live
+- [x] Re-confirm all 3 orphaned schedule files still have zero live
       importers (Closed Decision 2).
-- [ ] Re-confirm the 4 Montserrat font files' 16 dynamic-import call sites
+- [x] Re-confirm the 4 Montserrat font files' 16 dynamic-import call sites
       are unchanged (still 4 files × 4 call sites each, all hardcoding a
       `.js` extension).
 - [ ] Record all confirmations in this file's Verification Results section
@@ -204,7 +204,59 @@
 
 (To be filled in during implementation; do not pre-fill.)
 
-- Phase 0 inventory/importer re-confirmation: _pending_
+- Phase 0 inventory/importer re-confirmation: **done**.
+  - `find src -type f \( -name "*.js" -o -name "*.jsx" \) | sort` returns
+    exactly **59** files, matching the original inventory verbatim (no file
+    added/removed/renamed since `design.md` was written).
+  - Classification re-confirmed: **50 active + 4 generated + 5 dead = 59**.
+  - **5 dead files, zero live importers, re-confirmed by fresh grep:**
+    - `CreateScholarSchedule.jsx` — zero references anywhere except its own
+      file; the only same-named match is `EditScholarSchedule.jsx`'s own
+      internal function (itself misnamed `CreateScholarSchedule`, a
+      copy-paste artifact, not an import of this file).
+    - `EditScholarSchedule.jsx` — its only textual reference,
+      `HourScheduleSubjectGroup.tsx:6`
+      (`import CreateScholarSchedule from "./EditScholarSchedule";`), is
+      confirmed a dead, never-referenced-again binding in that file (grepped
+      the full file: the name `CreateScholarSchedule` appears exactly once,
+      on the import line itself).
+    - `RowTeacherAssignment.jsx` — zero references anywhere in `src/`.
+    - `UpdatePasswordForm.jsx` — zero importers; confirmed it still imports
+      `useUpdateUser` from `./useUpdateUser`, a module that does not exist
+      anywhere in `src/` (only these two dead forms even mention the name
+      `useUpdateUser`).
+    - `UpdateUserDataForm.jsx` — same: zero importers, same non-existent
+      `useUpdateUser` import confirmed.
+  - **4 Montserrat font files re-confirmed generated/data-only**: each is
+    still exactly 7 lines (`import { jsPDF } from "jspdf"`, one base64 font
+    string, an `addFileToVFS`/`addFont` registration function, and a
+    `jsPDF.API.events.push(['addFonts', callAddFont])` side effect) — no
+    exports, no application logic. Re-confirmed all 16 call sites (4 files ×
+    4 imports) are `await import(".../Montserrat-*.js")` with an explicit
+    `.js` extension, exclusively from `src/pdf/Schedules/ScheduleGroupPDF.tsx`,
+    `ScheduleTeacherPDF.tsx`, `TeacherAssignmentPDF.tsx`, and
+    `src/pdf/WorkerSheetSemester.tsx` — no static imports anywhere.
+  - **4 mutation hooks re-confirmed needing `isLoading`→`isPending`:**
+    `useLogin.js` (`isLoading` returned as-is), `useLogout.js` (`isLoading`
+    returned as-is), `useEditStateRole.js` (`isLoading: isEditing`),
+    `useEditUtilities.js` (`isLoading: isEditing`) — all four are
+    `useMutation`, confirmed via fresh grep of each file.
+  - **Phase 1's 10 target files' importers re-confirmed, matching
+    `design.md` exactly**: `main.jsx` (only `index.html`'s script tag);
+    `DarkModeContext.jsx` (`App.tsx`, `DarkModeToggle.jsx`);
+    `useLocalStorageState.js` (`DarkModeContext.jsx` only);
+    `useOutsideClick.js` (`Menus.tsx`, `Modal.tsx`); `GlobalStyles.js`
+    (`App.tsx` only); `AppLayout.jsx`/`WorkerAppLayout.jsx` (`App.tsx` only,
+    via extension-less `lazy(() => import(...))`); `DarkModeToggle.jsx`
+    (`Header.tsx` only); `Form.jsx` (16 importers, all extension-less — 12
+    live + the 4 dead files that still syntactically import it);
+    `RoleGate.jsx` (`App.tsx` only, static extension-less import).
+  - Verification commands: `bunx @fission-ai/openspec validate
+    finish-js-to-ts-migration --type change --strict` → valid; `bun run
+    typecheck` → clean; `bun run build` → succeeds; `bun run lint` → 83
+    problems (79 errors, 4 warnings) — unchanged from the pre-existing
+    baseline (no code touched this phase). `git status --short` confirms
+    zero changes to `src/` this phase.
 - Phase 1 code conversion + manual check: _pending_
 - Phase 2 code conversion + manual check: _pending_
 - Phase 3 code conversion + manual check: _pending_
