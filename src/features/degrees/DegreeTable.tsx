@@ -1,24 +1,34 @@
-import { useState } from "react";
+import { useState, type ChangeEvent, type ComponentType, type HTMLAttributes } from "react";
+import DegreeRow from "./DegreeRow";
 import Spinner from "../../ui/Spinner";
-import SubjectRow from "./SubjectRow";
-import { useSubjects } from "./useSubjects";
+import { useDegrees } from "./useDegrees";
 import Table from "../../ui/Table";
 import ErrorMessage from "../../ui/ErrorMessage";
 import { usePagination } from "../../hooks/usePagination";
 import Pagination from "../../ui/Pagination";
-import Row from "../../ui/Row";
+import UntypedRow from "../../ui/Row";
 import SearchBar from "../../ui/SearchBar";
 
-function SubjectTable() {
-  const { isLoading, subjects, error } = useSubjects();
+// Row.jsx is a plain, untyped styled-component whose `type` prop is only
+// consumed via runtime prop interpolation (see Row.jsx) — this local cast
+// describes its real contract without converting that out-of-scope file.
+type RowProps = HTMLAttributes<HTMLDivElement> & {
+  type?: "horizontal" | "vertical";
+};
+const Row = UntypedRow as ComponentType<RowProps>;
+
+function DegreeTable() {
+  const { isLoading, degrees, error } = useDegrees();
   const [searchTerm, setSearchTerm] = useState("");
-  const filtered = (subjects ?? []).filter((subject) =>
-    subject.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filtered = (degrees ?? []).filter(
+    (degree) =>
+      degree.name!.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      degree.code!.toLowerCase().includes(searchTerm.toLowerCase())
   );
   const { currentPage, totalPages, totalCount, paginatedData, setCurrentPage } =
     usePagination(filtered);
 
-  function handleSearch(e) {
+  function handleSearch(e: ChangeEvent<HTMLInputElement>) {
     setSearchTerm(e.target.value);
     setCurrentPage(1);
   }
@@ -32,25 +42,19 @@ function SubjectTable() {
         <SearchBar
           value={searchTerm}
           onChange={handleSearch}
-          placeholder="Buscar asignatura..."
+          placeholder="Buscar licenciatura..."
         />
       </Row>
-      <Table columns="1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr">
+      <Table columns="1fr 3fr 0.5fr">
         <Table.Header>
-          <div>Semestre</div>
+          <div>Código</div>
           <div>Nombre</div>
-          <div>Créditos</div>
-          <div>Horas por semana</div>
-          <div>Horas por semestre</div>
-          <div>Programa de estudio</div>
-          <div>Licenciatura</div>
           <div></div>
         </Table.Header>
+
         <Table.Body
           data={paginatedData}
-          render={(subject) => (
-            <SubjectRow subject={subject} key={subject.id} />
-          )}
+          render={(degree) => <DegreeRow degree={degree} key={degree.id} />}
         />
         <Table.Footer>
           <Pagination
@@ -65,4 +69,4 @@ function SubjectTable() {
   );
 }
 
-export default SubjectTable;
+export default DegreeTable;

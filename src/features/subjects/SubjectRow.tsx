@@ -1,8 +1,13 @@
 import Table from "../../ui/Table";
 import Menus from "../../ui/Menus";
 import { HiPencil } from "react-icons/hi2";
+import type { Subject } from "./useSubjects";
 
-function SubjectRow({ subject }) {
+interface SubjectRowProps {
+  subject: Subject;
+}
+
+function SubjectRow({ subject }: SubjectRowProps) {
   const {
     id,
     semester,
@@ -17,12 +22,12 @@ function SubjectRow({ subject }) {
   return (
     <Table.Row>
       <p>{semester}</p>
-      <p>{name.toUpperCase()}</p>
+      <p>{name!.toUpperCase()}</p>
       <p>{credits}</p>
       <p>{hours_per_week}</p>
       <p>{hours_per_semester}</p>
-      <p>{study_programs.year}</p>
-      <p>{degrees.code}</p>
+      <p>{study_programs!.year}</p>
+      <p>{degrees!.code}</p>
       <Menus>
         <Menus.Menu>
           <Menus.Toggle id={id} />

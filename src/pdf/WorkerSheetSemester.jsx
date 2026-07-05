@@ -2,7 +2,7 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { useState } from "react";
 import Button from "../ui/Button";
-import { useRoles } from "../features/roles/useRoles.js";
+import { useRoles } from "../features/roles/useRoles.ts";
 import calculateSemesterGroup from "../helpers/calculateSemesterGroup.js";
 import capitalizeName from "../helpers/capitalizeFirstLetter.js";
 import Spinner from "../ui/Spinner.tsx";

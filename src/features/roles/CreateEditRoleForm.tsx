@@ -8,8 +8,17 @@ import { useWorkers } from "../workers/useWorkers";
 import Spinner from "../../ui/Spinner";
 import Select from "../../ui/Select";
 import toast from "react-hot-toast";
+import type { Role } from "./useRoles";
 
-function CreateEditRoleForm({ roleToEdit = {}, onCloseModal }) {
+interface CreateEditRoleFormProps {
+  roleToEdit?: Partial<Role>;
+  onCloseModal?: () => void;
+}
+
+function CreateEditRoleForm({
+  roleToEdit = {},
+  onCloseModal,
+}: CreateEditRoleFormProps) {
   const { id: editId, ...editValues } = roleToEdit;
   const { isEditing, editRole } = useEditRole();
   const isEditSession = Boolean(editId);
@@ -24,12 +33,12 @@ function CreateEditRoleForm({ roleToEdit = {}, onCloseModal }) {
 
   if (isLoadingWorkers) return <Spinner />;
 
-  function onSubmit(data) {
+  function onSubmit(data: Record<string, unknown>) {
     delete data.workers;
 
     if (isEditSession)
       editRole(
-        { newRole: { ...data }, id: editId },
+        { newRole: { ...data }, id: editId! },
         {
           onSuccess: (data) => {
             toast.success("El registro se creó correctamente");
@@ -42,7 +51,7 @@ function CreateEditRoleForm({ roleToEdit = {}, onCloseModal }) {
 
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
-      <FormRow label="Rol Escolar" error={errors?.role?.message}>
+      <FormRow label="Rol Escolar" error={errors?.role?.message as string | undefined}>
         <Input
           type="text"
           id="role"
@@ -53,7 +62,7 @@ function CreateEditRoleForm({ roleToEdit = {}, onCloseModal }) {
         />
       </FormRow>
       {
-        <FormRow label="Trabajador" error={errors?.worker_id?.message}>
+        <FormRow label="Trabajador" error={errors?.worker_id?.message as string | undefined}>
           <Select
             id="worker_id"
             disabled={isEditing}
@@ -62,7 +71,7 @@ function CreateEditRoleForm({ roleToEdit = {}, onCloseModal }) {
             })}
           >
             <option value="">Seleccione...</option>
-            {workers.map((worker) => (
+            {workers!.map((worker) => (
               <option key={worker.id} value={worker.id}>
                 {worker.name}
               </option>
@@ -71,16 +80,18 @@ function CreateEditRoleForm({ roleToEdit = {}, onCloseModal }) {
         </FormRow>
       }
       <FormRow>
-        <Button
-          variation="secondary"
-          type="reset"
-          onClick={() => onCloseModal?.()}
-        >
-          Cancelar
-        </Button>
-        <Button>
-          {isEditSession ? "Editar Rol Escolar" : "Añadir Rol Escolar"}
-        </Button>
+        <>
+          <Button
+            variation="secondary"
+            type="reset"
+            onClick={() => onCloseModal?.()}
+          >
+            Cancelar
+          </Button>
+          <Button>
+            {isEditSession ? "Editar Rol Escolar" : "Añadir Rol Escolar"}
+          </Button>
+        </>
       </FormRow>
     </Form>
   );

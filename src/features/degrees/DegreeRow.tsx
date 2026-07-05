@@ -1,15 +1,19 @@
 import Table from "../../ui/Table";
 import Menus from "../../ui/Menus";
 import { HiPencil } from "react-icons/hi2";
+import type { Degree } from "./useDegrees";
 
-function GroupRow({ group }) {
-  const { id, year_of_admission, letter, degrees } = group;
+interface DegreeRowProps {
+  degree: Degree;
+}
+
+function DegreeRow({ degree }: DegreeRowProps) {
+  const { id, code, name } = degree;
 
   return (
-    <Table.Row role="row">
-      <p>{year_of_admission}</p>
-      <p>{letter}</p>
-      <p>{degrees.code}</p>
+    <Table.Row>
+      <p>{code}</p>
+      <p>{name}</p>
       <Menus>
         <Menus.Menu>
           <Menus.Toggle id={id} />
@@ -22,4 +26,4 @@ function GroupRow({ group }) {
   );
 }
 
-export default GroupRow;
+export default DegreeRow;
