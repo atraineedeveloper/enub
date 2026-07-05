@@ -1,5 +1,5 @@
 import Input from "../../ui/Input";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useFieldArray, useForm, type FieldValues } from "react-hook-form";
 import Form from "../../ui/Form";
 import Button from "../../ui/Button";
 import FormRow from "../../ui/FormRow";
@@ -18,6 +18,7 @@ import {
 } from "react-icons/hi2";
 import { getProfilePicturePublicUrl } from "../../services/apiWorkers";
 import { useEffect, useRef, useState } from "react";
+import type { WorkerWithDetails } from "./useWorkers";
 
 const PhotoCard = styled.div`
   display: flex;
@@ -195,25 +196,34 @@ function normalizeSustenanceTypeForForm(value = "") {
   return "";
 }
 
-function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
+interface CreateEditWorkerFormProps {
+  workerToEdit?: Partial<WorkerWithDetails>;
+  onCloseModal?: () => void;
+}
+
+function CreateEditWorkerForm({
+  workerToEdit = {},
+  onCloseModal,
+}: CreateEditWorkerFormProps) {
   const { id: editId, ...editValues } = workerToEdit;
   const isEditSession = Boolean(editId);
   const { isEditing, editWorker } = useEditWorker();
   const { isCreating, createWorker } = useCreateWorker();
   const isWorking = isEditing || isCreating;
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [newPicturePreviewUrl, setNewPicturePreviewUrl] = useState("");
   const currentProfilePictureUrl = workerToEdit.profile_picture
     ? getProfilePicturePublicUrl(workerToEdit.profile_picture)
     : "";
 
   const { register, handleSubmit, reset, control, formState, watch, setValue } =
-    useForm({
-      defaultValues: isEditSession
+    useForm<FieldValues>({
+      defaultValues: (isEditSession
         ? {
             ...editValues,
             sustenance_plazas:
-              editValues.sustenance_plazas?.length > 0
+              editValues.sustenance_plazas &&
+              editValues.sustenance_plazas.length > 0
                 ? editValues.sustenance_plazas.map((plaza) => ({
                     ...plaza,
                     sustenance: normalizeSustenanceTypeForForm(
@@ -222,7 +232,8 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
                   }))
                 : [{ sustenance: "", payment_key: "", plaza: "" }],
             date_of_admissions:
-              editValues.date_of_admissions?.length > 0
+              editValues.date_of_admissions &&
+              editValues.date_of_admissions.length > 0
                 ? editValues.date_of_admissions.map((d) => ({
                     type: d.type ?? "",
                     date_of_admission: d.date_of_admission ?? "",
@@ -232,7 +243,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
         : {
             sustenance_plazas: [{ sustenance: "", payment_key: "", plaza: "" }],
             date_of_admissions: [{ type: "", date_of_admission: "" }],
-          },
+          }) as FieldValues,
     });
   const { errors } = formState;
   const { fields: plazaFields, append, remove } = useFieldArray({
@@ -291,13 +302,14 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
     setValue("remove_profile_picture", false, { shouldDirty: true });
   }
 
-  function onSubmit(data) {
+  function onSubmit(data: FieldValues) {
     if (isEditSession) {
       const selectedProfilePicture = data.profile_picture_file?.[0];
       const removeCurrentProfilePicture = Boolean(data.remove_profile_picture);
 
       const dateOfAdmissions = (data.date_of_admissions ?? []).filter(
-        (d) => d.type || d.date_of_admission
+        (d: { type?: string; date_of_admission?: string }) =>
+          d.type || d.date_of_admission
       );
       delete data.date_of_admissions;
       delete data.schedule_assignments;
@@ -310,7 +322,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
       editWorker(
         {
           newWorker: { ...data },
-          id: editId,
+          id: editId!,
           options: {
             profilePictureFile: selectedProfilePicture ?? null,
             removeCurrentProfilePicture: Boolean(
@@ -334,7 +346,8 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
     const selectedProfilePicture = data.profile_picture_file?.[0];
 
     const dateOfAdmissions = (data.date_of_admissions ?? []).filter(
-      (d) => d.type || d.date_of_admission
+      (d: { type?: string; date_of_admission?: string }) =>
+        d.type || d.date_of_admission
     );
     delete data.date_of_admissions;
     delete data.schedule_assignments;
@@ -436,11 +449,11 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
           />
         </PhotoCard>
         {errors?.profile_picture_file?.message && (
-          <PhotoError>{errors.profile_picture_file.message}</PhotoError>
+          <PhotoError>{errors.profile_picture_file.message as string}</PhotoError>
         )}
       </PhotoSection>
 
-      <FormRow label="Nombre" error={errors?.name?.message}>
+      <FormRow label="Nombre" error={errors?.name?.message as string | undefined}>
         <Input
           type="text"
           id="name"
@@ -450,7 +463,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
           })}
         />
       </FormRow>
-      <FormRow label="Calle" error={errors?.street?.message}>
+      <FormRow label="Calle" error={errors?.street?.message as string | undefined}>
         <Input
           type="text"
           id="street"
@@ -460,7 +473,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
           })}
         />
       </FormRow>
-      <FormRow label="Colonia" error={errors?.neighborhood?.message}>
+      <FormRow label="Colonia" error={errors?.neighborhood?.message as string | undefined}>
         <Input
           type="text"
           id="neighborhood"
@@ -470,7 +483,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
           })}
         />
       </FormRow>
-      <FormRow label="Código Postal" error={errors?.post_code?.message}>
+      <FormRow label="Código Postal" error={errors?.post_code?.message as string | undefined}>
         <Input
           type="text"
           id="post_code"
@@ -480,7 +493,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
           })}
         />
       </FormRow>
-      <FormRow label="Ciudad" error={errors?.city?.message}>
+      <FormRow label="Ciudad" error={errors?.city?.message as string | undefined}>
         <Input
           type="text"
           id="city"
@@ -490,7 +503,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
           })}
         />
       </FormRow>
-      <FormRow label="Estado" error={errors?.state?.message}>
+      <FormRow label="Estado" error={errors?.state?.message as string | undefined}>
         <Input
           type="text"
           id="state"
@@ -500,7 +513,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
           })}
         />
       </FormRow>
-      <FormRow label="Télefono" error={errors?.phone?.message}>
+      <FormRow label="Télefono" error={errors?.phone?.message as string | undefined}>
         <Input
           type="text"
           id="phone"
@@ -510,7 +523,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
           })}
         />
       </FormRow>
-      <FormRow label="Correo Electrónico" error={errors?.email?.message}>
+      <FormRow label="Correo Electrónico" error={errors?.email?.message as string | undefined}>
         <Input
           type="text"
           id="email"
@@ -518,7 +531,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
           {...register("email")}
         />
       </FormRow>
-      <FormRow label="RFC" error={errors?.RFC?.message}>
+      <FormRow label="RFC" error={errors?.RFC?.message as string | undefined}>
         <Input
           type="text"
           id="RFC"
@@ -528,7 +541,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
           })}
         />
       </FormRow>
-      <FormRow label="Especialidad" error={errors?.specialty?.message}>
+      <FormRow label="Especialidad" error={errors?.specialty?.message as string | undefined}>
         <Input
           type="text"
           id="specialty"
@@ -538,7 +551,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
           })}
         />
       </FormRow>
-      <FormRow label="Tipo de Trabajador" error={errors?.type_worker?.message}>
+      <FormRow label="Tipo de Trabajador" error={errors?.type_worker?.message as string | undefined}>
         <Select
           id="type_worker"
           disabled={isWorking}
@@ -556,8 +569,8 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
         label="Plazas"
         alignTop
         error={
-          errors?.sustenance_plazas?.message ||
-          errors?.sustenance_plazas?.root?.message
+          (errors?.sustenance_plazas?.message ||
+            errors?.sustenance_plazas?.root?.message) as string | undefined
         }
       >
         <PlazasContainer>
@@ -648,7 +661,7 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
       </FormRow>
       <FormRow
         label="Función que desempeña"
-        error={errors?.function_performed?.message}
+        error={errors?.function_performed?.message as string | undefined}
       >
         <Textarea
           id="function_performed"
@@ -656,14 +669,14 @@ function CreateEditWorkerForm({ workerToEdit = {}, onCloseModal }) {
           {...register("function_performed")}
         />
       </FormRow>
-      <FormRow label="Observaciones" error={errors?.observations?.message}>
+      <FormRow label="Observaciones" error={errors?.observations?.message as string | undefined}>
         <Textarea
           id="observations"
           disabled={isWorking}
           {...register("observations")}
         />
       </FormRow>
-      <FormRow label="Estatus" error={errors?.status?.message}>
+      <FormRow label="Estatus" error={errors?.status?.message as string | undefined}>
         <Select id="status" disabled={isWorking} {...register("status")}>
           <option value="">Seleccione...</option>
           <option value="1">Activo</option>

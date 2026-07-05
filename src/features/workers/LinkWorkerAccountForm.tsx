@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form";
+import { useForm, type FieldValues } from "react-hook-form";
 import styled from "styled-components";
 import Form from "../../ui/Form";
 import FormRow from "../../ui/FormRow";
@@ -12,15 +12,22 @@ const Hint = styled.p`
   margin-bottom: 1.6rem;
 `;
 
-// eslint-disable-next-line react/prop-types -- workerId is a plain number, onCloseModal is injected by Modal.Window
-function LinkWorkerAccountForm({ workerId, onCloseModal }) {
+interface LinkWorkerAccountFormProps {
+  workerId: number;
+  onCloseModal?: () => void;
+}
+
+function LinkWorkerAccountForm({
+  workerId,
+  onCloseModal,
+}: LinkWorkerAccountFormProps) {
   const { register, handleSubmit, reset, formState } = useForm();
   const { errors } = formState;
   const { isLinking, linkAccount } = useLinkWorkerAccount();
 
-  function onSubmit(data) {
+  function onSubmit(data: FieldValues) {
     linkAccount(
-      { workerId, email: data.email.trim() },
+      { workerId, email: (data.email as string).trim() },
       {
         onSuccess: () => {
           reset();
@@ -37,7 +44,10 @@ function LinkWorkerAccountForm({ workerId, onCloseModal }) {
         (Authentication). Aquí solo se vincula ese correo con este
         trabajador.
       </Hint>
-      <FormRow label="Correo de la cuenta" error={errors?.email?.message}>
+      <FormRow
+        label="Correo de la cuenta"
+        error={errors?.email?.message as string | undefined}
+      >
         <Input
           type="email"
           id="email"

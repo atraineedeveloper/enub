@@ -2,8 +2,8 @@ import styled from "styled-components";
 import Table from "../../ui/Table";
 import Modal from "../../ui/Modal";
 import Menus from "../../ui/Menus";
-import UntypedCreateEditWorkerForm from "./CreateEditWorkerForm";
-import UntypedLinkWorkerAccountForm from "./LinkWorkerAccountForm";
+import CreateEditWorkerForm from "./CreateEditWorkerForm";
+import LinkWorkerAccountForm from "./LinkWorkerAccountForm";
 import { getProfilePicturePublicUrl } from "../../services/apiWorkers";
 import {
   HiDocumentText,
@@ -18,22 +18,6 @@ import { useCreateWorkerAccount } from "../authentication/useCreateWorkerAccount
 import { useResendWorkerAccessLink } from "../authentication/useResendWorkerAccessLink";
 import { useLinkedWorkerAccounts } from "./useLinkedWorkerAccounts";
 import type { Worker } from "./useWorkers";
-import type { ComponentType } from "react";
-
-// CreateEditWorkerForm.jsx / LinkWorkerAccountForm.jsx are untyped and out of
-// scope (Phase 2). TS infers their `onCloseModal` param as required from the
-// destructured-with-no-default JS signature, even though it's always supplied
-// later by Modal.Window's cloneElement injection (or safely omitted, since
-// both components call it via `onCloseModal?.()`). This local cast describes
-// the real, optional contract without converting either file.
-const CreateEditWorkerForm = UntypedCreateEditWorkerForm as ComponentType<{
-  workerToEdit?: Worker;
-  onCloseModal?: () => void;
-}>;
-const LinkWorkerAccountForm = UntypedLinkWorkerAccountForm as ComponentType<{
-  workerId: number;
-  onCloseModal?: () => void;
-}>;
 
 const Img = styled.img`
   display: block;

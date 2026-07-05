@@ -1,23 +1,16 @@
-import { useState, type ChangeEvent, type ComponentType } from "react";
+import { useState, type ChangeEvent } from "react";
 import Spinner from "../../ui/Spinner";
 import Table from "../../ui/Table";
-import { useWorkers, type Worker } from "./useWorkers";
+import { useWorkers } from "./useWorkers";
 import WorkerRow from "./WorkerRow";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
 import Row from "../../ui/Row";
-import UntypedCreateEditWorkerForm from "./CreateEditWorkerForm";
+import CreateEditWorkerForm from "./CreateEditWorkerForm";
 import ErrorMessage from "../../ui/ErrorMessage";
 import { usePagination } from "../../hooks/usePagination";
 import Pagination from "../../ui/Pagination";
 import SearchBar from "../../ui/SearchBar";
-
-// CreateEditWorkerForm.jsx is untyped and out of scope (Phase 2) — see
-// WorkerRow.tsx for the full explanation of why `onCloseModal` needs this cast.
-const CreateEditWorkerForm = UntypedCreateEditWorkerForm as ComponentType<{
-  workerToEdit?: Worker;
-  onCloseModal?: () => void;
-}>;
 
 function WorkerTable() {
   const { isLoading, workers, error } = useWorkers({ fullDetails: true });
