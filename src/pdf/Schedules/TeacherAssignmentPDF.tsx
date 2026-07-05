@@ -1,37 +1,62 @@
 import jsPDF from "jspdf";
 import "jspdf-autotable";
-import Button from "../../ui/Button.tsx";
-import Spinner from "../../ui/Spinner.tsx";
-import { useRoles } from "../../features/roles/useRoles.ts";
+import type { UserOptions } from "jspdf-autotable";
+import Button from "../../ui/Button";
+import Spinner from "../../ui/Spinner";
+import { useRoles } from "../../features/roles/useRoles";
 import { useStateRoles } from "../../features/stateRoles/useStateRoles.js";
 import calculateSemesterGroup from "../../helpers/calculateSemesterGroup.js";
 import capitalizeName from "../../helpers/capitalizeFirstLetter.js";
+import type { ScheduleAssignment } from "../../features/schedules/useScheduleAssignments";
+import type { Worker } from "../../features/workers/useWorkers";
+
+// autoTable/lastAutoTable aren't on jsPDF's own type (jspdf-autotable only
+// exports a standalone function) despite existing at runtime once the
+// jspdf-autotable side-effect import above registers the plugin.
+type JsPdfWithAutoTable = jsPDF & {
+  autoTable: (options: UserOptions) => void;
+  lastAutoTable: { finalY: number };
+};
+
+interface TeacherAssignmentPDFProps {
+  // Matches TeacherAssignment.tsx's groupData() return shape (keyed by
+  // subject_id, one entry per matching ScheduleAssignment).
+  groupedSubjects: Record<string, ScheduleAssignment[]>;
+  uniqueTeacherSchedule: { name: string; quantity: number }[];
+  // TeacherAssignment.tsx passes `workers.filter(...)`, an array (0 or 1
+  // entries), not a single Worker -- matches this file's `currentWorker[0]`
+  // access below.
+  currentWorker: Worker[];
+}
 
 function TeacherAssignmentPDF({
   groupedSubjects,
   uniqueTeacherSchedule,
   currentWorker,
-}) {
+}: TeacherAssignmentPDFProps) {
   const { isLoading: isLoadingRoles, roles } = useRoles();
   const { isLoading: isLoadingStateRoles, stateRoles } = useStateRoles();
 
   let totalHours = 2;
 
-  const groupData = (array, key) => {
-    return array.reduce((result, currentValue) => {
-      // Obtén el valor de la propiedad por la que vamos a agrupar
-      const groupKey = currentValue[key];
+  const groupData = (array: ScheduleAssignment[], key: "group_id") => {
+    return array.reduce(
+      (result: Record<string, ScheduleAssignment[]>, currentValue) => {
+        // Obtén el valor de la propiedad por la que vamos a agrupar
+        const groupKey = String(currentValue[key]);
 
-      // Si el grupo aún no existe, créalo
-      if (!result[groupKey]) {
-        result[groupKey] = [];
-      }
+        // Si el grupo aún no existe, créalo
+        if (!result[groupKey]) {
+          result[groupKey] = [];
+        }
 
-      // Agrega el elemento actual al grupo correspondiente
-      result[groupKey].push(currentValue);
+        // Agrega el elemento actual al grupo correspondiente
+        result[groupKey].push(currentValue);
 
-      return result;
-    }, {});
+        return result;
+      },
+      {}
+    );
   };
 
   const generatePDF = async () => {
@@ -40,7 +65,7 @@ function TeacherAssignmentPDF({
     await import("../../styles/Montserrat-Bold-bold.js");
     await import("../../styles/Montserrat-BoldItalic-bolditalic.js");
 
-    const doc = new jsPDF("p", "px", "letter");
+    const doc = new jsPDF("p", "px", "letter") as JsPdfWithAutoTable;
 
     // Header
 
@@ -102,7 +127,11 @@ function TeacherAssignmentPDF({
     });
 
     // Get current date
-    const options = { day: "numeric", month: "long", year: "numeric" };
+    const options = {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    } as const;
     const today = new Date();
     const formattedDate = today.toLocaleDateString("es-ES", options);
 
@@ -327,16 +356,16 @@ function TeacherAssignmentPDF({
       ],
       body: Object.keys(groupedSubjects).map((subject) => {
         return [
-          groupedSubjects[subject][0].subjects.name.toUpperCase(),
-          groupedSubjects[subject][0].groups.degrees.code,
+          groupedSubjects[subject][0].subjects!.name!.toUpperCase(),
+          groupedSubjects[subject][0].groups!.degrees!.code,
           `${Object.keys(groupData(groupedSubjects[subject], "group_id")).map(
             (group) => {
               return `   ${calculateSemesterGroup(
-                groupData(groupedSubjects[subject], "group_id")[group][0].groups
-                  .year_of_admission
+                groupData(groupedSubjects[subject], "group_id")[group][0]
+                  .groups!.year_of_admission
               )}° " ${
-                groupData(groupedSubjects[subject], "group_id")[group][0].groups
-                  .letter
+                groupData(groupedSubjects[subject], "group_id")[group][0]
+                  .groups!.letter
               }"`;
             }
           )}`,
@@ -454,7 +483,7 @@ function TeacherAssignmentPDF({
         font: "Montserrat-Regular",
         fontSize: 10,
       },
-      body: [[capitalizeName(roles[0].workers.name)]],
+      body: [[capitalizeName(roles?.[0]?.workers?.name ?? "")]],
       theme: "plain",
     });
 
@@ -465,7 +494,7 @@ function TeacherAssignmentPDF({
         font: "Montserrat-Regular",
         fontSize: 10,
       },
-      body: [[roles[0].role]],
+      body: [[roles?.[0]?.role ?? ""]],
       theme: "plain",
       startY: doc.lastAutoTable.finalY - 8,
     });
