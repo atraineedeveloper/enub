@@ -1,9 +1,13 @@
+import type { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useProfile } from "../features/authentication/useProfile";
 import SpinnerFullPage from "./SpinnerFullPage";
 
-// eslint-disable-next-line react/prop-types -- children is a plain React node, matching ProtectedRoute.jsx's untyped children prop
-function RoleGate({ children }) {
+interface RoleGateProps {
+  children: ReactNode;
+}
+
+function RoleGate({ children }: RoleGateProps) {
   const { isLoading, isStaffOrAdmin, isWorker } = useProfile();
 
   // 1. While the role is resolving, show a spinner

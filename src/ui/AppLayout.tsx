@@ -31,7 +31,7 @@ const Main = styled.main`
   }
 `;
 
-const SidebarOverlay = styled.div`
+const SidebarOverlay = styled.div<{ $isOpen: boolean }>`
   position: fixed;
   inset: 0;
   background: rgba(17, 24, 39, 0.35);

@@ -21,7 +21,7 @@ const Main = styled.main`
   }
 `;
 
-// Worker-facing counterpart to AppLayout.jsx: same Header (with its own
+// Worker-facing counterpart to AppLayout.tsx: same Header (with its own
 // Logout action), no Sidebar/MainNav -- workers never see staff navigation.
 function WorkerAppLayout() {
   return (

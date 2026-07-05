@@ -19,24 +19,65 @@
 
 ## 1. Phase 1 — Entry/context/hooks/styles/UI shell
 
-- [ ] Convert `src/main.jsx` → `src/main.tsx`.
-- [ ] Convert `src/context/DarkModeContext.jsx` → `.tsx`.
-- [ ] Convert `src/hooks/useLocalStorageState.js` → `.ts`.
-- [ ] Convert `src/hooks/useOutsideClick.js` → `.ts`.
-- [ ] Convert `src/styles/GlobalStyles.js` → `.ts`.
-- [ ] Convert `src/ui/AppLayout.jsx` → `.tsx`.
-- [ ] Convert `src/ui/WorkerAppLayout.jsx` → `.tsx`.
-- [ ] Convert `src/ui/DarkModeToggle.jsx` → `.tsx`.
-- [ ] Convert `src/ui/Form.jsx` → `.tsx`.
-- [ ] Convert `src/ui/RoleGate.jsx` → `.tsx`.
-- [ ] Audit every caller of these 10 files for import-path breakage;
-      fix only what `tsc`/the bundler would otherwise reject.
+> Correction to this task's original guidance: `src/ui/RoleGate.jsx` has no
+> `allowedRoles`/`admin` prop — it takes only `children` and resolves role
+> entirely via `useProfile()` (`isLoading`/`isStaffOrAdmin`/`isWorker`).
+> Typed to match the real code (`{ children: ReactNode }`), not the
+> `allowedRoles`-shaped prop the phase instructions assumed.
+
+- [x] Convert `src/main.jsx` → `src/main.tsx`; add a non-null assertion on
+      `document.getElementById("root")!` (the one guard authorized for this
+      file); update `index.html`'s script tag from `/src/main.jsx` to
+      `/src/main.tsx` (required by the rename, otherwise the app fails to
+      load).
+- [x] Convert `src/context/DarkModeContext.jsx` → `.tsx`, adding an explicit
+      `DarkModeContextValue { isDarkMode: boolean; toggleDarkMode: () => void }`
+      context type; preserves the exact outside-provider throw behavior
+      (`context === undefined` check unchanged).
+- [x] Convert `src/hooks/useLocalStorageState.js` → `.ts`, made generic
+      (`useLocalStorageState<T>(initialState: T, key: string)`) with an
+      explicit `[T, Dispatch<SetStateAction<T>>]` return type; read/write
+      logic byte-identical.
+- [x] Convert `src/hooks/useOutsideClick.js` → `.ts`, made generic
+      (`useOutsideClick<T extends HTMLElement = HTMLElement>`); preserves the
+      exact capture-phase `addEventListener`/`removeEventListener` calls and
+      `ref.current && !ref.current.contains(...)` semantics; one type-only
+      `e.target as Node` cast added (`MouseEvent.target` is `EventTarget | null`
+      in DOM types, `Node.contains()` expects `Node`) — no new runtime guard.
+- [x] Convert `src/styles/GlobalStyles.js` → `.ts` (no JSX, no props —
+      verified byte-identical to the original aside from the extension).
+- [x] Convert `src/ui/AppLayout.jsx` → `.tsx`, typing the transient
+      `$isOpen` styled-components prop (`styled.div<{ $isOpen: boolean }>`)
+      — required so `props.$isOpen` type-checks; no CSS/markup changed.
+- [x] Convert `src/ui/WorkerAppLayout.jsx` → `.tsx`; no props, no type
+      additions needed.
+- [x] Convert `src/ui/DarkModeToggle.jsx` → `.tsx`; no props, no type
+      additions needed.
+- [x] Convert `src/ui/Form.jsx` → `.tsx`, typing the `type` prop
+      (`styled.form<{ type?: string }>`) — every current caller (16
+      importers) omits `type` entirely, so `string` (not a narrower
+      `"modal"` literal) was chosen to stay maximally permissive and avoid
+      constraining callers beyond what the original untyped code allowed.
+- [x] Convert `src/ui/RoleGate.jsx` → `.tsx` (see correction note above);
+      typed `children: ReactNode`, matching the identical established
+      pattern in the already-converted `ProtectedRoute.tsx`
+      (`if (isAuthenticated) return children;`); removed the now-provably-unnecessary
+      `// eslint-disable-next-line react/prop-types` comment (real TS types
+      make the suppressed rule a non-issue either way — confirmed zero lint
+      delta from this specific removal).
+- [x] Audit every caller of these 10 files for import-path breakage; fix
+      only what `tsc`/the bundler would otherwise reject. Result: **zero**
+      caller files needed changes — every caller (`App.tsx`, `Header.tsx`,
+      `Menus.tsx`, `Modal.tsx`, and all 16 `Form` importers) already used
+      extension-less relative imports or extension-less dynamic
+      `lazy(() => import(...))`, confirmed via full-tree grep both before
+      and after the rename.
 - [ ] Manually verify: app loads, dark mode toggles and persists across
       reload, staff/worker layouts render correctly, role-based redirect
       still works.
-- [ ] `bun run typecheck`
-- [ ] `bun run build`
-- [ ] `bun run lint` (record before/after counts)
+- [x] `bun run typecheck`
+- [x] `bun run build`
+- [x] `bun run lint` (record before/after counts)
 
 ## 2. Phase 2 — Helpers
 
@@ -257,7 +298,26 @@
     problems (79 errors, 4 warnings) — unchanged from the pre-existing
     baseline (no code touched this phase). `git status --short` confirms
     zero changes to `src/` this phase.
-- Phase 1 code conversion + manual check: _pending_
+- Phase 1 code conversion: done. `bunx @fission-ai/openspec validate ...
+  --strict` passes; `bun run typecheck` clean; `bun run build` succeeds;
+  `bun run lint` is 82 problems (78 errors, 4 warnings) — down from the
+  83-problem baseline (-1). The single removed error is the `react/prop-types`
+  "'children' is missing in props validation" that `DarkModeContext.jsx`
+  had before conversion (confirmed by isolated-file lint of the
+  pre-conversion source) — the other 9 files in this phase had zero
+  pre-existing lint errors (most have no props at all; `RoleGate.jsx`
+  already suppressed its own prop-types warning with an inline disable
+  comment, now removed since it's provably unnecessary). The pre-existing
+  `react-refresh/only-export-components` warning on `DarkModeContext.tsx`
+  (exports both a component and a hook from one file) is unrelated to typing
+  and remains, unchanged. `find src -type f \( -name "*.js" -o -name "*.jsx" \)`
+  returns exactly **49** files (down from 59). `git status --short` confirms
+  only the 10 target files (renamed) plus `index.html` (`main.jsx`→`main.tsx`
+  script-tag update, required by the rename) were touched — no Phase 2+
+  files, services, authentication files, stateRoles/otherData files,
+  orphaned files, Montserrat files, or config/generated-type files changed.
+- Phase 1 manual check: _pending_ — not performed in this turn (no
+  browser/dev-server session available); must be done before Phase 2 begins
 - Phase 2 code conversion + manual check: _pending_
 - Phase 3 code conversion + manual check: _pending_
 - Phase 4 code conversion + manual check: _pending_

@@ -1,6 +1,6 @@
 import styled, { css } from "styled-components";
 
-const Form = styled.form`
+const Form = styled.form<{ type?: string }>`
   ${(props) =>
     props.type !== "modal" &&
     css`
