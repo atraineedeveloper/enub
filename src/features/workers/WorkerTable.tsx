@@ -1,27 +1,34 @@
-import { useState } from "react";
+import { useState, type ChangeEvent, type ComponentType } from "react";
 import Spinner from "../../ui/Spinner";
 import Table from "../../ui/Table";
-import { useWorkers } from "./useWorkers";
+import { useWorkers, type Worker } from "./useWorkers";
 import WorkerRow from "./WorkerRow";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
 import Row from "../../ui/Row";
-import CreateEditWorkerForm from "./CreateEditWorkerForm";
+import UntypedCreateEditWorkerForm from "./CreateEditWorkerForm";
 import ErrorMessage from "../../ui/ErrorMessage";
 import { usePagination } from "../../hooks/usePagination";
 import Pagination from "../../ui/Pagination";
 import SearchBar from "../../ui/SearchBar";
 
+// CreateEditWorkerForm.jsx is untyped and out of scope (Phase 2) — see
+// WorkerRow.tsx for the full explanation of why `onCloseModal` needs this cast.
+const CreateEditWorkerForm = UntypedCreateEditWorkerForm as ComponentType<{
+  workerToEdit?: Worker;
+  onCloseModal?: () => void;
+}>;
+
 function WorkerTable() {
   const { isLoading, workers, error } = useWorkers({ fullDetails: true });
   const [searchTerm, setSearchTerm] = useState("");
   const filtered = (workers ?? []).filter((worker) =>
-    worker.name.toLowerCase().includes(searchTerm.toLowerCase())
+    worker.name!.toLowerCase().includes(searchTerm.toLowerCase())
   );
   const { currentPage, totalPages, totalCount, paginatedData, setCurrentPage } =
     usePagination(filtered);
 
-  function handleSearch(e) {
+  function handleSearch(e: ChangeEvent<HTMLInputElement>) {
     setSearchTerm(e.target.value);
     setCurrentPage(1);
   }
