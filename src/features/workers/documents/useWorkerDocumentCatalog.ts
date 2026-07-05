@@ -1,30 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
 import { getWorkerDocumentCategoriesAndTypes } from "../../../services/apiWorkerDocuments";
 import { workerDocumentKeys } from "./workerDocumentKeys";
+import type { Database } from "../../../types/supabase";
 
-// worker_document_categories/worker_document_types exist in the DB (see
-// supabase/migrations/20260702145810_worker_document_categories.sql and
-// 20260702145829_worker_document_types.sql) but are absent from the generated
-// src/types/supabase.ts -- that file predates these tables and hasn't been
-// regenerated. Hand-rolled here to match the migrations' columns exactly,
-// rather than editing the generated file or running codegen (out of scope).
-export interface WorkerDocumentType {
-  id: number;
-  category_id: number;
-  name: string;
-  allows_multiple: boolean;
-  sort_order: number;
-  created_at: string;
-}
+export type WorkerDocumentType =
+  Database["public"]["Tables"]["worker_document_types"]["Row"];
 
-export interface WorkerDocumentCategory {
-  id: number;
-  name: string;
-  scope: "permanent" | "semester";
-  sort_order: number;
-  created_at: string;
-  document_types: WorkerDocumentType[];
-}
+// `document_types` is an application-computed grouping
+// (`groupDocumentTypesByCategory` in apiWorkerDocuments.js), not a DB column or
+// Supabase embed -- composed onto the generated `worker_document_categories`
+// row rather than part of it. An indexed-access type (`Database["public"][...]`)
+// can't appear in an `interface extends` clause, so this is a type alias
+// intersection instead of an `interface`.
+export type WorkerDocumentCategory =
+  Database["public"]["Tables"]["worker_document_categories"]["Row"] & {
+    document_types: WorkerDocumentType[];
+  };
 
 export function useWorkerDocumentCatalog() {
   const {
