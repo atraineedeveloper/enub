@@ -14,6 +14,12 @@ function ScheduleGroupPDF({ schedules }) {
   const { isLoading: isLoadingStateRoles, stateRoles } = useStateRoles();
   const { isLoading: isLoadingUtilities, utilities } = useUtilities();
 
+  // Deterministic fix: seed data only guarantees 1 row in each table, so
+  // roles[1]/stateRoles[1] are undefined. Mirrors WorkerSheetSemester.jsx's
+  // `roles ?? []` + optional-chaining pattern for this same data source.
+  const availableRoles = roles ?? [];
+  const availableStateRoles = stateRoles ?? [];
+
   const generatePDF = async () => {
     await import("../../styles/Montserrat-Regular-normal.js");
     await import("../../styles/Montserrat-Italic-italic.js");
@@ -174,7 +180,7 @@ function ScheduleGroupPDF({ schedules }) {
       ["", "", `Balancán, Tabasco a ${utilities[0].value}`],
       [
         {
-          content: roles[1].role,
+          content: availableRoles[1]?.role ?? "",
           styles: { font: "Montserrat-Bold" },
         },
         {
@@ -183,27 +189,27 @@ function ScheduleGroupPDF({ schedules }) {
           styles: { halign: "center" },
         },
         {
-          content: roles[0].role,
+          content: availableRoles[0]?.role ?? "",
           styles: { font: "Montserrat-Bold" },
         },
       ],
       [
-        capitalizeName(roles[1].workers.name),
-        capitalizeName(roles[0].workers.name),
+        capitalizeName(availableRoles[1]?.workers?.name ?? ""),
+        capitalizeName(availableRoles[0]?.workers?.name ?? ""),
       ],
       [
         {
-          content: stateRoles[0].role,
+          content: availableStateRoles[0]?.role ?? "",
           styles: { font: "Montserrat-Bold" },
         },
         {
-          content: stateRoles[1].role,
+          content: availableStateRoles[1]?.role ?? "",
           styles: { font: "Montserrat-Bold" },
         },
       ],
       [
-        capitalizeName(stateRoles[0].name_worker.toUpperCase()),
-        capitalizeName(stateRoles[1].name_worker.toUpperCase()),
+        capitalizeName((availableStateRoles[0]?.name_worker ?? "").toUpperCase()),
+        capitalizeName((availableStateRoles[1]?.name_worker ?? "").toUpperCase()),
       ],
     ];
 

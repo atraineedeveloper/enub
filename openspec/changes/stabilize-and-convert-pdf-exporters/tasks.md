@@ -16,23 +16,23 @@
 
 ## 1. Phase 1 — Repair unsafe roles/state_roles indexing
 
-- [ ] In `src/pdf/Schedules/ScheduleGroupPDF.jsx`, replace the four unguarded
+- [x] In `src/pdf/Schedules/ScheduleGroupPDF.jsx`, replace the four unguarded
       `roles[0]`/`roles[1]`/`stateRoles[0]`/`stateRoles[1]` accesses in the
       `infoSchool` table body with optional-chained accesses and an explicit
       empty-string/no-op fallback, matching the pattern in
       `src/pdf/WorkerSheetSemester.jsx`.
-- [ ] In `src/pdf/Schedules/ScheduleTeacherPDF.jsx`, apply the identical
+- [x] In `src/pdf/Schedules/ScheduleTeacherPDF.jsx`, apply the identical
       repair to its `infoSchool` table body (same four accesses, same
       fallback shape).
-- [ ] Verify no other line in either file changes (repair is limited to the
+- [x] Verify no other line in either file changes (repair is limited to the
       identified unsafe accesses, per the `pdf-exporter-safety` spec's
       "PDF repairs are minimal and data-shape explicit" requirement).
 - [ ] Manually re-run the export action for both PDFs against the local
       seeded database (1 row each in `roles`/`state_roles`) and confirm no
       error is thrown and the PDF downloads.
-- [ ] `bun run typecheck`
-- [ ] `bun run build`
-- [ ] `bun run lint` (record before/after counts in Verification Results)
+- [x] `bun run typecheck`
+- [x] `bun run build`
+- [x] `bun run lint` (record before/after counts in Verification Results)
 
 ## 2. Phase 2 — Convert ScheduleGroupPDF and ScheduleTeacherPDF to TypeScript
 
@@ -116,8 +116,16 @@
 
 (To be filled in during implementation; do not pre-fill.)
 
-- Phase 0 diagnosis confirmations: _pending_
+- Phase 0 diagnosis confirmations: _pending_ (not run this phase; root cause
+  re-confirmed by static analysis and `supabase/seed.sql` inspection, not by
+  driving the live app)
+- Phase 1 code repair: done. `bunx @fission-ai/openspec validate ... --strict`
+  passes; `bun run typecheck` clean; `bun run build` succeeds; `bun run lint`
+  is 129 problems (125 errors, 4 warnings) both before and after the repair
+  (0 delta — confirmed by stashing the Phase 1 diff and re-running lint).
 - Phase 1 manual repair check (ScheduleGroupPDF / ScheduleTeacherPDF): _pending_
+  — not performed in this turn (no browser/dev-server session available);
+  must be done before Phase 2 begins
 - Phase 2 manual check: _pending_
 - Phase 3 manual check: _pending_
 - Phase 4 manual check: _pending_
