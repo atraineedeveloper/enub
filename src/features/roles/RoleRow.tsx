@@ -4,6 +4,7 @@ import Menus from "../../ui/Menus";
 import capitalizeName from "../../helpers/capitalizeFirstLetter";
 import CreateEditRoleForm from "./CreateEditRoleForm";
 import { HiPencil } from "react-icons/hi2";
+import type { Role } from "./useRoles";
 
 const TableRow = styled.div`
   display: grid;
@@ -17,12 +18,16 @@ const TableRow = styled.div`
   }
 `;
 
-function RoleRow({ role }) {
+interface RoleRowProps {
+  role: Role;
+}
+
+function RoleRow({ role }: RoleRowProps) {
   return (
     <Modal>
       <TableRow role="row">
         <p>{role.role}</p>
-        <p>{capitalizeName(role.workers.name)}</p>
+        <p>{capitalizeName(role.workers!.name)}</p>
         <Menus>
           <Menus.Menu>
             <Menus.Toggle id={role.id} />

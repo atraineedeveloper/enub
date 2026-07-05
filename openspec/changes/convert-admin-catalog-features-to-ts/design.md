@@ -1,7 +1,7 @@
 # Design: Convert Admin Catalog Features to TS
 
-Multi-phase change. **Phase 1 (degrees, subjects) and Phase 2 (groups, semesters) are
-implemented.** Phase 3 (studyPrograms, roles) is not designed in detail yet.
+Multi-phase change. **All three phases are implemented.** This is the final phase of
+the admin catalog feature-module migration.
 
 ## 1. Why `src/services/apiDegrees.js`/`apiSubjects.js` are out of scope
 
@@ -344,3 +344,159 @@ Baseline going in: **237 problems (233 errors, 4 warnings)**.
       change's own `proposal.md`/`design.md`/`tasks.md`. No other file —
       `apiGroups.js`, `apiSemesters.js`, `calculateSemesterGroup.js`, `Form.jsx`,
       `FormRow.tsx`, `Row.jsx` all untouched.
+
+# Phase 3: studyPrograms, roles
+
+## P3.1. `StudyProgram`/`Role` types
+
+```ts
+// useStudyPrograms.ts
+export type StudyProgram = Database["public"]["Tables"]["study_programs"]["Row"];
+```
+
+No embedded relations — `study_programs` has no `Relationships` in the schema and
+`apiStudyPrograms.js` does a plain `select("*")`.
+
+```ts
+// useRoles.ts
+export type Role = Database["public"]["Tables"]["roles"]["Row"] & {
+  workers: Database["public"]["Tables"]["workers"]["Row"] | null;
+};
+```
+
+`apiRoles.js`'s `select("*, workers(*))")` embeds one `workers` row per role;
+`roles.worker_id` is a nullable FK (confirmed in `src/types/supabase.ts`), so the
+embed is typed `Row | null`, not bare `Row` — same reasoning as `Subject`/`Group` in
+Phases 1–2. `RoleRow.tsx`/`RoleTable.tsx` use non-null assertions at the existing
+`role.workers.name` dereferences to preserve the current no-guard behavior.
+
+## P3.2. Edit-form variable types — small, local, per-hook
+
+`useEditStudyProgram.ts`'s `mutationFn: ({ newProgram, id }) => editStudyProgram(newProgram, id)`
+and `useEditRole.ts`'s equivalent both destructure an untyped parameter — with no
+`useMutation` generics and no annotation, TypeScript's `noImplicitAny` (part of
+`strict`) rejects this. Rather than adding generics to `useMutation` itself (a bigger
+change affecting `TData`/`TError` inference) or leaving the object as `any`, each
+hook gets one small, local, non-exported-beyond-the-file interface for exactly its
+own mutation's variables:
+
+```ts
+interface EditStudyProgramVariables {
+  newProgram: Partial<StudyProgram>;
+  id: number;
+}
+```
+```ts
+interface EditRoleVariables {
+  newRole: Partial<Role>;
+  id: number;
+}
+```
+
+`newProgram`/`newRole` are `Partial<...>` (not the full `Row`) because the caller
+spreads a react-hook-form submission (`{ ...data }`, a subset of fields, never
+`created_at`/`id`) into it — matching what `editStudyProgram`/`createEditRoles`
+(both untyped, out of scope) actually receive at runtime. Both hooks have the same
+pre-existing `useMutation().isLoading`-doesn't-exist-in-TanStack-v5 gap identified in
+Phase 2 (`design.md` P2.3) — typed with the identical documented cast, not fixed,
+per the explicit instruction not to fix that bug in this phase either.
+
+## P3.3. `programToEdit`/`roleToEdit` — optional `Partial<...>`, defaulting to `{}`
+
+Both `CreateEditStudyProgramForm.jsx`/`CreateEditRoleForm.jsx` destructure their edit
+prop with a `= {}` default and then `const { id: editId, ...editValues } = <prop>`.
+Typed `programToEdit?: Partial<StudyProgram>` / `roleToEdit?: Partial<Role>` —
+optional and partial because the default is a genuinely empty object (no `id`, no
+other fields) for the "create" code path. In practice, **every real call site**
+(`StudyProgramRow.tsx`/`RoleRow.tsx`) always passes a full row (always in "edit"
+mode) — grepped for any other caller and found none — so the "create" branch
+(`isEditSession === false`) is currently dead code in both forms, exactly as it was
+before this conversion. Not removed; preserved exactly.
+
+`editId`'s type is `number | undefined` (from the `Partial<...>` destructure), but
+each mutation call's variables require `id: number`. Both forms only ever call the
+mutation inside `if (isEditSession)` (`= Boolean(editId)`), so `editId` is always
+defined there — TypeScript can't see that correlation through a separately-computed
+boolean, so a non-null assertion (`id: editId!`) is used at each call site, matching
+the same "preserve pre-existing implicit assumption" pattern used throughout this
+migration.
+
+## P3.4. Pre-conversion lint baseline (confirmed via `bun run lint`, per file)
+
+| File | `react/prop-types` | Other |
+|---|---:|---|
+| `StudyProgramRow.jsx` | 5 (`program`, `program.year`, `program.name`, `program.id` ×2) | — |
+| `StudyProgramsTable.jsx` | 0 | — |
+| `useStudyPrograms.js` | 0 | — |
+| `useEditStudyProgram.js` | 0 | — |
+| `CreateEditStudyProgramForm.jsx` | 2 (`programToEdit`, `onCloseModal`) | — |
+| `RoleRow.jsx` | 6 (`role`, `role.role`, `role.workers`, `role.workers.name`, `role.id` ×2) | — |
+| `RoleTable.jsx` | 0 | — |
+| `useRoles.js` | 0 | — |
+| `useEditRole.js` | 0 | — |
+| `CreateEditRoleForm.jsx` | 2 (`roleToEdit`, `onCloseModal`) | **1 `no-unused-vars`** (unused `data` param in the nested `onSuccess: (data) => {...}` callback at the `editRole(...)` call) |
+
+`react/prop-types` total to remove: **15**. The 1 `no-unused-vars` in
+`CreateEditRoleForm.jsx` is a genuine, pre-existing, unrelated defect — carried over
+unchanged (renamed to `@typescript-eslint/no-unused-vars` by the file-extension
+switch, same as `MainNav.tsx`'s `isActive` earlier in this migration), not fixed.
+
+## P3.5. Unplanned discovery: 4 out-of-scope PDF files import `useRoles.js` with an explicit extension
+
+Grepped `src/` for all 10 target files before building (the check that's caught real
+issues in every prior phase). Found 4 matches, all in `src/pdf/` (out of scope, not
+touched otherwise): `Schedules/TeacherAssignmentPDF.jsx`, `Schedules/ScheduleGroupPDF.jsx`,
+`Schedules/ScheduleTeacherPDF.jsx`, `WorkerSheetSemester.jsx` — each has
+`import { useRoles } from ".../features/roles/useRoles.js"`. Per explicit instruction
+("fix only those pointing to renamed Phase 3 files"), updated exactly the one import
+line's extension (`.js` → `.ts`) in each of the 4 files; no other line touched. These
+4 files already had `Button.tsx`/`Spinner.tsx` explicit-extension imports from
+`convert-core-ui-components-to-ts` (visible in the same import blocks) — this is the
+same recurring class of issue, now hitting a fourth batch.
+
+## P3.6. Unplanned discovery: `useWorkers()`'s `workers` is not always defined either
+
+`bun run typecheck` failed in `CreateEditRoleForm.tsx`: `'workers' is possibly
+'undefined'` at `workers.map(...)`. `useWorkers.js` (`src/features/workers/`, a
+different, out-of-scope feature) is untyped, but unlike the Phase 1/2 assumption that
+untyped hooks always resolve to a loose `any`, TanStack Query's own types still
+propagate an `| undefined` for `data` regardless of how loosely `queryFn`'s return
+type resolves — `isLoadingWorkers` (a separately-typed boolean) doesn't narrow it for
+the same reason `isLoading`/`groups` didn't narrow each other in Phase 2's
+`GroupTable.tsx`. Fixed with the same non-null assertion pattern already established:
+`workers!.map(...)`. Not a new class of issue, just the same pattern recurring
+against a hook from a different, still-untyped feature.
+
+## P3.7. Verification plan — results
+
+Baseline going in: **226 problems (222 errors, 4 warnings)**.
+
+- [x] `bun run typecheck` — failed twice (the `useMutation` variable typing in P3.2
+      was written correctly from the start this time; the one real failure was
+      P3.6's `workers` narrowing), fixed, then passes with no errors.
+- [ ] `bun run build` — implementer reported a clean pass, but independent review
+      using `timeout 180s bun run build` timed out after `$ vite build` with no Vite
+      diagnostics. Treat as an environment caveat and rerun locally before commit.
+- [x] `bun run lint` — total: **211 problems (207 errors, 4 warnings)**, down from
+      226 by exactly the predicted 15 (`StudyProgramRow` 5, `CreateEditStudyProgramForm` 2,
+      `RoleRow` 6, `CreateEditRoleForm` 2). Confirmed `CreateEditRoleForm.tsx`'s 1
+      `@typescript-eslint/no-unused-vars` entry is present, unchanged in substance.
+- [x] `git status`/`git diff --stat` — changed-file set is exactly: the 10 renames
+      (`StudyProgramRow`/`StudyProgramsTable`/`useStudyPrograms`/`useEditStudyProgram`/
+      `CreateEditStudyProgramForm`, `RoleRow`/`RoleTable`/`useRoles`/`useEditRole`/
+      `CreateEditRoleForm`), the 4 PDF files' one-line import fix each, and this
+      change's own `proposal.md`/`design.md`/`tasks.md`. No other file —
+      `apiStudyPrograms.js`, `apiRoles.js`, `capitalizeFirstLetter.js`,
+      `useWorkers.js` all untouched.
+
+## Migration status: complete
+
+All three phases of the admin catalog feature-module migration are implemented.
+Typecheck and lint are verified; build needs a clean local rerun because independent
+review timed out after Vite started. Cumulative lint movement across this whole
+change: **253 → 211** (42 `react/prop-types` errors removed: 16 in Phase 1, 11 in
+Phase 2, 15 in Phase 3), zero regressions in any other rule at any step. Two real,
+pre-existing issues were discovered (not fixed, both flagged for separate follow-up):
+`useMutation`'s `isLoading` vs. `isPending` (Phase 2, recurring in Phase 3) and
+`FormRow.tsx`'s single-child typing (Phase 2, recurring in Phase 3 for both new
+forms' action rows).

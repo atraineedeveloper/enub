@@ -1,11 +1,15 @@
-
 import Table from "../../ui/Table";
 import Modal from "../../ui/Modal";
 import Menus from "../../ui/Menus";
 import CreateEditStudyProgramForm from "./CreateEditStudyProgramForm";
 import { HiPencil } from "react-icons/hi2";
+import type { StudyProgram } from "./useStudyPrograms";
 
-function StudyProgramRow({ program }) {
+interface StudyProgramRowProps {
+  program: StudyProgram;
+}
+
+function StudyProgramRow({ program }: StudyProgramRowProps) {
   return (
     <Modal>
       <Table.Row>

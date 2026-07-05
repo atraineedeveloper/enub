@@ -5,8 +5,17 @@ import Button from "../../ui/Button";
 import FormRow from "../../ui/FormRow";
 import toast from "react-hot-toast";
 import { useEditStudyProgram } from "./useEditStudyProgram";
+import type { StudyProgram } from "./useStudyPrograms";
 
-function CreateEditStudyProgramForm({ programToEdit = {}, onCloseModal }) {
+interface CreateEditStudyProgramFormProps {
+  programToEdit?: Partial<StudyProgram>;
+  onCloseModal?: () => void;
+}
+
+function CreateEditStudyProgramForm({
+  programToEdit = {},
+  onCloseModal,
+}: CreateEditStudyProgramFormProps) {
   const { id: editId, ...editValues } = programToEdit;
   const isEditSession = Boolean(editId);
   const { isEditing, editStudyProgram } = useEditStudyProgram();
@@ -16,10 +25,10 @@ function CreateEditStudyProgramForm({ programToEdit = {}, onCloseModal }) {
   });
   const { errors } = formState;
 
-  function onSubmit(data) {
+  function onSubmit(data: object) {
     if (isEditSession) {
       editStudyProgram(
-        { newProgram: { ...data }, id: editId },
+        { newProgram: { ...data }, id: editId! },
         {
           onSuccess: () => {
             toast.success("Plan de estudio actualizado correctamente");
@@ -33,7 +42,7 @@ function CreateEditStudyProgramForm({ programToEdit = {}, onCloseModal }) {
 
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
-      <FormRow label="Año" error={errors?.year?.message}>
+      <FormRow label="Año" error={errors?.year?.message as string | undefined}>
         <Input
           type="number"
           id="year"
@@ -41,7 +50,7 @@ function CreateEditStudyProgramForm({ programToEdit = {}, onCloseModal }) {
           {...register("year", { required: "Este campo es obligatorio" })}
         />
       </FormRow>
-      <FormRow label="Nombre" error={errors?.name?.message}>
+      <FormRow label="Nombre" error={errors?.name?.message as string | undefined}>
         <Input
           type="text"
           id="name"
@@ -50,10 +59,12 @@ function CreateEditStudyProgramForm({ programToEdit = {}, onCloseModal }) {
         />
       </FormRow>
       <FormRow>
-        <Button type="reset" variation="secondary" onClick={onCloseModal}>
-          Cancelar
-        </Button>
-        <Button disabled={isEditing}>Guardar</Button>
+        <>
+          <Button type="reset" variation="secondary" onClick={onCloseModal}>
+            Cancelar
+          </Button>
+          <Button disabled={isEditing}>Guardar</Button>
+        </>
       </FormRow>
     </Form>
   );

@@ -2,16 +2,17 @@
 
 ## Status
 
-Draft — Phase 1 (degrees, subjects) and Phase 2 (groups, semesters) implemented.
-Phase 3 (studyPrograms, roles) not started.
+Draft — Phase 1 (degrees, subjects), Phase 2 (groups, semesters), and Phase 3
+(studyPrograms, roles) all implemented. This is the final phase of the admin catalog
+feature-module migration.
 
 ## Why
 
 `convert-remaining-shared-ui-to-ts` finished every shared `src/ui/` component. This
 change moves one level up: the first real **feature modules** (data fetching +
 list/row UI, not just shared presentational components), split into 3 phases inside
-one OpenSpec change so each can be reviewed independently. Phase 1 and Phase 2 are
-implemented; Phase 3 remains deferred.
+one OpenSpec change so each can be reviewed independently. All three phases are now
+implemented.
 
 Phase 1 targets `src/features/degrees/*` and `src/features/subjects/*`: the two
 simplest catalog features in the app — read-only listings (no create/edit form exists
@@ -125,3 +126,88 @@ than introducing a new one.
   `CreateSemesterForm`'s 3 `react-hooks/rules-of-hooks` errors remain, unchanged.
   `GroupTable`/`useGroups`/`CreateGroupForm`/`SemesterTable`/`useSemesters` had 0 to
   begin with.
+
+## Why studyPrograms/roles last
+
+Both introduce **edit** (not just create) — `CreateEditStudyProgramForm.jsx`/
+`CreateEditRoleForm.jsx` take an optional `programToEdit`/`roleToEdit` prop (default
+`{}`) and branch their submit behavior on whether it's populated. `roles` also embeds
+a nullable-FK `workers` relation (same pattern as `groups`/`degrees`, `subjects`/
+`degrees`+`study_programs`), and `RoleRow.jsx`/`RoleTable.jsx` are the first files in
+this migration that **don't** use the shared `src/ui/Table.tsx` compound component at
+all — they define their own local, self-contained styled-components instead.
+
+## What changes (Phase 3)
+
+- `src/features/studyPrograms/useStudyPrograms.ts` — exports `StudyProgram`
+  (plain generated `study_programs` Row, no embeds). `useQuery<StudyProgram[]>`.
+- `src/features/studyPrograms/useEditStudyProgram.ts` — local
+  `EditStudyProgramVariables { newProgram: Partial<StudyProgram>; id: number }` for
+  the mutation's variables (react-hook-form's submitted `data` has no compile-time
+  shape without a `useForm<Schema>()` generic, which isn't added — see `design.md`).
+  Same `useMutation().isLoading`-doesn't-exist-in-v5 gap as Phase 2 (`design.md`
+  Section P2.3) — typed with the same documented cast, not fixed.
+- `src/features/studyPrograms/StudyProgramRow.tsx` — `StudyProgramRowProps { program: StudyProgram }`.
+- `src/features/studyPrograms/StudyProgramsTable.tsx` — no props; `handleSearch`
+  typed; non-null assertion on `program.name!.toLowerCase()`; local `Row` `type`-prop
+  cast (same pattern as Phases 1–2).
+- `src/features/studyPrograms/CreateEditStudyProgramForm.tsx` —
+  `CreateEditStudyProgramFormProps { programToEdit?: Partial<StudyProgram>; onCloseModal?: () => void }`;
+  non-null assertion on `editId!` at the one mutation call (matches the existing
+  `isEditSession` guard, which TS can't see through); same `errors.message` cast as
+  Phase 2.
+- `src/features/roles/useRoles.ts` — exports `Role` (generated `roles` Row
+  intersected with a nullable embedded `workers` Row, matching `apiRoles.js`'s
+  `select("*, workers(*))")` and the nullable `worker_id` FK). `useQuery<Role[]>`.
+- `src/features/roles/useEditRole.ts` — local
+  `EditRoleVariables { newRole: Partial<Role>; id: number }`; same `isLoading` gap,
+  same documented cast.
+- `src/features/roles/RoleRow.tsx` — `RoleRowProps { role: Role }`; non-null
+  assertions on `role.workers!.name` (embedded relation) — `role.role` needs no
+  assertion (rendered directly as `ReactNode`, no method called on it).
+- `src/features/roles/RoleTable.tsx` — no props; `handleSearch` typed; non-null
+  assertions on `role.workers!.name!.toLowerCase()` in the filter; local `Row`
+  `type`-prop cast.
+- `src/features/roles/CreateEditRoleForm.tsx` —
+  `CreateEditRoleFormProps { roleToEdit?: Partial<Role>; onCloseModal?: () => void }`;
+  non-null assertion on `editId!`; same `errors.message` cast; pre-existing unused
+  `data` parameter in the nested `onSuccess: (data) => {...}` callback preserved
+  verbatim (already a real, classified `no-unused-vars` defect — not fixed).
+
+## What does not change (Phase 3, additional to the Phase 1/2 list)
+
+- `src/services/apiStudyPrograms.js`, `apiRoles.js` not converted — same "outside
+  scope" reasoning as every prior phase's service files.
+- `src/helpers/capitalizeFirstLetter.js` (used by `RoleRow.jsx`) and
+  `src/features/workers/useWorkers.js` (used by `CreateEditRoleForm.jsx`, itself
+  out-of-scope — a different feature) are not converted — neither required a change
+  for a clean typecheck.
+- `RoleRow.jsx`/`RoleTable.jsx`'s own local `TableRow`/`Table`/`TableHeader`/
+  `TableFooter` styled-components (not the shared `src/ui/Table.tsx`) needed no cast
+  or modification — they're plain native elements (`styled.div`/`styled.header`/
+  `styled.footer`), and their `role="row"`/`role="table"` attributes are genuine,
+  always-supported native ARIA attributes, not a shadowed custom prop like
+  `GroupRow.jsx`'s Phase 2 `Table.Row role="row"` discovery.
+- The previously-discovered `isLoading`/`isPending` gap (Phase 2, `design.md`
+  P2.3) and `FormRow.tsx`'s single-child typing (Phase 2, `design.md` P2.5) are
+  **not** fixed in this phase either — both recur here (see above) and are handled
+  with the exact same documented, zero-behavior-change workaround, not touched at
+  the root.
+- No React Query key/`staleTime`/invalidation change — `["studyPrograms"]`/`["roles"]`
+  keys, `staleTime` values, and `invalidateQueries` calls are byte-identical.
+- No Supabase call changed.
+
+## Impact (Phase 3)
+
+- **Affected code:** 10 files renamed (6 `.jsx` → `.tsx`, 4 `.js` → `.ts`), plus 4
+  out-of-scope PDF files (`TeacherAssignmentPDF.jsx`, `ScheduleGroupPDF.jsx`,
+  `ScheduleTeacherPDF.jsx`, `WorkerSheetSemester.jsx`) each get one import path
+  extension fixed (`useRoles.js` → `useRoles.ts`) — the only files besides the 10
+  renames touched by this phase.
+- **Affected lint baseline:** `react/prop-types` errors disappear for `StudyProgramRow`
+  (5), `CreateEditStudyProgramForm` (2), `RoleRow` (6), and `CreateEditRoleForm` (2) —
+  15 total. `CreateEditRoleForm`'s 1 pre-existing `no-unused-vars` (the unused `data`
+  param) remains, unchanged (renamed to `@typescript-eslint/no-unused-vars` by the
+  file-extension switch, same as `MainNav.tsx`'s `isActive` earlier in this
+  migration). `StudyProgramsTable`/`useStudyPrograms`/`useEditStudyProgram`/
+  `RoleTable`/`useRoles`/`useEditRole` had 0 to begin with.

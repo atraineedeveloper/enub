@@ -2,7 +2,7 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import Button from "../../ui/Button.tsx";
 import Spinner from "../../ui/Spinner.tsx";
-import { useRoles } from "../../features/roles/useRoles.js";
+import { useRoles } from "../../features/roles/useRoles.ts";
 import { useStateRoles } from "../../features/stateRoles/useStateRoles.js";
 import filterHourGroup from "./filterHourGroup.js";
 import filterHourActivity from "./filterHourActivity.js";
