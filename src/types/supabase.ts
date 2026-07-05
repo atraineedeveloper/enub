@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "12.2.3 (519615d)"
-  }
   public: {
     Tables: {
       date_of_admissions: {
@@ -95,6 +90,35 @@ export type Database = {
             columns: ["degree_id"]
             isOneToOne: false
             referencedRelation: "degrees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          role: string
+          worker_id: number | null
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          role: string
+          worker_id?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: string
+          worker_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: true
+            referencedRelation: "workers"
             referencedColumns: ["id"]
           },
         ]
@@ -411,6 +435,126 @@ export type Database = {
         }
         Relationships: []
       }
+      worker_document_categories: {
+        Row: {
+          created_at: string
+          id: number
+          name: string
+          scope: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          name: string
+          scope: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          name?: string
+          scope?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      worker_document_types: {
+        Row: {
+          allows_multiple: boolean
+          category_id: number
+          created_at: string
+          id: number
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          allows_multiple?: boolean
+          category_id: number
+          created_at?: string
+          id?: number
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          allows_multiple?: boolean
+          category_id?: number
+          created_at?: string
+          id?: number
+          name?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worker_document_types_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "worker_document_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      worker_documents: {
+        Row: {
+          created_at: string
+          document_type_id: number
+          file_name: string
+          file_size: number
+          id: number
+          mime_type: string
+          semester_id: number | null
+          storage_path: string
+          uploaded_by: string | null
+          worker_id: number
+        }
+        Insert: {
+          created_at?: string
+          document_type_id: number
+          file_name: string
+          file_size: number
+          id?: number
+          mime_type: string
+          semester_id?: number | null
+          storage_path: string
+          uploaded_by?: string | null
+          worker_id: number
+        }
+        Update: {
+          created_at?: string
+          document_type_id?: number
+          file_name?: string
+          file_size?: number
+          id?: number
+          mime_type?: string
+          semester_id?: number | null
+          storage_path?: string
+          uploaded_by?: string | null
+          worker_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worker_documents_document_type_id_fkey"
+            columns: ["document_type_id"]
+            isOneToOne: false
+            referencedRelation: "worker_document_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_documents_semester_id_fkey"
+            columns: ["semester_id"]
+            isOneToOne: false
+            referencedRelation: "semesters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_documents_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workers: {
         Row: {
           city: string | null
@@ -476,7 +620,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      current_app_role: { Args: never; Returns: string }
+      current_worker_id: { Args: never; Returns: number }
+      grant_staff_role: { Args: { staff_email: string }; Returns: undefined }
+      link_worker_account: {
+        Args: { worker_email: string; worker_id: number }
+        Returns: undefined
+      }
+      unlink_worker_account: { Args: { worker_id: number }; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
