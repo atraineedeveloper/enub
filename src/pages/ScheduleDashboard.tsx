@@ -2,22 +2,48 @@ import { createContext, useState } from "react";
 import styled from "styled-components";
 import ScholarSchedule from "../features/schedules/ScholarSchedule";
 import { useWorkers } from "../features/workers/useWorkers";
+import type { Worker } from "../features/workers/useWorkers";
 import Spinner from "../ui/Spinner";
 import { useSubjects } from "../features/subjects/useSubjects";
+import type { Subject } from "../features/subjects/useSubjects";
 import { useGroups } from "../features/groups/useGroups";
+import type { Group } from "../features/groups/useGroups";
 import { useParams } from "react-router-dom";
 import { useScheduleAssignments } from "../features/schedules/useScheduleAssignments";
 import calculateSemesterGroup from "../helpers/calculateSemesterGroup";
 import sortWorkersBySurname from "../helpers/sortWorkersBySurname";
 import TeacherSchedule from "../features/schedules/TeacherSchedule";
 import { useScheduleTeachers } from "../features/schedules/useScheduleTeachers";
-import WorkerSheetSemester from "../pdf/WorkerSheetSemester";
+import UntypedWorkerSheetSemester from "../pdf/WorkerSheetSemester";
 import { useSemesters } from "../features/semesters/useSemesters";
+import type { Semester } from "../features/semesters/useSemesters";
 import Breadcrumbs from "../ui/Breadcrumbs";
 import ErrorMessage from "../ui/ErrorMessage";
 import Heading from "../ui/Heading";
+import type { ComponentType } from "react";
 
-export const SemesterContext = createContext(null);
+// WorkerSheetSemester.jsx (src/pdf/, out of scope -- PDF exporters are
+// deferred to their own migration) destructures `scheduleAssignments = []`/
+// `scheduleTeachers = []` with no other type evidence, so TS's allowJs
+// inference narrows both to `never[]`. Local, type-only cast rather than
+// converting the file.
+const WorkerSheetSemester = UntypedWorkerSheetSemester as ComponentType<{
+  workers: Worker[];
+  semester: Semester[];
+  scheduleAssignments?: unknown[];
+  scheduleTeachers?: unknown[];
+}>;
+
+interface SemesterContextValue {
+  groups: Group[];
+  workers: Worker[];
+  subjects: Subject[];
+  scheduleAssignments: unknown[];
+}
+
+export const SemesterContext = createContext<SemesterContextValue | null>(
+  null
+);
 
 const SemesterHeader = styled.div`
   display: flex;
@@ -41,12 +67,12 @@ const TabsBar = styled.div`
   margin-bottom: 2.4rem;
 `;
 
-const tabAccents = {
+const tabAccents: Record<string, string> = {
   scholar: "var(--color-gold-700)",
   teacher: "var(--color-gov-green-700)",
 };
 
-const Tab = styled.button`
+const Tab = styled.button<{ $active: boolean; $tab: string }>`
   padding: 1rem 2rem;
   font-size: 1.5rem;
   font-weight: 600;
@@ -82,12 +108,12 @@ function ScheduleDashboard() {
   const anyError = errorWorkers || errorSubjects || errorGroups || errorAssignments || errorTeachers || errorSemesters;
   if (anyError) return <ErrorMessage message={anyError.message} />;
 
-  const currentGroups = groups.filter((g) => calculateSemesterGroup(g.year_of_admission) <= 8);
-  const currentWorkers = workers.filter((w) => w.status === 1);
+  const currentGroups = groups!.filter((g) => calculateSemesterGroup(g.year_of_admission) <= 8);
+  const currentWorkers = workers!.filter((w) => w.status === 1);
   const sortedCurrentWorkers = sortWorkersBySurname(currentWorkers);
-  const scheduleAssignmentsBySemester = scheduleAssignments.filter((s) => s.semester_id === +id);
-  const scheduleTeachersBySemester = scheduleTeachers.filter((s) => s.semester_id === +id);
-  const currentSemester = semesters.find((s) => s.id === +id);
+  const scheduleAssignmentsBySemester = scheduleAssignments!.filter((s) => s.semester_id === +id!);
+  const scheduleTeachersBySemester = scheduleTeachers!.filter((s) => s.semester_id === +id!);
+  const currentSemester = semesters!.find((s) => s.id === +id!);
 
   const breadcrumbItems = [
     { label: "Administrar horarios", to: "/semesters" },
@@ -99,7 +125,7 @@ function ScheduleDashboard() {
       value={{
         groups: currentGroups,
         workers: sortedCurrentWorkers,
-        subjects,
+        subjects: subjects!,
         scheduleAssignments: scheduleAssignmentsBySemester,
       }}
     >

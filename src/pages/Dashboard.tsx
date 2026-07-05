@@ -33,13 +33,13 @@ const StatCard = styled.div`
   gap: 1.4rem;
 `;
 
-const iconThemes = {
+const iconThemes: Record<string, { bg: string; color: string }> = {
   gold: { bg: "var(--color-gold-100)", color: "var(--color-gold-700)" },
   brand: { bg: "var(--color-brand-50)", color: "var(--color-brand-600)" },
   green: { bg: "var(--color-gov-green-100)", color: "var(--color-gov-green-700)" },
 };
 
-const StatIcon = styled.div`
+const StatIcon = styled.div<{ $theme: string }>`
   display: flex;
   align-items: center;
   justify-content: center;
@@ -87,7 +87,7 @@ const Actions = styled.div`
   gap: 1rem;
 `;
 
-const ActionCard = styled.div`
+const ActionCard = styled.div<{ $accent: string }>`
   border: 1px solid var(--color-grey-200);
   border-top: 3px solid ${(p) =>
     p.$accent === "gold"
