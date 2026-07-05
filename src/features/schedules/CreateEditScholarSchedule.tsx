@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form";
+import { useForm, type FieldValues } from "react-hook-form";
 import Form from "../../ui/Form";
 import Button from "../../ui/Button";
 import FormRow from "../../ui/FormRow";
@@ -10,18 +10,26 @@ import calculateSemesterGroup from "../../helpers/calculateSemesterGroup";
 import { createScheduleAssignments } from "../../services/apiScheduleAssignments";
 import { useWorkers } from "../workers/useWorkers";
 import { useSubjects } from "../subjects/useSubjects";
+import type { Subject } from "../subjects/useSubjects";
 import { useGroups } from "../groups/useGroups";
 import { useEditScheduleAssignment } from "./useEditScheduleAssignments";
 import Spinner from "../../ui/Spinner";
 import { useCreateScheduleAssignments } from "./useCreateScheduleAssignments";
 import { SemesterContext } from "../../pages/ScheduleDashboard";
 import { hasWorkerConflict, hasGroupConflict } from "../../helpers/detectScheduleConflict";
+import type { ScheduleAssignment } from "./useScheduleAssignments";
+
+interface CreateEditScholarScheduleProps {
+  semesterId?: string;
+  scheduleToEdit?: Partial<ScheduleAssignment>;
+  onCloseModal?: () => void;
+}
 
 function CreateEditScholarSchedule({
   semesterId,
   scheduleToEdit = {},
   onCloseModal,
-}) {
+}: CreateEditScholarScheduleProps) {
   const { isEditing, editScheduleAssignment } = useEditScheduleAssignment();
   const { isCreating, createScheduleAssignments } =
     useCreateScheduleAssignments();
@@ -29,7 +37,7 @@ function CreateEditScholarSchedule({
 
   const semesterData = useContext(SemesterContext);
 
-  const { groups, workers, subjects, scheduleAssignments } = semesterData;
+  const { groups, workers, subjects, scheduleAssignments } = semesterData!;
 
   const { id: editId, ...editValues } = scheduleToEdit;
   const isEditSession = Boolean(editId);
@@ -40,30 +48,37 @@ function CreateEditScholarSchedule({
     }
   }, [isEditSession, editValues.group_id]);
 
-  const { register, handleSubmit, reset, formState } = useForm({
-    defaultValues: isEditSession ? editValues : {},
+  const { register, handleSubmit, reset, formState } = useForm<FieldValues>({
+    defaultValues: (isEditSession ? editValues : {}) as FieldValues,
   });
   const { errors } = formState;
 
-  const [filteredSubjects, setFilteredSubjects] = useState([]);
+  const [filteredSubjects, setFilteredSubjects] = useState<Subject[]>([]);
 
-  function selectingGroup(value) {
-    const groupFound = groups.find((gp) => gp.id === +value);
+  function selectingGroup(value: string | number | null | undefined) {
+    const groupFound = groups.find((gp) => gp.id === +value!);
 
-    const semesterFound = calculateSemesterGroup(groupFound.year_of_admission);
+    const semesterFound = calculateSemesterGroup(
+      groupFound!.year_of_admission
+    );
 
     const subjectsFilterSemester = subjects.filter((subject) => {
-      return subject.semester == semesterFound;
+      // Decision 4: preserve the existing loose-equality comparison exactly
+      // -- `semester` is a nullable string column compared against
+      // calculateSemesterGroup()'s numeric return, so both sides are
+      // normalized to number here rather than switching to strict equality
+      // (which would change behavior for numeric-string values like "3" vs 3).
+      return Number(subject.semester) == semesterFound;
     });
 
     const subjectsFilterDegree = subjectsFilterSemester.filter((subject) => {
-      return subject.degrees.id === groupFound.degrees.id;
+      return subject.degrees!.id === groupFound!.degrees!.id;
     });
 
     setFilteredSubjects(subjectsFilterDegree);
   }
 
-  function onSubmit(data) {
+  function onSubmit(data: FieldValues) {
     const resolvedSemesterId = Number(semesterId || editValues.semester_id);
     if (!resolvedSemesterId) {
       toast.error("No se pudo determinar el semestre del horario.");
@@ -87,9 +102,9 @@ function CreateEditScholarSchedule({
       delete data.subjects;
       delete data.workers;
       editScheduleAssignment(
-        { newScheduleAssignment: { ...data }, id: editId },
+        { newScheduleAssignment: { ...data }, id: editId! },
         {
-          onSuccess: (data) => {
+          onSuccess: () => {
             reset();
             onCloseModal?.();
           },
@@ -99,7 +114,7 @@ function CreateEditScholarSchedule({
       createScheduleAssignments(
         { ...data },
         {
-          onSuccess: (data) => {
+          onSuccess: () => {
             reset();
             onCloseModal?.();
           },
@@ -109,7 +124,7 @@ function CreateEditScholarSchedule({
 
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
-      <FormRow label="Dia de la semana" error={errors?.weekday?.message}>
+      <FormRow label="Dia de la semana" error={errors?.weekday?.message as string | undefined}>
         <Select
           id="weekday"
           disabled={isEditing}
@@ -125,7 +140,7 @@ function CreateEditScholarSchedule({
           <option value="Viernes">Viernes</option>
         </Select>
       </FormRow>
-      <FormRow label="Grupo Escolar" error={errors?.group_id?.message}>
+      <FormRow label="Grupo Escolar" error={errors?.group_id?.message as string | undefined}>
         <Select
           id="group_id"
           disabled={isEditing}
@@ -138,12 +153,12 @@ function CreateEditScholarSchedule({
           {groups.map((group) => (
             <option key={group.id} value={group.id}>
               {calculateSemesterGroup(group.year_of_admission)}° "{group.letter}
-              " - {group.degrees.code}
+              " - {group.degrees!.code}
             </option>
           ))}
         </Select>
       </FormRow>
-      <FormRow label="Asignatura" error={errors?.subject_id?.message}>
+      <FormRow label="Asignatura" error={errors?.subject_id?.message as string | undefined}>
         <Select
           id="subject_id"
           disabled={isEditing}
@@ -155,12 +170,12 @@ function CreateEditScholarSchedule({
           {filteredSubjects.map((subject) => (
             <option key={subject.id} value={subject.id}>
               {subject.semester}° - {subject.name} (
-              {subject.study_programs.year} - {subject.degrees.code})
+              {subject.study_programs!.year} - {subject.degrees!.code})
             </option>
           ))}
         </Select>
       </FormRow>
-      <FormRow label="Hora de inicio" error={errors?.start_time?.message}>
+      <FormRow label="Hora de inicio" error={errors?.start_time?.message as string | undefined}>
         <Select
           id="start_time"
           disabled={isEditing}
@@ -175,7 +190,7 @@ function CreateEditScholarSchedule({
           <option value="13:10:00">13:10</option>
         </Select>
       </FormRow>
-      <FormRow label="Hora Fin" error={errors?.end_time?.message}>
+      <FormRow label="Hora Fin" error={errors?.end_time?.message as string | undefined}>
         <Select
           id="end_time"
           disabled={isEditing}
@@ -190,7 +205,7 @@ function CreateEditScholarSchedule({
           <option value="15:00:00">15:00</option>
         </Select>
       </FormRow>
-      <FormRow label="Maestro" error={errors?.worker_id?.message}>
+      <FormRow label="Maestro" error={errors?.worker_id?.message as string | undefined}>
         <Select
           id="worker_id"
           disabled={isEditing}

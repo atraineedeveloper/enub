@@ -1,10 +1,10 @@
 # Tasks — plan-schedules-typescript-migration
 
-Status: **Phase 0 (confirmations relevant to Phases 1–2), Phase 1 (query/
-mutation hooks), and Phase 2 (leaf cell components) implemented and
-verified.** Phases 3–6 not started — do not begin without explicit
-instruction to continue. Do not check off any item without actually doing
-the work and re-verifying it.
+Status: **Phase 0 (confirmations relevant to Phases 1–3), Phase 1 (query/
+mutation hooks), Phase 2 (leaf cell components), and Phase 3 (forms)
+implemented and verified.** Phases 4–6 not started — do not begin without
+explicit instruction to continue. Do not check off any item without actually
+doing the work and re-verifying it.
 
 ## 1. Planning artifacts (this change)
 
@@ -42,7 +42,7 @@ the work and re-verifying it.
 - [x] Confirm the `HourScheduleTeacher.jsx` `setEditModal` fix (Decision 3)
       will be the minimal, sibling-pattern-consistent fix, with no modal
       redesign
-- [ ] Confirm the `subjects.semester == semesterFound` comparison (Decision 4)
+- [x] Confirm the `subjects.semester == semesterFound` comparison (Decision 4)
       will be preserved via local type normalization/cast, not rewritten to
       strict equality
 - [ ] Confirm the 3 duplicated `groupData` helper copies (Decision 5) will
@@ -99,15 +99,23 @@ the work and re-verifying it.
 
 ## 5. Phase 3 — forms
 
-- [ ] Convert `CreateEditScholarSchedule.jsx` → `.tsx`
-- [ ] Convert `CreateEditTeacherSchedule.jsx` → `.tsx`
-- [ ] Apply Decision 4 to the `subjects.semester == semesterFound`
+- [x] Convert `CreateEditScholarSchedule.jsx` → `.tsx`
+- [x] Convert `CreateEditTeacherSchedule.jsx` → `.tsx`
+- [x] Apply Decision 4 to the `subjects.semester == semesterFound`
       comparison: use a local type normalization/cast that preserves the
-      current runtime comparison result; do not convert to strict equality
-- [ ] Apply the `isLoading` → `isPending` rename (Decision 2) to this
-      phase's forms' disabled/loading UI wiring
-- [ ] Run `bun run typecheck`, `bun run build`, `bun run lint` after Phase 3;
-      resolve before continuing
+      current runtime comparison result; do not convert to strict equality —
+      normalized to `Number(subject.semester) == semesterFound` (both sides
+      numeric, loose `==` operator kept unchanged, matching every existing
+      input's comparison result exactly)
+- [x] Apply the `isLoading` → `isPending` rename (Decision 2) to this
+      phase's forms' disabled/loading UI wiring — no source change was
+      needed: both forms already destructure `isCreating`/`isEditing` by
+      name from the Phase 1 hooks, which already resolve to the hooks' real
+      `isPending` values
+- [x] Run `bun run typecheck`, `bun run build`, `bun run lint` after Phase 3;
+      resolve before continuing — typecheck clean on the first pass (no
+      follow-up fixes needed), build clean (`✓ built in 5.92s`), lint
+      dropped to 156 problems (152 errors, 4 warnings) from the 168 baseline
 
 ## 6. Phase 4 — show/list containers
 

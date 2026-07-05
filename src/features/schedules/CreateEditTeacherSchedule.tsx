@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form";
+import { useForm, type FieldValues } from "react-hook-form";
 import Form from "../../ui/Form";
 import Button from "../../ui/Button";
 import FormRow from "../../ui/FormRow";
@@ -11,6 +11,18 @@ import { useCreateScheduleTeacher } from "./useCreateScheduleTeacher";
 import { useEditScheduleTeacher } from "./useEditScheduleTeacher";
 import { WEEKDAYS, START_TIMES, END_TIMES } from "../../helpers/constants";
 import { hasWorkerConflict } from "../../helpers/detectScheduleConflict";
+import type { Worker } from "../workers/useWorkers";
+import type { ScheduleTeacher } from "./useScheduleTeachers";
+import type { ScheduleAssignment } from "./useScheduleAssignments";
+
+interface CreateEditTeacherScheduleProps {
+  workers: Worker[];
+  semesterId?: string;
+  onCloseModal?: () => void;
+  scheduleToEdit?: Partial<ScheduleTeacher>;
+  scheduleTeachers?: ScheduleTeacher[];
+  scheduleAssignments?: ScheduleAssignment[];
+}
 
 function CreateEditTeacherSchedule({
   workers,
@@ -19,7 +31,7 @@ function CreateEditTeacherSchedule({
   scheduleToEdit = {},
   scheduleTeachers = [],
   scheduleAssignments = [],
-}) {
+}: CreateEditTeacherScheduleProps) {
   const { id: editId, semesters, workers: workerData, ...editValues } = scheduleToEdit || {};
   const isEditSession = Boolean(editId);
 
@@ -28,12 +40,12 @@ function CreateEditTeacherSchedule({
 
   const isWorking = isCreating || isEditing;
 
-  const { register, handleSubmit, reset, formState } = useForm({
-    defaultValues: isEditSession ? editValues : {},
+  const { register, handleSubmit, reset, formState } = useForm<FieldValues>({
+    defaultValues: (isEditSession ? editValues : {}) as FieldValues,
   });
   const { errors } = formState;
 
-  function onSubmit(data) {
+  function onSubmit(data: FieldValues) {
     const allSchedules = [...scheduleTeachers, ...scheduleAssignments];
     if (hasWorkerConflict(allSchedules, data, editId)) {
       toast.error("El maestro ya tiene una actividad asignada ese día en ese horario.");
@@ -42,7 +54,7 @@ function CreateEditTeacherSchedule({
 
     if (isEditSession) {
       editScheduleTeacher(
-        { newScheduleData: { ...data, semester_id: semesterId }, id: editId },
+        { newScheduleData: { ...data, semester_id: semesterId }, id: editId! },
         {
           onSuccess: () => {
             reset();
@@ -65,7 +77,7 @@ function CreateEditTeacherSchedule({
 
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
-      <FormRow label="Dia de la semana" error={errors?.weekday?.message}>
+      <FormRow label="Dia de la semana" error={errors?.weekday?.message as string | undefined}>
         <Select
           id="weekday"
           disabled={isWorking}
@@ -81,7 +93,7 @@ function CreateEditTeacherSchedule({
           ))}
         </Select>
       </FormRow>
-      <FormRow label="Maestro" error={errors?.worker_id?.message}>
+      <FormRow label="Maestro" error={errors?.worker_id?.message as string | undefined}>
         <Select
           id="worker_id"
           disabled={isWorking}
@@ -97,7 +109,7 @@ function CreateEditTeacherSchedule({
           ))}
         </Select>
       </FormRow>
-      <FormRow label="Actividad" error={errors?.activity?.message}>
+      <FormRow label="Actividad" error={errors?.activity?.message as string | undefined}>
         <Textarea
           id="activity"
           disabled={isWorking}
@@ -108,7 +120,7 @@ function CreateEditTeacherSchedule({
       </FormRow>
       <FormRow
         label="Hora Inicio (Agregue por módulo de 2 horas, según corresponda)"
-        error={errors?.start_time?.message}
+        error={errors?.start_time?.message as string | undefined}
       >
         <Select
           id="start_time"
@@ -127,7 +139,7 @@ function CreateEditTeacherSchedule({
       </FormRow>
       <FormRow
         label="Hora Fin (Agregue por módulo de 2 horas, según corresponda)"
-        error={errors?.end_time?.message}
+        error={errors?.end_time?.message as string | undefined}
       >
         <Select
           id="end_time"
