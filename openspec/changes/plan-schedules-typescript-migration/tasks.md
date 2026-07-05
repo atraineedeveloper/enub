@@ -1,10 +1,11 @@
 # Tasks — plan-schedules-typescript-migration
 
-Status: **Phase 0 (confirmations relevant to Phases 1–4), Phase 1 (query/
-mutation hooks), Phase 2 (leaf cell components), Phase 3 (forms), and
-Phase 4 (show/list containers) implemented and verified.** Phases 5–6 not
-started — do not begin without explicit instruction to continue. Do not
-check off any item without actually doing the work and re-verifying it.
+Status: **Phase 0 (confirmations relevant to Phases 1–5), Phase 1 (query/
+mutation hooks), Phase 2 (leaf cell components), Phase 3 (forms), Phase 4
+(show/list containers), and Phase 5 (tab containers) implemented and
+verified.** Phase 6 not started — do not begin without explicit instruction
+to continue. Do not check off any item without actually doing the work and
+re-verifying it.
 
 ## 1. Planning artifacts (this change)
 
@@ -147,14 +148,29 @@ check off any item without actually doing the work and re-verifying it.
 
 ## 7. Phase 5 — tab containers
 
-- [ ] Convert `ScholarSchedule.jsx` → `.tsx`; remove the dead
-      `workers`/`subjects`/`groups` props passed into
-      `CreateEditScholarSchedule` (never read there — see `design.md`)
-- [ ] Convert `TeacherSchedule.jsx` → `.tsx`
-- [ ] Grep for explicit `.jsx`/`.js`-extension imports of every file renamed
-      in Phases 1–5; fix only those pointing at renamed schedules files
-- [ ] Run `bun run typecheck`, `bun run build`, `bun run lint` after Phase 5;
-      resolve before continuing
+- [x] Convert `ScholarSchedule.jsx` → `.tsx`; remove the dead `workers`/
+      `subjects` props passed into `CreateEditScholarSchedule` (never read
+      there — see `design.md`) — removed the two JSX attributes on the
+      `<CreateEditScholarSchedule>` call only; `groups` was kept since it's
+      still forwarded to `ShowScholarSchedule`. `workers`/`subjects` remain
+      in `ScholarScheduleProps` (so `ScheduleDashboard.tsx`'s existing call
+      needs no change) but are no longer destructured/bound to a local name,
+      so they don't become new unused-variable lint noise
+- [x] Convert `TeacherSchedule.jsx` → `.tsx` — no dead prop-threading found
+      or removed here (not listed for this file); all props it forwards to
+      `CreateEditTeacherSchedule`/`ShowTeacherSchedule`/`TeacherAssignment`
+      are genuinely read by those components' real Props interfaces
+- [x] Grep for explicit `.jsx`/`.js`-extension imports of every file renamed
+      in Phases 1–5; fix only those pointing at renamed schedules files —
+      none found anywhere in the repo (only two stale, informational
+      comments in already-committed Phase 2 files, left untouched)
+- [x] Run `bun run typecheck`, `bun run build`, `bun run lint` after Phase 5;
+      resolve before continuing — typecheck failed once (a real, unrelated
+      pre-existing mismatch surfaced in `ScheduleDashboard.tsx`'s `subjects`
+      prop; resolved by typing `ScholarScheduleProps.subjects` as optional
+      rather than touching the page file — see `design.md`-style note
+      above), then clean; build clean (`✓ built in 4.92s`); lint dropped to
+      129 problems (125 errors, 4 warnings) from the 138 baseline
 
 ## 8. Phase 6 — full verification
 

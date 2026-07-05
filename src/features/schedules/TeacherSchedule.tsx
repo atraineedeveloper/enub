@@ -6,6 +6,9 @@ import CreateEditTeacherSchedule from "./CreateEditTeacherSchedule";
 import ShowTeacherSchedule from "./ShowTeacherSchedule";
 import TeacherAssignment from "./TeacherAssignment";
 import Modal from "../../ui/Modal";
+import type { Worker } from "../workers/useWorkers";
+import type { ScheduleTeacher } from "./useScheduleTeachers";
+import type { ScheduleAssignment } from "./useScheduleAssignments";
 
 const ActionsBar = styled.div`
   display: flex;
@@ -20,7 +23,7 @@ const SubTabsBar = styled.div`
   margin-bottom: 2rem;
 `;
 
-const SubTab = styled.button`
+const SubTab = styled.button<{ $active: boolean }>`
   padding: 0.8rem 1.6rem;
   font-size: 1.4rem;
   font-weight: 600;
@@ -37,12 +40,19 @@ const SubTab = styled.button`
   }
 `;
 
+interface TeacherScheduleProps {
+  workers: Worker[];
+  scheduleTeachers: ScheduleTeacher[];
+  scheduleAssignments: ScheduleAssignment[];
+  semesterId?: string;
+}
+
 function TeacherSchedule({
   workers,
   scheduleTeachers,
   scheduleAssignments,
   semesterId,
-}) {
+}: TeacherScheduleProps) {
   const [activeSubTab, setActiveSubTab] = useState("schedules");
 
   return (
