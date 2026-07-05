@@ -1,11 +1,14 @@
 # Tasks — plan-schedules-typescript-migration
 
-Status: **Phase 0 (confirmations relevant to Phases 1–5), Phase 1 (query/
-mutation hooks), Phase 2 (leaf cell components), Phase 3 (forms), Phase 4
-(show/list containers), and Phase 5 (tab containers) implemented and
-verified.** Phase 6 not started — do not begin without explicit instruction
-to continue. Do not check off any item without actually doing the work and
-re-verifying it.
+Status: **Phases 0–5 implemented and verified. Phase 6 automated
+verification (validate/typecheck/build/lint/import-audit) complete. Manual
+browser smoke testing has now been performed: 6 of 7 checks passed; the PDF
+export check failed on `ScheduleTeacherPDF`, but the same failure reproduces
+on `main`, so it's classified as a pre-existing PDF/out-of-scope bug, not a
+schedules TypeScript regression.** `src/pdf/**` remains intentionally
+untouched by this migration; repairing the PDF bug is deferred to a
+separate, future PDF-focused OpenSpec change. Do not check off any item
+without actually doing the work and re-verifying it.
 
 ## 1. Planning artifacts (this change)
 
@@ -174,31 +177,72 @@ re-verifying it.
 
 ## 8. Phase 6 — full verification
 
-- [ ] Run `openspec validate` on the implementation change
-- [ ] Run `bunx @fission-ai/openspec validate <implementation-change-name> --type change --strict`
-- [ ] Run `bun run typecheck` (full repo)
-- [ ] Run `bun run build` (full repo)
-- [ ] Run `bun run lint` (full repo); record before/after totals against the
-      205-problem baseline recorded in `design.md`
-- [ ] Manual smoke check: both schedule tabs render on `/semesters/:id`
-- [ ] Manual smoke check: create/edit/delete a scholar schedule assignment,
-      including a conflict-detection rejection case
-- [ ] Manual smoke check: create/edit/delete a teacher activity, including a
-      conflict-detection rejection case
-- [ ] Manual smoke check: group filter (scholar) and worker filter (teacher)
-      both still filter correctly
+- [x] Run `openspec validate` on the implementation change — passed:
+      "Change 'plan-schedules-typescript-migration' is valid"
+- [x] Run `bunx @fission-ai/openspec validate <implementation-change-name> --type change --strict`
+      — passed (same result); `bunx @fission-ai/openspec status --change
+      plan-schedules-typescript-migration` also confirms all 4 artifacts
+      (proposal/design/specs/tasks) complete
+- [x] Run `bun run typecheck` (full repo) — clean, no errors
+- [x] Run `bun run build` (full repo) — clean, `✓ built in 5.71s`, no
+      diagnostics
+- [x] Run `bun run lint` (full repo); record before/after totals against the
+      205-problem baseline recorded in `design.md` — final total: **129
+      problems (125 errors, 4 warnings)**, down from the 205 pre-migration
+      baseline (a 76-error drop across Phases 1–5) and unchanged from
+      Phase 5's own end state (no code was changed in Phase 6, verification
+      only)
+- [x] Manual smoke check: both schedule tabs render on `/semesters/:id` —
+      performed by a human in a browser; passed
+- [x] Manual smoke check: create/edit/delete a scholar schedule assignment,
+      including a conflict-detection rejection case — performed by a human
+      in a browser; passed
+- [x] Manual smoke check: create/edit/delete a teacher activity, including a
+      conflict-detection rejection case — performed by a human in a
+      browser; passed
+- [x] Manual smoke check: group filter (scholar) and worker filter (teacher)
+      both still filter correctly — performed by a human in a browser;
+      passed
 - [ ] Manual smoke check: all 3 schedule-related PDF export buttons still
-      produce a PDF with unchanged content
-- [ ] Manual smoke check: mutation buttons/selects now visibly disable during
-      in-flight create/edit/delete requests (Decision 2's authorized fix)
-- [ ] Manual smoke check: closing the teacher-activity edit modal no longer
-      throws a `ReferenceError` (Decision 3's authorized fix)
-- [ ] Confirm `CreateScholarSchedule.jsx`, `EditScholarSchedule.jsx`, and
-      `RowTeacherAssignment.jsx` are unmodified in the diff (Decision 1)
-- [ ] Confirm no shared `groupData` helper module was introduced and all
-      copies remain in their original files (Decision 5)
-- [ ] Confirm `git status`/`git diff --stat` changed-file set matches exactly
-      what Phases 1–5 intended — no unrelated file touched
+      produce a PDF with unchanged content — **FAILED, not passed.**
+      Performed by a human in a browser: the `ScheduleTeacherPDF` export
+      throws `Uncaught (in promise) TypeError: Cannot read properties of
+      undefined (reading 'role')` at `ScheduleTeacherPDF.jsx:351`. **Failed
+      on this branch and also fails on main; classified as pre-existing
+      PDF/out-of-scope bug, not a schedules TypeScript regression.**
+      `src/pdf/**` remains intentionally untouched by this migration (per
+      the standing PDF-exclusion requirement in `spec.md` and the
+      Non-Goals in `design.md`), and no fix was attempted here. Repairing
+      this bug must be handled in a separate, future PDF-focused OpenSpec
+      change — it is out of scope for `plan-schedules-typescript-migration`
+      both by original design and because it predates this migration
+      entirely.
+- [x] Manual smoke check: mutation buttons/selects now visibly disable during
+      in-flight create/edit/delete requests (Decision 2's authorized fix) —
+      performed by a human in a browser; passed
+- [x] Manual smoke check: closing the teacher-activity edit modal no longer
+      throws a `ReferenceError` (Decision 3's authorized fix) — performed by
+      a human in a browser; passed
+- [x] Confirm `CreateScholarSchedule.jsx`, `EditScholarSchedule.jsx`, and
+      `RowTeacherAssignment.jsx` are unmodified in the diff (Decision 1) —
+      confirmed via `git diff --stat d0f4b8e..HEAD` (zero changes to any of
+      the three) and via lint output (all three retain their exact original
+      pre-migration errors, including `EditScholarSchedule.jsx`'s 4
+      rules-of-hooks violations and undefined `Spinner` reference, untouched)
+- [x] Confirm no shared `groupData` helper module was introduced and all
+      copies remain in their original files (Decision 5) — confirmed via
+      `find src/features/schedules -maxdepth 1 -type f`: no new file exists;
+      the two in-scope copies remain in `ShowTeacherSchedule.tsx`/
+      `TeacherAssignment.tsx`, the third stays in the out-of-scope PDF
+      exporters
+- [x] Confirm `git status`/`git diff --stat` changed-file set matches exactly
+      what Phases 1–5 intended — no unrelated file touched — confirmed:
+      `git diff --stat d0f4b8e..HEAD -- src/pdf src/services
+      src/types/supabase.ts package.json tsconfig.json eslint.config.js
+      supabase/` is empty; the only files changed across the whole migration
+      span are the 20 in-scope schedules files plus (from the separately
+      already-committed `convert-pages-to-ts` change) `src/pages/**` and
+      `src/ui/FormRowVertical.tsx`
 
 ## 9. Not in scope for the eventual implementation change
 

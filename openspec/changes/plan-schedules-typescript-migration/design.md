@@ -454,6 +454,25 @@ For the eventual implementation change (not this one):
 - Confirm closing the teacher-activity edit modal no longer throws
   (Decision 3's authorized fix).
 
+### Results (post-implementation manual smoke test)
+
+6 of 7 checks passed: both schedule tabs render, scholar-schedule create/
+edit/delete (including conflict-detection rejection), teacher-activity
+create/edit/delete (including conflict-detection rejection), the group/
+worker filter dropdowns, the Decision 2 disabled-state fix, and the
+Decision 3 modal-close fix all behaved as expected.
+
+The PDF-export check **failed**: `ScheduleTeacherPDF`'s export throws
+`Uncaught (in promise) TypeError: Cannot read properties of undefined
+(reading 'role')` at `ScheduleTeacherPDF.jsx:351`. This same PDF flow also
+fails on `main`, so it is classified as a **pre-existing PDF/out-of-scope
+bug**, not a regression introduced by this migration. `src/pdf/**` remains
+intentionally untouched, exactly as this change's Non-Goals and the
+`schedule-typescript-safety` spec's PDF-exclusion requirement call for.
+Repairing this bug is deferred to a separate, future PDF-focused OpenSpec
+change — it is out of scope here both by original design and because it
+predates this migration.
+
 ## Rollback/Cancel Criteria
 
 - If Phase 1 (hooks) cannot reach a clean `bun run typecheck` without
