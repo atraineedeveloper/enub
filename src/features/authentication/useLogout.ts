@@ -6,7 +6,10 @@ export function useLogout() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { mutate: logout, isLoading } = useMutation({
+  // v5 fix: same isLoading→isPending rename as useLogin.ts, aliased back to
+  // `isLoading` to keep this hook's return shape unchanged for its one
+  // caller (Logout.tsx).
+  const { mutate: logout, isPending: isLoading } = useMutation({
     mutationFn: logoutApi,
     onSuccess: () => {
       queryClient.removeQueries();

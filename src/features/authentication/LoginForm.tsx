@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent, type ChangeEvent } from "react";
 import Form from "../../ui/Form";
 import Input from "../../ui/Input";
 import Button from "../../ui/Button";
@@ -13,7 +13,7 @@ function LoginForm() {
 
   const { login, isLoading, error: authError } = useLogin();
 
-  function handleSubmit(e) {
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!email || !password) {
       setFormError("Ingresa correo y contraseña.");
@@ -48,7 +48,7 @@ function LoginForm() {
           // This makes this form better for password managers
           autoComplete="username"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
           disabled={isLoading}
         />
       </FormRowVertical>
@@ -58,7 +58,7 @@ function LoginForm() {
           id="password"
           autoComplete="current-password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
           disabled={isLoading}
         />
       </FormRowVertical>

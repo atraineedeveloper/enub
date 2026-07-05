@@ -237,37 +237,53 @@ duplicate success toasts"). Worth a future, separately-scoped fix if/when a
 
 ## 4. Phase 4 — Authentication (live files only)
 
-- [ ] Convert `src/features/authentication/useLogin.js` → `.ts`, applying
-      the `isLoading`→`isPending` fix (Closed Decision 5); preserve the
-      mutation's queryFn/onSuccess/onError behavior exactly.
-- [ ] Convert `src/features/authentication/useLogout.js` → `.ts`, applying
-      the same `isLoading`→`isPending` fix.
-- [ ] Convert `src/features/authentication/useCreateWorkerAccount.js` → `.ts`
+- [x] Convert `src/features/authentication/useLogin.js` → `.ts`, applying
+      the `isLoading`→`isPending` fix (Closed Decision 5) — destructures
+      `isPending` from `useMutation` (v5's real property; `isLoading` doesn't
+      exist on the v5 mutation result, so it was silently `undefined` before,
+      meaning `LoginForm`'s loading spinner/disabled state never actually
+      activated), aliased back to `isLoading` in this hook's own return so
+      `LoginForm.tsx` needed zero changes to its consumption of the hook;
+      preserved the mutation's queryFn/onSuccess/onError behavior exactly.
+- [x] Convert `src/features/authentication/useLogout.js` → `.ts`, applying
+      the same `isLoading`→`isPending`-aliased-back-to-`isLoading` fix.
+- [x] Convert `src/features/authentication/useCreateWorkerAccount.js` → `.ts`
       (already uses `isPending`, no rename needed).
-- [ ] Convert `src/features/authentication/useLinkWorkerAccount.js` → `.ts`
+- [x] Convert `src/features/authentication/useLinkWorkerAccount.js` → `.ts`
       (already `isPending`).
-- [ ] Convert `src/features/authentication/useResendWorkerAccessLink.js` →
+- [x] Convert `src/features/authentication/useResendWorkerAccessLink.js` →
       `.ts` (already `isPending`).
-- [ ] Convert `src/features/authentication/useSetPassword.js` → `.ts`
+- [x] Convert `src/features/authentication/useSetPassword.js` → `.ts`
       (already `isPending`).
-- [ ] Convert `src/features/authentication/useProfile.js` → `.ts` (a
+- [x] Convert `src/features/authentication/useProfile.js` → `.ts` (a
       `useQuery`; `isLoading` naming is already v5-correct, no rename).
-- [ ] Convert `src/features/authentication/useUser.js` → `.ts` (a `useQuery`;
+- [x] Convert `src/features/authentication/useUser.js` → `.ts` (a `useQuery`;
       `isLoading` already v5-correct, no rename).
-- [ ] Convert `src/features/authentication/LoginForm.jsx` → `.tsx`.
-- [ ] Convert `src/features/authentication/Logout.jsx` → `.tsx`.
-- [ ] Do NOT touch `UpdatePasswordForm.jsx`/`UpdateUserDataForm.jsx` in this
-      phase — they are handled in Phase 6 (dead-file disposition).
-- [ ] Audit every caller (`Login.tsx`, `Header.tsx`, `RoleGate.jsx`,
+- [x] Convert `src/features/authentication/LoginForm.jsx` → `.tsx`, typing
+      the submit/change event handlers (`FormEvent<HTMLFormElement>`,
+      `ChangeEvent<HTMLInputElement>`); no field, label, validation, or
+      payload-shape change.
+- [x] Convert `src/features/authentication/Logout.jsx` → `.tsx`; changed
+      `onClick={logout}` to `onClick={() => logout()}` — required because
+      `logout` (the mutate function) is typed `(variables: void, options?) =>
+      void` and isn't directly assignable to `MouseEventHandler` (a
+      `MouseEvent` argument isn't assignable to a `void`-typed parameter);
+      the wrapper calls the exact same zero-argument mutation synchronously,
+      no behavior change.
+- [x] Do NOT touch `UpdatePasswordForm.jsx`/`UpdateUserDataForm.jsx` in this
+      phase — they are handled in Phase 6 (dead-file disposition). Re-confirmed
+      zero importers for both immediately before this phase.
+- [x] Audit every caller (`Login.tsx`, `Header.tsx`, `RoleGate.jsx`,
       `WorkerRow.tsx`, `LinkWorkerAccountForm.tsx`, `SetPassword.tsx`,
       `ProtectedRoute.tsx`, `MyDocuments.tsx`, `useLinkedWorkerAccounts.ts`)
-      for import-path breakage.
+      for import-path breakage. Result: zero changes needed anywhere — every
+      caller already used extension-less imports.
 - [ ] Manually verify: login succeeds and redirects correctly per role;
       logout returns to `/login`; worker account create/resend actions show
       correct toast/error messaging.
-- [ ] `bun run typecheck`
-- [ ] `bun run build`
-- [ ] `bun run lint` (record before/after counts)
+- [x] `bun run typecheck`
+- [x] `bun run build`
+- [x] `bun run lint` (record before/after counts)
 
 ## 5. Phase 5 — stateRoles + otherData
 
@@ -510,7 +526,42 @@ duplicate success toasts"). Worth a future, separately-scoped fix if/when a
   callers (`CreateGroupForm.tsx`/`CreateSemesterForm.tsx`) pass
   react-hook-form's raw `data: object` with no cast, and `object` doesn't
   satisfy an index-signature type.
-- Phase 4 code conversion + manual check: _pending_
+- Phase 4 code conversion: done. `bunx @fission-ai/openspec validate ...
+  --strict` passes; `bun run typecheck` clean; `bun run build` succeeds;
+  `bun run lint` is 81 problems (77 errors, 4 warnings) — unchanged from the
+  Phase 3.5 baseline (0 delta; confirmed via isolated lint of every
+  pre-conversion source that the only pre-existing issue among these 10
+  files was `useLogin.js`'s unused `err` parameter, preserved verbatim under
+  `@typescript-eslint/no-unused-vars`). `find src -type f \( -name "*.js" -o
+  -name "*.jsx" \)` returns exactly **19** files (down from 29). `git status
+  --short` confirms exactly the 10 target files renamed and nothing else —
+  `UpdatePasswordForm.jsx`/`UpdateUserDataForm.jsx` untouched (re-confirmed
+  zero importers before starting), no stateRoles/otherData/schedules/service/
+  config files changed.
+
+  Real, silent v5 bug fixed: `useLogin.js`/`useLogout.js` destructured
+  `isLoading` from `useMutation()`, but TanStack Query v5 renamed that
+  property to `isPending` — `isLoading` doesn't exist on the v5 mutation
+  result at all, so it was always `undefined`, meaning `LoginForm`'s and
+  `Logout`'s loading spinner/disabled state never actually activated during
+  a real login/logout request. Fixed by destructuring `isPending` and
+  aliasing it back to `isLoading` (`isPending: isLoading`) in each hook's own
+  return, so both hooks' **public return shape is unchanged** and neither
+  `LoginForm.tsx` nor `Logout.tsx` needed any change to how they consume the
+  hook.
+
+  One additional type-only fix required by strict typing:
+  `Logout.tsx`'s `onClick={logout}` (passing the mutate function directly)
+  doesn't satisfy `MouseEventHandler` under TS (a `MouseEvent` argument isn't
+  assignable to `logout`'s `variables: void` parameter) — changed to
+  `onClick={() => logout()}`, a same-tick synchronous wrapper with no
+  behavior difference.
+- Phase 4 manual check: _pending_ — not performed in this turn (no
+  browser/dev-server session available); must be done before Phase 5 begins.
+  Recommended smoke checks: login (valid + invalid credentials, confirm
+  redirect and spinner now actually shows while pending), logout (confirm
+  redirect to `/login`), `/set-password` flow if a valid link is available,
+  and worker-row create-account/link-account/resend-link actions.
 - Phase 5 code conversion + manual check: _pending_
 - Phase 6 dead-file re-confirmation + deletion: _pending_
 - Phase 7 font-asset decision re-review: _pending_
