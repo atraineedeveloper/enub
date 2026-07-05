@@ -127,20 +127,46 @@
 
 ## 4. Phase 4 — Convert WorkerSheetSemester to TypeScript
 
-- [ ] Convert `src/pdf/WorkerSheetSemester.jsx` to `WorkerSheetSemester.tsx`,
-      typing `workers: Worker[]`, `semester: Semester[]`,
-      `scheduleAssignments: ScheduleAssignment[]`,
-      `scheduleTeachers: ScheduleTeacher[]` (replacing the `unknown[]`
-      placeholders currently used in `ScheduleDashboard.tsx`'s cast), and the
-      same `Role`/`autoTable` typing as the other three files.
-- [ ] Update `src/pages/ScheduleDashboard.tsx` to remove or narrow its
-      existing `WorkerSheetSemester` `ComponentType` cast now that the
-      component is natively typed; no other change to this file.
+> Correction to this task's original plan: `workers` is typed as
+> `WorkerWithDetails[]`, not `Worker[]` — the component's own body reads
+> `worker.date_of_admissions`/`worker.sustenance_plazas`, fields that only
+> exist on `WorkerWithDetails` (`ScheduleDashboard.tsx` calls
+> `useWorkers({ fullDetails: true })`, so the runtime data always has them;
+> the base `Worker` type just doesn't say so). `ScheduleDashboard.tsx`'s
+> existing `ComponentType<{ workers: Worker[]; ... }>` cast turned out to
+> **not** need narrowing — `bun run typecheck` passes with that file
+> completely untouched, so the second original task item ("update
+> `ScheduleDashboard.tsx`'s cast") was not needed and nothing there changed.
+
+- [x] Convert `src/pdf/WorkerSheetSemester.jsx` to `WorkerSheetSemester.tsx`,
+      typing `workers: WorkerWithDetails[]` (see correction above),
+      `semester: Semester[]`, `scheduleAssignments?: ScheduleAssignment[]`,
+      `scheduleTeachers?: ScheduleTeacher[]` (optional with `= []` defaults,
+      matching the existing destructuring defaults), reusing `Role` (via
+      `useRoles()`, already typed) and adding a local `JsPdfWithAutoTable`
+      type (`jsPDF & { autoTable: (options: UserOptions) => void; internal:
+      jsPDF["internal"] & { getCurrentPageInfo: () => PageInfo } }`) for the
+      `autoTable` call and the `internal.getCurrentPageInfo()` call (missing
+      from jsPDF's bundled types despite existing at runtime — the gap
+      `design.md` anticipated for this file specifically).
+- [x] Type this file's local helper functions (`transformDate`,
+      `getFileExtension`, `groupData`, `normalizeMultilineText`,
+      `buildFunctionPerformedText`, `drawWorkerPhotoInCell`,
+      `drawPageHeaderFooter`, `drawMixedCenteredLine`,
+      `drawCenteredWrappedText`, `findRoleByKeywords`, `toUpperEs`) — all were
+      implicit-`any`-parameter closures under the old `.jsx`/`checkJs:false`
+      setup; `strict: true` requires explicit parameter types once the file
+      itself is type-checked. No logic in any of them changed.
+- [x] Preserve the existing defensive `availableRoles`/`findRoleByKeywords`/
+      `leftFooterRole`/`rightFooterRole`/footer-fallback logic exactly
+      (byte-identical aside from the added `keywords: string[] = []` and
+      `value: string = ""` parameter type annotations).
 - [ ] Manually re-run the export action and compare output against the
-      pre-Phase-4 baseline.
-- [ ] `bun run typecheck`
-- [ ] `bun run build`
-- [ ] `bun run lint` (record before/after counts)
+      pre-Phase-4 baseline (structure/header/table/signature output
+      unchanged).
+- [x] `bun run typecheck`
+- [x] `bun run build`
+- [x] `bun run lint` (record before/after counts)
 
 ## 5. Phase 5 — Final verification
 
@@ -205,6 +231,17 @@
   not removed or otherwise touched.
 - Phase 3 manual check: _pending_ — not performed in this turn (no
   browser/dev-server session available); must be done before Phase 4 begins
-- Phase 4 manual check: _pending_
+- Phase 4 code conversion: done. `bunx @fission-ai/openspec validate ... --strict`
+  passes; `bun run typecheck` clean; `bun run build` succeeds; `bun run lint`
+  is 83 problems (79 errors, 4 warnings) — down from the Phase 3 baseline of
+  89 (-6). All 6 fewer are `react/prop-types` errors in this one file
+  disappearing (confirmed by linting the pre-conversion `.jsx` in isolation:
+  exactly 6 problems, all `react/prop-types`, 0 remaining after conversion) —
+  same expected, inherent side effect as every earlier phase's conversions,
+  not independent cleanup. `src/pages/ScheduleDashboard.tsx`,
+  `src/features/schedules/**`, `src/features/workers/**`, `src/pdf/Schedules/**`,
+  and `useRoles()` all confirmed untouched via `git status`.
+- Phase 4 manual check: _pending_ — not performed in this turn (no
+  browser/dev-server session available); must be done before Phase 5 begins
 - Final manual smoke pass (4/4 PDFs): _pending_
 - Final lint count (before → after): _pending_

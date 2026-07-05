@@ -1,48 +1,75 @@
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import type { UserOptions, RowInput, Styles, CellHookData, PageHook } from "jspdf-autotable";
+import type { PageInfo } from "jspdf";
 import { useState } from "react";
 import Button from "../ui/Button";
-import { useRoles } from "../features/roles/useRoles.ts";
+import { useRoles } from "../features/roles/useRoles";
 import calculateSemesterGroup from "../helpers/calculateSemesterGroup.js";
 import capitalizeName from "../helpers/capitalizeFirstLetter.js";
-import Spinner from "../ui/Spinner.tsx";
+import Spinner from "../ui/Spinner";
+import type { WorkerWithDetails } from "../features/workers/useWorkers";
+import type { Semester } from "../features/semesters/useSemesters";
+import type { ScheduleAssignment } from "../features/schedules/useScheduleAssignments";
+import type { ScheduleTeacher } from "../features/schedules/useScheduleTeachers";
 
-function transformDate(dateString) {
+// autoTable isn't on jsPDF's own type (jspdf-autotable only exports a
+// standalone function), and internal.getCurrentPageInfo is missing from
+// jsPDF's bundled `internal` type -- both exist at runtime once the
+// jspdf-autotable side-effect import above registers the plugin.
+type JsPdfWithAutoTable = jsPDF & {
+  autoTable: (options: UserOptions) => void;
+  internal: jsPDF["internal"] & {
+    getCurrentPageInfo: () => PageInfo;
+  };
+};
+
+// jspdf-autotable doesn't export HookData itself (only CellHookData, which
+// extends it) -- derived structurally from the exported PageHook signature.
+type PageHookData = Parameters<PageHook>[0];
+
+function transformDate(dateString: string) {
   const [year, month, day] = dateString.split("-");
   const shortYear = year.slice(-2);
 
   return `${day}-${month}-${shortYear}`;
 }
 
-function getFileExtension(fileName) {
+function getFileExtension(fileName?: string | null) {
   return fileName?.split(".").pop();
 }
 
-const groupData = (array, key) => {
-  return array.reduce((result, currentValue) => {
-    // Obtén el valor de la propiedad por la que vamos a agrupar
-    const groupKey = currentValue[key];
+const groupData = (
+  array: ScheduleAssignment[],
+  key: "subject_id" | "group_id"
+) => {
+  return array.reduce(
+    (result: Record<string, ScheduleAssignment[]>, currentValue) => {
+      // Obtén el valor de la propiedad por la que vamos a agrupar
+      const groupKey = String(currentValue[key]);
 
-    // Si el grupo aún no existe, créalo
-    if (!result[groupKey]) {
-      result[groupKey] = [];
-    }
+      // Si el grupo aún no existe, créalo
+      if (!result[groupKey]) {
+        result[groupKey] = [];
+      }
 
-    // Agrega el elemento actual al grupo correspondiente
-    result[groupKey].push(currentValue);
+      // Agrega el elemento actual al grupo correspondiente
+      result[groupKey].push(currentValue);
 
-    return result;
-  }, {});
+      return result;
+    },
+    {}
+  );
 };
 
-const normalizeMultilineText = (value) =>
+const normalizeMultilineText = (value: unknown) =>
   String(value ?? "")
     .replace(/\n[ \t]+/g, "\n")
     .trim();
 
 const buildFunctionPerformedText = (
-  workerFunctionPerformed,
-  uniqueTeacherSchedule
+  workerFunctionPerformed: string | null,
+  uniqueTeacherSchedule: { name: string; quantity: number }[]
 ) => {
   const manualFunction = String(workerFunctionPerformed ?? "").trim();
   const activities = (uniqueTeacherSchedule ?? [])
@@ -61,12 +88,19 @@ const buildFunctionPerformedText = (
   return deduped.join("\n\n");
 };
 
+interface WorkerSheetSemesterProps {
+  workers: WorkerWithDetails[];
+  semester: Semester[];
+  scheduleAssignments?: ScheduleAssignment[];
+  scheduleTeachers?: ScheduleTeacher[];
+}
+
 function WorkerSheetSemester({
   workers,
   semester,
   scheduleAssignments = [],
   scheduleTeachers = [],
-}) {
+}: WorkerSheetSemesterProps) {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const activeWorkers = workers.filter((worker) => {
     return worker.status === 1;
@@ -87,7 +121,7 @@ function WorkerSheetSemester({
   const { isLoading: isLoadingRoles, roles } = useRoles();
   const availableRoles = roles ?? [];
 
-  const findRoleByKeywords = (keywords = []) =>
+  const findRoleByKeywords = (keywords: string[] = []) =>
     availableRoles.find((role) =>
       keywords.some((keyword) =>
         role?.role?.toLowerCase().includes(keyword.toLowerCase())
@@ -105,7 +139,7 @@ function WorkerSheetSemester({
     availableRoles[0] ??
     null;
 
-  const toUpperEs = (value = "") => value.trim().toLocaleUpperCase("es-MX");
+  const toUpperEs = (value: string = "") => value.trim().toLocaleUpperCase("es-MX");
 
   const leftFooterName = leftFooterRole?.workers?.name
     ? toUpperEs(capitalizeName(leftFooterRole.workers.name))
@@ -129,7 +163,7 @@ function WorkerSheetSemester({
       await import("../styles/Montserrat-Bold-bold.js");
       await import("../styles/Montserrat-BoldItalic-bolditalic.js");
 
-      const doc = new jsPDF("landscape", "px", "letter");
+      const doc = new jsPDF("landscape", "px", "letter") as JsPdfWithAutoTable;
       const logoEnub = new Image();
       logoEnub.src = "/enub.jpg";
 
@@ -140,7 +174,7 @@ function WorkerSheetSemester({
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
 
-    function drawWorkerPhotoInCell(data, profilePictureName) {
+    function drawWorkerPhotoInCell(data: CellHookData, profilePictureName?: string | null) {
       if (!profilePictureName) return;
 
       const fileExtension = getFileExtension(profilePictureName);
@@ -178,7 +212,7 @@ function WorkerSheetSemester({
       );
     }
 
-    function drawPageHeaderFooter(data) {
+    function drawPageHeaderFooter(data: PageHookData) {
       const currentPageNumber = doc.internal.getCurrentPageInfo().pageNumber;
       if (drawnPages.has(currentPageNumber)) return;
       drawnPages.add(currentPageNumber);
@@ -210,7 +244,11 @@ function WorkerSheetSemester({
       doc.setFontSize(7.4);
       const headerInfoFontSize = 7.4;
 
-      function drawMixedCenteredLine(y, segments, fontSize = headerInfoFontSize) {
+      function drawMixedCenteredLine(
+        y: number,
+        segments: { text: string; font: string; fontStyle: string }[],
+        fontSize: number = headerInfoFontSize
+      ) {
         let totalWidth = 0;
         for (const segment of segments) {
           doc.setFont(segment.font, segment.fontStyle);
@@ -269,9 +307,14 @@ function WorkerSheetSemester({
       const footerTopY = pageHeight - 84;
       const lineHeight = 10;
 
-      function drawCenteredWrappedText(text, x, y, maxWidth) {
-        const lines = doc.splitTextToSize(text, maxWidth);
-        lines.forEach((line, index) => {
+      function drawCenteredWrappedText(
+        text: string,
+        x: number,
+        y: number,
+        maxWidth: number
+      ) {
+        const lines: string[] = doc.splitTextToSize(text, maxWidth);
+        lines.forEach((line: string, index: number) => {
           doc.text(line, x, y + index * lineHeight, { align: "center" });
         });
       }
@@ -306,7 +349,7 @@ function WorkerSheetSemester({
       );
     }
 
-    const columns = [
+    const columns: RowInput[] = [
       [
         { content: "PROG", rowSpan: 2 },
         {
@@ -334,7 +377,7 @@ function WorkerSheetSemester({
       ["FUNCIÓN QUE\nDESEMPEÑA", "NO. DE\nHORAS", "TOTAL DE\nHORAS"],
     ];
 
-    const columnStyles = {
+    const columnStyles: { [key: string]: Partial<Styles> } = {
       0: { cellWidth: 14, halign: "center" },
       1: { cellWidth: 108 },
       2: { cellWidth: 40 },
@@ -391,8 +434,8 @@ function WorkerSheetSemester({
         );
 
         const countTeacherSchedules = currentSemesterTeacherSchedules.reduce(
-          (acc, item) => {
-            const trimmedAcitivity = item.activity.trim();
+          (acc: Record<string, number>, item) => {
+            const trimmedAcitivity = item.activity!.trim();
 
             if (acc[trimmedAcitivity]) {
               acc[trimmedAcitivity]++;
@@ -446,7 +489,7 @@ function WorkerSheetSemester({
   ${worker.city}, ${worker.state}
   ${worker.email === null ? "" : worker.email}
   ${worker.date_of_admissions.map(
-    (date) => ` ${date.type}: ${transformDate(date.date_of_admission)}`
+    (date) => ` ${date.type}: ${transformDate(date.date_of_admission!)}`
   )}`),
           worker.RFC,
           normalizeMultilineText(`${worker.sustenance_plazas.map(
@@ -461,17 +504,17 @@ function WorkerSheetSemester({
           worker.specialty,
           normalizeMultilineText(Object.keys(groupedSubjects).map(
             (subject) => `
-  ${groupedSubjects[subject][0].subjects.name}
+  ${groupedSubjects[subject][0].subjects!.name}
 
   ${Object.keys(groupData(groupedSubjects[subject], "group_id")).map(
     (group) =>
       ` (${calculateSemesterGroup(
-        groupData(groupedSubjects[subject], "group_id")[group][0].groups
+        groupData(groupedSubjects[subject], "group_id")[group][0].groups!
           .year_of_admission
       )} ° "${
-        groupData(groupedSubjects[subject], "group_id")[group][0].groups.letter
+        groupData(groupedSubjects[subject], "group_id")[group][0].groups!.letter
       }")`
-      )} - ${groupedSubjects[subject][0].groups.degrees.code}
+      )} - ${groupedSubjects[subject][0].groups!.degrees!.code}
   `
           )).toLocaleUpperCase("es-MX"),
           `${numHours > 0 ? numHours : ""}`,
@@ -553,8 +596,8 @@ function WorkerSheetSemester({
         );
 
         const countTeacherSchedules = currentSemesterTeacherSchedules.reduce(
-          (acc, item) => {
-            const trimmedAcitivity = item.activity.trim();
+          (acc: Record<string, number>, item) => {
+            const trimmedAcitivity = item.activity!.trim();
 
             if (acc[trimmedAcitivity]) {
               acc[trimmedAcitivity]++;
@@ -608,7 +651,7 @@ function WorkerSheetSemester({
   ${worker.city}, ${worker.state}
   ${worker.email === null ? "" : worker.email}
   ${worker.date_of_admissions.map(
-    (date) => ` ${date.type}: ${transformDate(date.date_of_admission)}`
+    (date) => ` ${date.type}: ${transformDate(date.date_of_admission!)}`
   )}`),
           worker.RFC,
           normalizeMultilineText(`${worker.sustenance_plazas.map(
@@ -623,17 +666,17 @@ function WorkerSheetSemester({
           worker.specialty,
           normalizeMultilineText(Object.keys(groupedSubjects).map(
             (subject) => `
-  ${groupedSubjects[subject][0].subjects.name} 
-  
+  ${groupedSubjects[subject][0].subjects!.name}
+
   ${Object.keys(groupData(groupedSubjects[subject], "group_id")).map(
     (group) =>
       ` (${calculateSemesterGroup(
-        groupData(groupedSubjects[subject], "group_id")[group][0].groups
+        groupData(groupedSubjects[subject], "group_id")[group][0].groups!
           .year_of_admission
       )} ° "${
-        groupData(groupedSubjects[subject], "group_id")[group][0].groups.letter
+        groupData(groupedSubjects[subject], "group_id")[group][0].groups!.letter
       }")`
-      )} - ${groupedSubjects[subject][0].groups.degrees.code}
+      )} - ${groupedSubjects[subject][0].groups!.degrees!.code}
   `
           )).toLocaleUpperCase("es-MX"),
           `${numHours > 0 ? numHours : ""}`,
@@ -715,8 +758,8 @@ function WorkerSheetSemester({
         );
 
         const countTeacherSchedules = currentSemesterTeacherSchedules.reduce(
-          (acc, item) => {
-            const trimmedAcitivity = item.activity.trim();
+          (acc: Record<string, number>, item) => {
+            const trimmedAcitivity = item.activity!.trim();
 
             if (acc[trimmedAcitivity]) {
               acc[trimmedAcitivity]++;
@@ -770,7 +813,7 @@ function WorkerSheetSemester({
   ${worker.city}, ${worker.state}
   ${worker.email === null ? "" : worker.email}
   ${worker.date_of_admissions.map(
-    (date) => ` ${date.type}: ${transformDate(date.date_of_admission)}`
+    (date) => ` ${date.type}: ${transformDate(date.date_of_admission!)}`
   )}`),
           worker.RFC,
           normalizeMultilineText(`${worker.sustenance_plazas.map(
@@ -785,17 +828,17 @@ function WorkerSheetSemester({
           worker.specialty,
           normalizeMultilineText(Object.keys(groupedSubjects).map(
             (subject) => `
-  ${groupedSubjects[subject][0].subjects.name} 
-  
+  ${groupedSubjects[subject][0].subjects!.name}
+
   ${Object.keys(groupData(groupedSubjects[subject], "group_id")).map(
     (group) =>
       ` (${calculateSemesterGroup(
-        groupData(groupedSubjects[subject], "group_id")[group][0].groups
+        groupData(groupedSubjects[subject], "group_id")[group][0].groups!
           .year_of_admission
       )} ° "${
-        groupData(groupedSubjects[subject], "group_id")[group][0].groups.letter
+        groupData(groupedSubjects[subject], "group_id")[group][0].groups!.letter
       }")`
-      )} - ${groupedSubjects[subject][0].groups.degrees.code}
+      )} - ${groupedSubjects[subject][0].groups!.degrees!.code}
   `
           )).toLocaleUpperCase("es-MX"),
           `${numHours > 0 ? numHours : ""}`,
