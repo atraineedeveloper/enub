@@ -1,8 +1,8 @@
 # Tasks — convert-workers-documents-to-ts
 
-Status: **Phase 1 (workers core list/table/hooks) and Phase 2 (worker create/edit/
-account forms) done; typecheck/lint verified.** Phases 3–4 not started — do not
-begin without explicit instruction to continue.
+Status: **Phase 1 (workers core list/table/hooks), Phase 2 (worker create/edit/
+account forms), and Phase 3 (worker documents) done; typecheck/lint verified.**
+Phase 4 import-fix check is complete as a no-op; page conversion is not started.
 
 ## Phase 1: workers core list/table/hooks
 
@@ -143,22 +143,102 @@ begin without explicit instruction to continue.
       `useWorkers.ts` (new type exports), and
       `openspec/changes/convert-workers-documents-to-ts/**`. No other file.
 
-## Phase 3: worker documents — NOT STARTED
+## Phase 3: worker documents
 
-Do not begin without explicit instruction.
+### Pre-conversion checks
 
-## Phase 4: related pages/import-path fixes — NOT STARTED
+- [x] Grepped `src/types/supabase.ts` for `worker_document` — zero matches;
+      confirmed via `supabase/migrations/` that `worker_document_categories`,
+      `worker_document_types`, `worker_documents` are real tables the generated
+      types file was never regenerated to include (`design.md` Section 18).
+- [x] Read every file in `src/features/workers/documents/` plus
+      `src/services/apiWorkerDocuments.js` and `src/features/workers/useWorker.js`.
+- [x] Grepped every importer of `useWorker.js` (singular) — confirmed the only
+      one is `WorkerDocumentsView.jsx`, matching Phase 1/2's scoping decision.
+- [x] Grepped for explicit `.jsx`/`.js`-extension imports of all 13 target files,
+      and for the `documents"` barrel import — none found (`design.md` Section 25).
+- [x] Ran `bun run lint` and recorded the exact per-file baseline: all 13 files —
+      0 `react/prop-types` errors each (`design.md` Section 24).
 
-Do not begin without explicit instruction.
+### Conversion
+
+- [x] `src/features/workers/useWorker.ts` — `useQuery<Worker>`, reusing `Worker`
+      from `useWorkers.ts`. Deleted `useWorker.js`.
+- [x] `src/features/workers/documents/workerDocumentKeys.ts` — typed key builders
+      and `invalidateWorkerDocumentQueries`.
+- [x] `src/features/workers/documents/useWorkerDocumentCatalog.ts` — hand-rolled
+      `WorkerDocumentType`/`WorkerDocumentCategory` (no generated Database types
+      exist for these tables — `design.md` Section 18); `useQuery<WorkerDocumentCategory[]>`.
+- [x] `src/features/workers/documents/useWorkerDocuments.ts` — hand-rolled
+      `WorkerDocument` (base row only — `design.md` Section 19);
+      `useQuery<WorkerDocument[]>`.
+- [x] `src/features/workers/documents/useWorkerDocumentsBySemester.ts` — same
+      `WorkerDocument[]` typing.
+- [x] `src/features/workers/documents/useWorkerDocumentSignedUrl.ts` —
+      `useQuery<string>`.
+- [x] `src/features/workers/documents/useUploadWorkerDocument.ts`,
+      `useReplaceWorkerDocument.ts` — local casts on the imported service
+      functions for their narrowly-inferred `semesterId` param (`design.md`
+      Section 21).
+- [x] `src/features/workers/documents/useDeleteWorkerDocument.ts` — typed, no
+      cast needed (`design.md` Section 21).
+- [x] `src/features/workers/documents/useWorkerDocumentReportData.ts` — exports
+      `WorkerDocumentReportData`; worker projection via
+      `Pick<Worker, "id" | "name" | "RFC" | "type_worker" | "status">`
+      (`design.md` Section 20); local cast on `getWorkerDocumentReportData`.
+- [x] `src/features/workers/documents/generateWorkerDocumentReportPdf.ts` —
+      typed against `WorkerDocumentReportData`; local `JsPdfWithAutoTable` cast
+      for `doc.autoTable(...)` (`design.md` Section 22).
+- [x] `src/features/workers/documents/index.ts` — same barrel re-exports, typed.
+- [x] `src/features/workers/documents/WorkerDocumentsView.tsx` —
+      `WorkerDocumentsViewProps { workerId: number }`; preserved
+      `selectedFiles`/`fileInputVersions`/`fileInputRefs` state exactly (including
+      the un-deleted-on-null `selectedFiles` write), upload/replace/delete/
+      view/download/report flows, and the `document`-shadowing parameter name
+      (`design.md` Section 23). Removed the now-dead
+      `// eslint-disable-next-line react/prop-types` comment. Deleted
+      `WorkerDocumentsView.jsx`.
+- [x] No other file modified; `apiWorkerDocuments.js`, `src/types/supabase.ts`,
+      `src/pages/MyDocuments.jsx`, `src/pages/Records/WorkerDocuments.jsx`,
+      `eslint.config.js`, `tsconfig.json`, `package.json` all untouched.
+
+### Verification — results
+
+- [x] `bun run typecheck` — failed twice against distinct real issues
+      (`design.md` Sections 21–22), each fixed with a local, type-only cast.
+      Final run: clean, no errors.
+- [x] `bun run build` — implementer reported a clean pass, `✓ built in 5.30s`,
+      no diagnostics. Independent review ran `timeout 180s bun run build`; it
+      timed out after Vite printed `$ vite build` with no diagnostics. Treat as a
+      local environment caveat and rerun before commit if a fresh build transcript
+      is required.
+- [x] `bun run lint` — total: **206 problems (202 errors, 4 warnings)** —
+      unchanged from the 206 baseline, exactly matching Section 24's prediction.
+      Confirmed no Phase 3 file appears in the lint output.
+- [x] `git status`/`git diff --stat` — changed-file set is exactly the 12
+      `documents/` renames, `useWorker.ts`, and
+      `openspec/changes/convert-workers-documents-to-ts/**`. No other file.
+
+## Phase 4: related pages/import-path fixes — NO CODE CHANGES NEEDED
+
+- [x] Verified `src/pages/MyDocuments.jsx` and
+      `src/pages/Records/WorkerDocuments.jsx` already import
+      `WorkerDocumentsView` extension-less, so the Phase 4 import-fix work is a
+      no-op.
+- [ ] Converting either page remains out of scope; do not begin without explicit
+      instruction.
 
 ## Not in scope for this change (any phase)
 
-- [ ] Converting `useWorker.js` (singular) or anything in
-      `src/features/workers/documents/` — Phase 3.
-- [ ] Converting `src/services/apiWorkers.js`, `apiProfiles.js`, or any
-      `src/features/authentication/**` file (including `useLinkWorkerAccount.js`,
-      already confirmed bug-free).
-- [ ] Any Supabase query, React Query key, invalidation, auth/role-gate, or
-      worker-account-creation-flow change.
+- [ ] Converting `src/services/apiWorkerDocuments.js`, `apiWorkers.js`,
+      `apiProfiles.js`, or any `src/features/authentication/**` file (including
+      `useLinkWorkerAccount.js`, already confirmed bug-free).
+- [ ] Running Supabase codegen / editing `src/types/supabase.ts` to add the
+      missing `worker_document_categories`/`worker_document_types`/
+      `worker_documents` table types (`design.md` Section 18) — flagged as a
+      real gap, deliberately left for a separate change.
+- [ ] Converting `src/pages/MyDocuments.jsx`, `src/pages/Records/WorkerDocuments.jsx`.
+- [ ] Any Supabase query, storage bucket/path, React Query key, invalidation,
+      auth/role-gate, RLS assumption, or worker-account-creation-flow change.
 - [ ] Converting any schedules, pages, or other out-of-scope file that imports
       `useWorkers`.

@@ -2,18 +2,18 @@
 
 ## Status
 
-Draft — Phase 1 (workers core list/table/hooks) and Phase 2 (worker create/edit/
-account forms) implemented. Phase 3 (worker documents) and Phase 4 (related-page
-import fixes) not started.
+Draft — Phase 1 (workers core list/table/hooks), Phase 2 (worker create/edit/
+account forms), and Phase 3 (worker documents) implemented. Phase 4's related-page
+import-fix check is a no-op because both page imports are already extension-less;
+the pages themselves remain unconverted.
 
 ## Why
 
 This is the largest single domain left in the TS migration — the `workers` feature
 has more files, more auth-adjacent hooks, and (in Phase 3) a whole documents
 sub-module, so it's split into 4 phases inside one OpenSpec change, same rationale as
-`convert-admin-catalog-features-to-ts`. Per explicit instruction, Phase 1 and Phase
-2 are implemented now; worker documents and related-page import fixes remain
-deferred.
+`convert-admin-catalog-features-to-ts`. Per explicit instruction, Phases 1–3 are
+implemented now; related-page import fixes were checked and found unnecessary.
 
 Phase 1 targets the **read/list side** of `src/features/workers/` — `WorkerRow.jsx`,
 `WorkerTable.jsx`, `useWorkers.js`, plus `useLinkedWorkerAccounts.js` (a hook
@@ -166,3 +166,97 @@ disable while their mutation is pending. Nothing else about either mutation chan
   `CreateEditWorkerForm` (2). `LinkWorkerAccountForm`/`useCreateWorker`/
   `useEditWorker` had 0 to begin with (the first via its own disable comment, the
   other two because they're not components).
+
+## Why worker documents third
+
+Phase 3 converts the last remaining piece of `src/features/workers/` (excluding
+Phase 4's related-page import fixes): the entire `documents/` sub-module (12 files)
+plus `useWorker.js` (singular, fetch-by-id), whose only consumer anywhere in `src/`
+is this sub-module's `WorkerDocumentsView.jsx`. This is the module shared by both
+the staff/admin `/workers/:id/documents` route and the worker self-service
+`/my-documents` route (see `docs/ai/architecture.md`'s "Worker documents module"
+section) — upload, replace, delete, signed-url view/download, and PDF report
+generation all live here.
+
+## Unplanned discovery: `worker_document_categories`/`worker_document_types`/`worker_documents` are missing from `src/types/supabase.ts`
+
+All three tables exist in the database (`supabase/migrations/20260702145810_worker_document_categories.sql`,
+`20260702145829_worker_document_types.sql`, `20260702145830_worker_documents.sql`,
+plus later RLS-policy migrations) and are actively used by `apiWorkerDocuments.js`,
+but none appear anywhere in the generated `src/types/supabase.ts` — that file
+predates these tables and was never regenerated afterward. Since regenerating
+Supabase types (running codegen) is a separate concern from this migration and
+touches a shared, out-of-scope generated file, this phase hand-rolls local
+interfaces matching the migrations' actual columns instead (`WorkerDocumentType`,
+`WorkerDocumentCategory` in `useWorkerDocumentCatalog.ts`; `WorkerDocument` in
+`useWorkerDocuments.ts`) — see `design.md` for the full reasoning and column-by-
+column mapping. This is flagged here because it's a real gap a future
+types-regeneration change should close, not an oversight in this phase.
+
+## What changes (Phase 3)
+
+- `src/features/workers/useWorker.ts` — typed `useQuery<Worker>`, reusing the
+  `Worker` type already exported by `useWorkers.ts` (Phase 1). Same return shape.
+- `src/features/workers/documents/workerDocumentKeys.ts` — typed key-builder
+  functions and `invalidateWorkerDocumentQueries(queryClient: QueryClient, workerId?: number | null)`.
+- `src/features/workers/documents/useWorkerDocumentCatalog.ts` — exports the
+  hand-rolled `WorkerDocumentType`/`WorkerDocumentCategory` interfaces (see above);
+  `useQuery<WorkerDocumentCategory[]>`.
+- `src/features/workers/documents/useWorkerDocuments.ts` — exports the hand-rolled
+  `WorkerDocument` interface (base row only; see "What does not change"); typed
+  `useQuery<WorkerDocument[]>`.
+- `src/features/workers/documents/useWorkerDocumentsBySemester.ts` — same
+  `WorkerDocument[]` typing, `semesterId: number | string` param.
+- `src/features/workers/documents/useWorkerDocumentSignedUrl.ts` — `useQuery<string>`.
+- `src/features/workers/documents/useUploadWorkerDocument.ts`,
+  `useReplaceWorkerDocument.ts` — local mutation-variables interfaces; a local cast
+  on the imported `uploadWorkerDocument`/`replaceWorkerDocument` service functions
+  (same "untyped JS destructured-default narrows the param" friction as Phase 2's
+  `createEditWorkers` cast).
+- `src/features/workers/documents/useDeleteWorkerDocument.ts` — typed, no cast
+  needed (the service function's single `documentId` param has no default, so TS
+  infers it as `any`, and its return type is inferred correctly from the function's
+  own two return statements).
+- `src/features/workers/documents/useWorkerDocumentReportData.ts` — exports
+  `WorkerDocumentReportData` (worker projection via `Pick<Worker, "id" | "name" | "RFC" | "type_worker" | "status">`,
+  `semester: Semester | null`, `categories: WorkerDocumentReportCategory[]`); a local
+  cast on `getWorkerDocumentReportData` (same default-parameter-narrowing friction).
+- `src/features/workers/documents/generateWorkerDocumentReportPdf.ts` — typed
+  against `WorkerDocumentReportData`; local cast for `jsPDF.autoTable` (the
+  installed `jspdf-autotable` version's bundled types don't augment `jsPDF` with an
+  instance method, only a standalone function — see `design.md`).
+- `src/features/workers/documents/index.ts` — same barrel re-exports, typed.
+- `src/features/workers/documents/WorkerDocumentsView.tsx` —
+  `WorkerDocumentsViewProps { workerId: number }`. Same structure, same
+  upload/replace/delete/view/download/report flows, same `useState`/`useRef`/
+  `useEffect`/`useMemo` usage — only typed. The file's existing
+  `// eslint-disable-next-line react/prop-types` comment is removed — same
+  "provably dead once real types exist" cleanup as `WorkerRow.jsx`/
+  `LinkWorkerAccountForm.jsx` in Phases 1–2.
+
+## What does not change (Phase 3)
+
+- `src/services/apiWorkerDocuments.js` not converted — out of scope, same
+  reasoning as every other service file in this migration; every Supabase call,
+  storage bucket/path, and RLS-dependent behavior it implements is preserved
+  exactly, unread.
+- `src/types/supabase.ts` not edited and no Supabase codegen run — the missing-
+  tables gap above is documented, not fixed, in this phase.
+- No Supabase call, storage bucket/path, React Query key/staleTime/invalidation,
+  upload/replace/delete/view/download/report behavior, auth/role-gate, RLS
+  assumption, or worker self-service permission changed anywhere.
+- `src/pages/MyDocuments.jsx`, `src/pages/Records/WorkerDocuments.jsx` (both
+  `WorkerDocumentsView`'s only call sites) not converted; no import-path edit was
+  needed because both already import `WorkerDocumentsView` extension-less.
+- No dependency added; `eslint.config.js`/`tsconfig.json`/`package.json` untouched.
+
+## Impact (Phase 3)
+
+- **Affected code:** 12 files in `src/features/workers/documents/` renamed (1
+  `.jsx` → `.tsx`, 11 `.js` → `.ts`), plus `src/features/workers/useWorker.js` →
+  `useWorker.ts`. No other file (confirmed via explicit-extension-import grep —
+  none found).
+- **Affected lint baseline:** all 13 files produced **0** `react/prop-types`
+  errors before conversion (`WorkerDocumentsView.jsx` via its own disable comment,
+  the rest because they're not components) — no lint-count change expected from
+  this phase specifically; see `design.md` for the exact verified before/after.

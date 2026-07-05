@@ -1,8 +1,8 @@
 # Design: Convert Workers/Documents to TS
 
-Multi-phase change. **Phase 1 (workers core list/table/hooks) and Phase 2 (worker
-create/edit/account forms) are implemented.** Phases 3–4 are not designed in detail
-yet; do not begin without explicit instruction.
+Multi-phase change. **Phase 1 (workers core list/table/hooks), Phase 2 (worker
+create/edit/account forms), and Phase 3 (worker documents) are implemented.**
+Phase 4 is not designed in detail yet; do not begin without explicit instruction.
 
 ## 1. `Worker` type — base Row plus Phase 2 detail export
 
@@ -379,3 +379,231 @@ Baseline going in: **208 problems (204 errors, 4 warnings)**.
       `design.md`/`tasks.md`. No other file — `apiWorkers.js`, `apiProfiles.js`,
       `authentication/**` (including `useLinkWorkerAccount.js`), `useWorker.js`,
       `eslint.config.js`, `tsconfig.json`, `package.json` all untouched.
+
+## Phase 3: worker documents
+
+### 18. Unplanned discovery: three tables are entirely absent from `src/types/supabase.ts`
+
+Before writing any hook, grepped `src/types/supabase.ts` for `worker_document` —
+zero matches. Confirmed via `supabase/migrations/` that `worker_document_categories`,
+`worker_document_types`, and `worker_documents` are real tables (created by
+`20260702145810_worker_document_categories.sql`, `20260702145829_worker_document_types.sql`,
+`20260702145830_worker_documents.sql`, with later RLS-policy migrations), actively
+queried by `apiWorkerDocuments.js` — this isn't a naming mismatch, the generated
+types file is simply stale relative to the database schema; it was never
+regenerated after these tables were added.
+
+Since running Supabase codegen is out of scope for this migration (it's a
+tooling/process concern, not a per-file conversion, and would touch a large shared
+generated file well beyond this phase's blast radius), hand-rolled interfaces were
+written to match the migrations' actual columns exactly, in the same file as the
+hook that first needs them (matching this migration's established pattern of
+co-locating a Row type with its primary consuming hook):
+
+```ts
+// useWorkerDocumentCatalog.ts
+export interface WorkerDocumentType {
+  id: number;
+  category_id: number;
+  name: string;
+  allows_multiple: boolean;
+  sort_order: number;
+  created_at: string;
+}
+export interface WorkerDocumentCategory {
+  id: number;
+  name: string;
+  scope: "permanent" | "semester";
+  sort_order: number;
+  created_at: string;
+  document_types: WorkerDocumentType[];
+}
+
+// useWorkerDocuments.ts
+export interface WorkerDocument {
+  id: number;
+  worker_id: number;
+  document_type_id: number;
+  semester_id: number | null;
+  file_name: string;
+  storage_path: string;
+  mime_type: string;
+  file_size: number;
+  uploaded_by: string | null;
+  created_at: string;
+}
+```
+
+Every column's nullability was read directly off the `CREATE TABLE` statements
+(e.g. `worker_documents.semester_id` has no `NOT NULL`, so `number | null`;
+`uploaded_by` defaults to `auth.uid()` but has no `NOT NULL` either, so
+`string | null`; every other column in both tables is `NOT NULL`). This is flagged
+in `proposal.md` as a real gap for a future types-regeneration change to close —
+not something this phase silently papers over.
+
+### 19. `WorkerDocument`/`WorkerDocumentCategory` model only the base columns actually read — embeds deferred again
+
+`apiWorkerDocuments.js`'s `getWorkerDocuments`/`getWorkerDocumentsBySemester` select
+`"*, worker_document_types(*, worker_document_categories(*)), semesters(*)"` — real
+embeds. But grepped `WorkerDocumentsView.tsx` (the only consumer of either hook) for
+`.worker_document_types`/`.semesters` on a document object — **zero reads**; every
+document field accessed is a base column (`document_type_id`, `file_name`,
+`created_at`, `storage_path`, `id`). Consistent with every prior phase's rule
+(`Worker`/`date_of_admissions` in Phase 1, deferred until Phase 2 actually read
+them): `WorkerDocument` models the base row only, no embeds. The actual runtime
+objects have more fields than the type declares — harmless, since nothing reads
+them and TS's structural typing doesn't require an exact match for values obtained
+through an untyped `queryFn` cast into a `useQuery<T>` generic (same pattern as
+`Worker[]`/`Semester[]` throughout this migration).
+
+Similarly, `getWorkerDocumentCategoriesAndTypes()`'s `document_types` field on each
+category comes from a **plain JS array filter** (`groupDocumentTypesByCategory`),
+not a Supabase embed at all — so `WorkerDocumentCategory.document_types:
+WorkerDocumentType[]` is a real, always-populated array with no cardinality
+question to resolve.
+
+### 20. `useWorkerDocumentReportData.ts` — reusing `Worker` via `Pick`, not a new hand-rolled interface
+
+`getWorkerDocumentReportData`'s worker query is `select("id, name, RFC, type_worker, status")`
+— a strict subset of the `workers` table, which **is** in `src/types/supabase.ts`
+(unlike the three tables in Section 18). Modeled as
+`Pick<Worker, "id" | "name" | "RFC" | "type_worker" | "status">` rather than a
+second hand-rolled interface — reuses the generated type per the standing
+instruction to prefer `src/types/supabase.ts` wherever a table is actually present
+in it, even for a projected subset of columns.
+
+The rest of the report shape nests `WorkerDocumentCategory`/`WorkerDocumentType`
+(Section 18) with the extra fields `addReportStatusToCategories` computes at
+runtime (`documents`, `status`, `uploaded_at`, `file_name` on each document type) —
+modeled as `WorkerDocumentReportDocumentType extends WorkerDocumentType` and
+`WorkerDocumentReportCategory extends Omit<WorkerDocumentCategory, "document_types">`,
+composed into `WorkerDocumentReportData { worker; semester: Semester | null; categories: WorkerDocumentReportCategory[] }`.
+`semester: Semester | null` reuses `Semester` from `useSemesters.ts` (already typed,
+`fix-ts-migration-blockers`-era), since `getWorkerDocumentReportData` does a plain
+`semesters` table select when a `semesterId` is given, `null` otherwise (matching
+the original `let semester = null` control flow exactly).
+
+### 21. Recurring friction: untyped service functions with a defaulted param, again — three more instances, same fix as Phase 2 Section 12
+
+Exactly the same class of issue as `createEditWorkers`'s `options` param (Phase 2
+Section 12) recurred three times in this phase, each fixed the same way — a local,
+type-only cast of the imported function at its one call site, `apiWorkerDocuments.js`
+itself untouched:
+
+- `uploadWorkerDocument`/`replaceWorkerDocument` — both destructure
+  `{ workerId, documentTypeId, semesterId = null, file }`; the `semesterId = null`
+  default narrows that property to bare `null`, rejecting the real
+  `number | string | null` values callers pass. Cast in
+  `useUploadWorkerDocument.ts`/`useReplaceWorkerDocument.ts`.
+- `getWorkerDocumentReportData(workerId, semesterId = null)` — a plain (not
+  destructured) defaulted parameter; same narrowing (`bun run typecheck`:
+  `Argument of type 'string | number | null' is not assignable to parameter of type
+  'null | undefined'`). Cast in `useWorkerDocumentReportData.ts`.
+
+`deleteWorkerDocument(documentId)` needed **no** cast — its one parameter has no
+default value at all, so TS's `allowJs` inference leaves it implicit `any`
+(the narrowing mechanism only triggers on destructured-or-plain parameters that
+*have* a default expression to infer from). Its return type was also inferred
+correctly with no cast: a plain async function whose only two `return` statements
+are object literals with the same three keys (`documentId`, `workerId`,
+`storageCleanupFailed`) — TS's control-flow return-type inference handles this
+without help.
+
+### 22. `jsPDF.autoTable` — the installed `jspdf-autotable` types don't augment `jsPDF`'s own type
+
+`generateWorkerDocumentReportPdf.ts` calls `doc.autoTable({...})` — the same
+instance-method call style already used by every out-of-scope PDF generator in
+`src/pdf/*.jsx`. `bun run typecheck` failed: `Property 'autoTable' does not exist on
+type 'jsPDF'`. Checked the installed package
+(`node_modules/jspdf-autotable/dist/index.d.ts`): this version's bundled types
+export a standalone `declare function autoTable(d: jsPDFDocument, options: UserOptions): void`
+— no `declare module "jspdf" { interface jsPDF { autoTable(...): void } }`
+augmentation, even though the plugin's side-effect import (`import "jspdf-autotable"`)
+does patch `jsPDF.prototype.autoTable` in at runtime. A types/runtime mismatch in
+the third-party package itself, not something introduced by this conversion.
+
+Fixed with a local type-only cast at the one call site — not an ambient `.d.ts`
+augmentation (broader, module-wide) and not a dependency change:
+
+```ts
+type JsPdfWithAutoTable = jsPDF & {
+  autoTable: (options: Record<string, unknown>) => void;
+};
+const doc = new jsPDF("landscape", "px", "letter") as JsPdfWithAutoTable;
+```
+
+Every other `doc.*` call (`setFont`, `setFontSize`, `text`, `internal.pageSize`,
+`output`, `save`) is still checked against the real `jsPDF` type; only `autoTable`
+gets the widened surface.
+
+### 23. `WorkerDocumentsView.tsx` — state, refs, and the `document` parameter shadow
+
+- `selectedFiles: Record<number, File | null>` — the original `handleFileChange`
+  unconditionally writes `[documentTypeId]: file` (including when `file` is
+  `null`, from clearing the native input), never deleting the key; preserved
+  exactly rather than "improving" it to delete falsy entries, since the original
+  read sites (`selectedFiles[documentType.id]`, `!selectedFile` checks) already
+  handle `null`/`undefined` identically.
+- `fileInputVersions: Record<number, number>`; `fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({})`.
+- `handleDownloadDocument(document: WorkerDocument)` — the parameter is named
+  `document`, shadowing the global `Document` interface's `window.document`
+  exactly as the original `.jsx` already did; the function body already
+  disambiguates via `window.document.createElement(...)`/`window.document.body`,
+  so no rename was needed or made.
+- Each `catch (error)` block casts `(error as Error)?.message` — TypeScript types
+  catch-clause variables as `unknown` by default; the original JS's
+  `error?.message` (already optional-chained, since a thrown value isn't
+  guaranteed to be an `Error`) is preserved with the minimal cast needed to keep
+  that same "try to read `.message`, else fall back" behavior.
+- No new guards added anywhere `workerId`/`worker`/document fields are
+  dereferenced without one in the original — e.g. `worker.name`/`worker.type_worker`
+  after the existing `if (!worker) return <ErrorMessage ... />` guard, matching
+  every prior phase's non-null-assertion-over-new-guard rule (no assertion was
+  even needed here, since the existing early return already narrows `worker` for
+  TS).
+
+### 24. Pre-conversion lint baseline (confirmed via `bun run lint`, per file)
+
+All 13 Phase 3 files (12 in `documents/` plus `useWorker.js`) produced **0**
+`react/prop-types` errors before conversion — `WorkerDocumentsView.jsx` because of
+its own `// eslint-disable-next-line react/prop-types` comment (same pattern as
+`LinkWorkerAccountForm.jsx` in Phase 2), the rest because they're hooks/modules,
+not components. Total to remove: **0** — flagged up front, same as every phase
+whose baseline was already clean.
+
+### 25. Explicit-extension import check
+
+Grepped `src/` for every Phase 3 file's `.jsx`/`.js` extension form, and for
+`workers/documents"` (a barrel-style extensionless import of `index`). **Zero
+matches** for either — `WorkerDocumentsView`'s only two call sites
+(`src/pages/MyDocuments.jsx`, `src/pages/Records/WorkerDocuments.jsx`) already
+import it extension-less, and nothing imports the `documents/index` barrel at all
+(dead barrel, converted anyway since it's inside the explicit Phase 3 target path).
+This makes Phase 4's originally anticipated import-fix work a verified no-op; the
+pages themselves remain `.jsx` and out of scope.
+
+### 26. Verification plan — results
+
+Baseline going in: **206 problems (202 errors, 4 warnings)**.
+
+- [x] `bun run typecheck` — failed twice against real, distinct issues (Sections
+      21's `getWorkerDocumentReportData` cast and Section 22's `jsPDF.autoTable`
+      cast), each fixed with a local, type-only cast; no other files touched.
+      Final run: clean, no errors.
+- [x] `bun run build` — implementer reported a clean pass, `✓ built in 5.30s`,
+      no diagnostics. Independent review ran `timeout 180s bun run build`; it
+      timed out after Vite printed `$ vite build` with no diagnostics. Treat as a
+      local environment caveat and rerun before commit if a fresh build transcript
+      is required.
+- [x] `bun run lint` — total: **206 problems (202 errors, 4 warnings)** — unchanged
+      from baseline, exactly as predicted (Section 24: none of the 13 files
+      contributed any `react/prop-types` errors to begin with). Confirmed via a
+      targeted grep that none of the 13 Phase 3 files appear anywhere in the lint
+      output.
+- [x] `git status`/`git diff --stat` — changed-file set is exactly: the 12
+      `documents/` renames (1 `.jsx` → `.tsx`, 11 `.js` → `.ts`),
+      `src/features/workers/useWorker.ts`, and this change's own `proposal.md`/
+      `design.md`/`tasks.md`. No other file — `apiWorkerDocuments.js`,
+      `src/types/supabase.ts`, `src/pages/MyDocuments.jsx`,
+      `src/pages/Records/WorkerDocuments.jsx`, `eslint.config.js`, `tsconfig.json`,
+      `package.json` all untouched.
