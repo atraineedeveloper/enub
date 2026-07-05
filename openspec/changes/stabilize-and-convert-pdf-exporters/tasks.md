@@ -119,7 +119,7 @@
       `allowImportingTsExtensions` (not set, out of scope to change) once the
       importing file itself becomes type-checked; `.js` extension imports are
       unaffected and left unchanged.
-- [ ] Manually re-run all three export actions and compare output against the
+- [x] Manually re-run all three export actions and compare output against the
       pre-Phase-3 baseline (structure/labels/fonts/margins unchanged).
 - [x] `bun run typecheck`
 - [x] `bun run build`
@@ -161,7 +161,7 @@
       `leftFooterRole`/`rightFooterRole`/footer-fallback logic exactly
       (byte-identical aside from the added `keywords: string[] = []` and
       `value: string = ""` parameter type annotations).
-- [ ] Manually re-run the export action and compare output against the
+- [x] Manually re-run the export action and compare output against the
       pre-Phase-4 baseline (structure/header/table/signature output
       unchanged).
 - [x] `bun run typecheck`
@@ -170,19 +170,20 @@
 
 ## 5. Phase 5 — Final verification
 
-- [ ] `bunx @fission-ai/openspec validate stabilize-and-convert-pdf-exporters --type change --strict`
-- [ ] `bun run typecheck`
-- [ ] `bun run build`
-- [ ] `bun run lint` (record final before/after counts across the whole change)
-- [ ] Grep for any remaining explicit `.jsx`/`.js` imports of the four
-      converted files and fix any stale extensions.
-- [ ] Confirm `src/services/**`, `src/types/supabase.ts`, `supabase/**`,
+- [x] `bunx @fission-ai/openspec validate stabilize-and-convert-pdf-exporters --type change --strict`
+- [x] `bun run typecheck`
+- [x] `bun run build`
+- [x] `bun run lint` (record final before/after counts across the whole change)
+- [x] Grep for any remaining explicit `.jsx`/`.js` imports of the four
+      converted files and fix any stale extensions. No live import matches
+      found (see Verification Results); no fixes were needed.
+- [x] Confirm `src/services/**`, `src/types/supabase.ts`, `supabase/**`,
       `package.json`, `tsconfig.json`, `eslint.config.js` are untouched by
-      `git diff --stat` against the change's base commit.
-- [ ] Confirm the three orphaned schedule files
+      `git diff --stat` against the change's base commit (`862ce27`).
+- [x] Confirm the three orphaned schedule files
       (`CreateScholarSchedule.jsx`, `EditScholarSchedule.jsx`,
       `RowTeacherAssignment.jsx`) are untouched.
-- [ ] Run the full manual PDF smoke pass (all four exporters) and record
+- [x] Run the full manual PDF smoke pass (all four exporters) and record
       pass/fail per PDF below.
 
 ## Verification Results
@@ -229,8 +230,10 @@
   were — same 7 problems, now reported under `@typescript-eslint/no-unused-vars`
   instead of core `no-unused-vars` (the `.tsx` ESLint block swaps that rule),
   not removed or otherwise touched.
-- Phase 3 manual check: _pending_ — not performed in this turn (no
-  browser/dev-server session available); must be done before Phase 4 begins
+- Phase 3 manual check: done. Human smoke test performed in the browser after
+  the schedule PDF components' TSX conversion: `ScheduleGroupPDF`,
+  `ScheduleTeacherPDF`, and `TeacherAssignmentPDF` were all tested; all three
+  generated successfully; the previous `.role` error did not return.
 - Phase 4 code conversion: done. `bunx @fission-ai/openspec validate ... --strict`
   passes; `bun run typecheck` clean; `bun run build` succeeds; `bun run lint`
   is 83 problems (79 errors, 4 warnings) — down from the Phase 3 baseline of
@@ -241,7 +244,66 @@
   not independent cleanup. `src/pages/ScheduleDashboard.tsx`,
   `src/features/schedules/**`, `src/features/workers/**`, `src/pdf/Schedules/**`,
   and `useRoles()` all confirmed untouched via `git status`.
-- Phase 4 manual check: _pending_ — not performed in this turn (no
-  browser/dev-server session available); must be done before Phase 5 begins
-- Final manual smoke pass (4/4 PDFs): _pending_
-- Final lint count (before → after): _pending_
+- Phase 4 manual check: done. Human smoke test performed in the browser after
+  `WorkerSheetSemester`'s TSX conversion: it generated successfully; basic
+  header/worker/document/signature structure was visually confirmed. The
+  other three PDFs (`ScheduleGroupPDF`, `ScheduleTeacherPDF`,
+  `TeacherAssignmentPDF`) were also rechecked at this point and still
+  generated successfully.
+- Final manual smoke pass (4/4 PDFs): **pass**. All four exporters
+  (`ScheduleGroupPDF`, `ScheduleTeacherPDF`, `TeacherAssignmentPDF`,
+  `WorkerSheetSemester`) have been human-verified in the browser as of the
+  Phase 4 recheck above — no PDF currently fails, the reported `.role` crash
+  has not returned at any point since the Phase 1 repair, and no unrelated
+  PDF changed.
+- Final lint count (before → after): 129 → 83 (**-46** across the whole
+  change). Breakdown: Phase 1 (repair only, no conversion) 129 → 129 (0
+  delta); Phase 2 (helper `.ts` conversion) 129 → 129 (0 delta); Phase 3
+  (`ScheduleGroupPDF`/`ScheduleTeacherPDF`/`TeacherAssignmentPDF` → `.tsx`)
+  129 → 89 (-40, all `react/prop-types`); Phase 4 (`WorkerSheetSemester` →
+  `.tsx`) 89 → 83 (-6, all `react/prop-types`). Every eliminated problem is a
+  `react/prop-types` error made obsolete by real TS prop types — an inherent,
+  expected side effect of the conversion, consistent with every other
+  `.jsx`→`.tsx` conversion across this whole migration — not independent lint
+  cleanup. No pre-existing unused-variable errors were removed; they remain,
+  just reported under `@typescript-eslint/no-unused-vars` instead of core
+  `no-unused-vars` per the `.tsx` ESLint block's rule swap.
+
+## Phase 5 Final Audit
+
+- **Import audit**: `find src/pdf -type f` confirms exactly 7 TypeScript PDF
+  source files (`filterHour.ts`, `filterHourGroup.ts`, `filterHourActivity.ts`,
+  `ScheduleGroupPDF.tsx`, `ScheduleTeacherPDF.tsx`, `TeacherAssignmentPDF.tsx`,
+  `WorkerSheetSemester.tsx`) plus the two untouched static assets
+  (`enub.jpg`, `setab.jpeg`). Grepped all of `src/` for explicit references to
+  the old filenames (`ScheduleGroupPDF.jsx`, `ScheduleTeacherPDF.jsx`,
+  `TeacherAssignmentPDF.jsx`, `WorkerSheetSemester.jsx`, `filterHour.js`,
+  `filterHourGroup.js`, `filterHourActivity.js`) and for any `src/pdf/*.jsx`/
+  `src/pdf/*.js` import specifiers: zero live import matches. Three stale
+  **comments** (not import statements) still say `.jsx`/`WorkerSheetSemester.jsx`
+  in `src/pdf/Schedules/ScheduleGroupPDF.tsx`, `ScheduleTeacherPDF.tsx`, and
+  `src/pages/ScheduleDashboard.tsx` — left untouched since this phase's
+  authorization covers fixing broken *import paths* only, not comment text,
+  and none of these three files are otherwise in scope to edit this phase.
+  Also checked the whole `src/` tree for any explicit `.ts`/`.tsx` import
+  extensions that `tsc` would now reject: the only two matches
+  (`src/main.jsx` importing `App.tsx`/`ErrorBoundary.tsx`) are pre-existing,
+  unrelated to this change, and harmless (`.jsx` files aren't type-checked).
+- **Scope audit**: `git diff --stat 862ce27 HEAD` (base commit of this whole
+  change) touches exactly 4 PDF component files (renamed `.jsx`→`.tsx`), 3
+  helper files (renamed `.js`→`.ts`, one of them — `filterHourGroup` —
+  showing as an add+delete pair rather than a rename due to import-line
+  changes), and this `tasks.md`. `src/features/schedules/**`,
+  `src/features/workers/**`, `src/services/**`, `src/types/supabase.ts`,
+  `supabase/**`, `package.json`, `tsconfig.json`, and `eslint.config.js` are
+  all absent from that diff — confirmed untouched for the entire change, not
+  just this phase. The three orphaned schedule files
+  (`CreateScholarSchedule.jsx`, `EditScholarSchedule.jsx`,
+  `RowTeacherAssignment.jsx`) are present and untouched (file timestamps
+  predate this change).
+- **Phase 1 fallback preservation**: diffed the `infoSchool` block in both
+  `ScheduleGroupPDF`/`ScheduleTeacherPDF` against the exact commit that
+  introduced the Phase 1 repair (`d88e275`) — the only differences are the
+  `RowInput[]` type annotation and the `utilities!` assertion added in Phase
+  3; the `availableRoles[n]?.role ?? ""` / `availableStateRoles[n]?.name_worker ?? ""`
+  fallback expressions themselves are byte-identical to the original repair.
