@@ -7,7 +7,7 @@ import { useProfile } from "../authentication/useProfile";
 export function useLinkedWorkerAccounts() {
   const { isAdmin } = useProfile();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<number[]>({
     queryKey: ["linked-worker-accounts"],
     queryFn: getLinkedWorkerIds,
     enabled: isAdmin,

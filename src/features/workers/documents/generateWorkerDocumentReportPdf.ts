@@ -1,7 +1,23 @@
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import type {
+  WorkerDocumentReportCategory,
+  WorkerDocumentReportData,
+} from "./useWorkerDocumentReportData";
+import type { Semester } from "../../semesters/useSemesters";
 
-function formatDate(value) {
+// jspdf-autotable's bundled types only export a standalone `autoTable(doc,
+// options)` function -- this version doesn't augment jsPDF's own type with an
+// `autoTable` instance method, even though the plugin's side-effect import
+// (above) does add it at runtime, and `doc.autoTable(...)` is the call style
+// used throughout this codebase's other PDF generators (src/pdf/*.jsx, out of
+// scope). Local, type-only cast rather than adding an ambient .d.ts or a
+// dependency.
+type JsPdfWithAutoTable = jsPDF & {
+  autoTable: (options: Record<string, unknown>) => void;
+};
+
+function formatDate(value?: string | null) {
   if (!value) return "";
 
   return new Intl.DateTimeFormat("es-MX", {
@@ -10,7 +26,7 @@ function formatDate(value) {
   }).format(new Date(value));
 }
 
-function getSemesterLabel(semester) {
+function getSemesterLabel(semester?: Semester | null) {
   if (!semester) return "No seleccionado";
   return [semester.semester, semester.school_year].filter(Boolean).join(" - ");
 }
@@ -30,12 +46,12 @@ function wrapLongText(value = "", chunkSize = 36) {
     .map((part) => {
       if (/^\s+$/.test(part) || part.length <= chunkSize) return part;
 
-      return part.match(new RegExp(`.{1,${chunkSize}}`, "g")).join("\n");
+      return part.match(new RegExp(`.{1,${chunkSize}}`, "g"))!.join("\n");
     })
     .join("");
 }
 
-function buildReportRows(categories = []) {
+function buildReportRows(categories: WorkerDocumentReportCategory[] = []) {
   return categories.flatMap((category) =>
     (category.document_types ?? []).flatMap((documentType) => {
       const documents = documentType.documents ?? [];
@@ -63,13 +79,15 @@ function buildReportRows(categories = []) {
   );
 }
 
-export function generateWorkerDocumentReportPdf(reportData) {
+export function generateWorkerDocumentReportPdf(
+  reportData: WorkerDocumentReportData
+) {
   if (!reportData?.worker) {
     throw new Error("Los datos del reporte no están disponibles");
   }
 
   const { worker, semester, categories } = reportData;
-  const doc = new jsPDF("landscape", "px", "letter");
+  const doc = new jsPDF("landscape", "px", "letter") as JsPdfWithAutoTable;
   const pageWidth = doc.internal.pageSize.getWidth();
   const horizontalMargin = 24;
   const generatedAt = formatDate(new Date().toISOString());

@@ -13,11 +13,17 @@ import { useUploadWorkerDocument } from "./useUploadWorkerDocument";
 import { useReplaceWorkerDocument } from "./useReplaceWorkerDocument";
 import { useDeleteWorkerDocument } from "./useDeleteWorkerDocument";
 import { useWorkerDocumentCatalog } from "./useWorkerDocumentCatalog";
+import type {
+  WorkerDocumentCategory,
+  WorkerDocumentType,
+} from "./useWorkerDocumentCatalog";
 import { useWorkerDocumentReportData } from "./useWorkerDocumentReportData";
 import { useWorkerDocuments } from "./useWorkerDocuments";
+import type { WorkerDocument } from "./useWorkerDocuments";
 import { useWorkerDocumentsBySemester } from "./useWorkerDocumentsBySemester";
 import { generateWorkerDocumentReportPdf } from "./generateWorkerDocumentReportPdf";
 import { useSemesters } from "../../semesters/useSemesters";
+import type { Semester } from "../../semesters/useSemesters";
 import { useWorker } from "../useWorker";
 import Button from "../../../ui/Button";
 import ConfirmDelete from "../../../ui/ConfirmDelete";
@@ -99,7 +105,7 @@ const SectionHint = styled.p`
   font-size: 1.4rem;
 `;
 
-const Status = styled.span`
+const Status = styled.span<{ $uploaded: boolean }>`
   justify-self: start;
   border-radius: 999px;
   padding: 0.4rem 0.8rem;
@@ -237,7 +243,7 @@ const EmptyState = styled.p`
   color: var(--color-grey-600);
 `;
 
-function formatDate(value) {
+function formatDate(value?: string | null) {
   if (!value) return "";
 
   return new Intl.DateTimeFormat("es-MX", {
@@ -246,26 +252,33 @@ function formatDate(value) {
   }).format(new Date(value));
 }
 
-function getDocumentsByType(documents = []) {
+function getDocumentsByType(documents: WorkerDocument[] = []) {
   return documents.reduce((acc, document) => {
     const documentsForType = acc.get(document.document_type_id) ?? [];
     documentsForType.push(document);
     acc.set(document.document_type_id, documentsForType);
     return acc;
-  }, new Map());
+  }, new Map<number, WorkerDocument[]>());
 }
 
-function getSemesterLabel(semester) {
+function getSemesterLabel(semester?: Semester | null) {
   if (!semester) return "";
   return [semester.semester, semester.school_year].filter(Boolean).join(" - ");
 }
 
-// eslint-disable-next-line react/prop-types -- workerId is a plain number, passed by both entry points (WorkerDocuments.jsx from useParams, MyDocuments.jsx from useProfile())
-function WorkerDocumentsView({ workerId }) {
+interface WorkerDocumentsViewProps {
+  workerId: number;
+}
+
+function WorkerDocumentsView({ workerId }: WorkerDocumentsViewProps) {
   const [selectedSemesterId, setSelectedSemesterId] = useState("");
-  const [selectedFiles, setSelectedFiles] = useState({});
-  const [fileInputVersions, setFileInputVersions] = useState({});
-  const fileInputRefs = useRef({});
+  const [selectedFiles, setSelectedFiles] = useState<
+    Record<number, File | null>
+  >({});
+  const [fileInputVersions, setFileInputVersions] = useState<
+    Record<number, number>
+  >({});
+  const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const {
     worker,
     isLoading: isLoadingWorker,
@@ -322,14 +335,14 @@ function WorkerDocumentsView({ workerId }) {
     }
   }, [selectedSemesterId, semesters]);
 
-  function handleFileChange(documentTypeId, file) {
+  function handleFileChange(documentTypeId: number, file: File | null) {
     setSelectedFiles((currentFiles) => ({
       ...currentFiles,
       [documentTypeId]: file,
     }));
   }
 
-  function clearFile(documentTypeId) {
+  function clearFile(documentTypeId: number) {
     setSelectedFiles((currentFiles) => {
       const nextFiles = { ...currentFiles };
       delete nextFiles[documentTypeId];
@@ -341,7 +354,11 @@ function WorkerDocumentsView({ workerId }) {
     }));
   }
 
-  function handleUpload(documentType, existingDocuments, categoryScope) {
+  function handleUpload(
+    documentType: WorkerDocumentType,
+    existingDocuments: WorkerDocument[],
+    categoryScope: WorkerDocumentCategory["scope"]
+  ) {
     const file = selectedFiles[documentType.id];
     if (!file) return;
 
@@ -365,16 +382,18 @@ function WorkerDocumentsView({ workerId }) {
     replaceDocument(payload, mutationOptions);
   }
 
-  async function handleOpenDocument(storagePath) {
+  async function handleOpenDocument(storagePath: string) {
     try {
       const signedUrl = await getWorkerDocumentSignedUrl(storagePath);
       window.open(signedUrl, "_blank", "noopener,noreferrer");
     } catch (error) {
-      toast.error(error?.message || "No se pudo abrir el documento");
+      toast.error(
+        (error as Error)?.message || "No se pudo abrir el documento"
+      );
     }
   }
 
-  async function handleDownloadDocument(document) {
+  async function handleDownloadDocument(document: WorkerDocument) {
     try {
       const signedUrl = await getWorkerDocumentSignedUrl(document.storage_path);
       const response = await fetch(signedUrl);
@@ -394,7 +413,9 @@ function WorkerDocumentsView({ workerId }) {
       link.remove();
       setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
     } catch (error) {
-      toast.error(error?.message || "No se pudo descargar el documento");
+      toast.error(
+        (error as Error)?.message || "No se pudo descargar el documento"
+      );
     }
   }
 
@@ -412,11 +433,13 @@ function WorkerDocumentsView({ workerId }) {
     try {
       generateWorkerDocumentReportPdf(reportData);
     } catch (error) {
-      toast.error(error?.message || "No se pudo generar el reporte");
+      toast.error(
+        (error as Error)?.message || "No se pudo generar el reporte"
+      );
     }
   }
 
-  function renderDocumentRows(category) {
+  function renderDocumentRows(category: WorkerDocumentCategory) {
     return (
       <Table columns="1.5fr 1fr 2fr 2fr">
         <Table.Header>

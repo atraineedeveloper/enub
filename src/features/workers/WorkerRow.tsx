@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import styled from "styled-components";
 import Table from "../../ui/Table";
 import Modal from "../../ui/Modal";
@@ -18,6 +17,7 @@ import { useProfile } from "../authentication/useProfile";
 import { useCreateWorkerAccount } from "../authentication/useCreateWorkerAccount";
 import { useResendWorkerAccessLink } from "../authentication/useResendWorkerAccessLink";
 import { useLinkedWorkerAccounts } from "./useLinkedWorkerAccounts";
+import type { Worker } from "./useWorkers";
 
 const Img = styled.img`
   display: block;
@@ -44,7 +44,11 @@ const Avatar = styled.div`
   flex-shrink: 0;
 `;
 
-function WorkerRow({ worker }) {
+interface WorkerRowProps {
+  worker: Worker;
+}
+
+function WorkerRow({ worker }: WorkerRowProps) {
   const navigate = useNavigate();
   const { isAdmin } = useProfile();
   const { createAccount } = useCreateWorkerAccount();

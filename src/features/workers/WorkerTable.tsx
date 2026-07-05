@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 import Spinner from "../../ui/Spinner";
 import Table from "../../ui/Table";
 import { useWorkers } from "./useWorkers";
@@ -16,12 +16,12 @@ function WorkerTable() {
   const { isLoading, workers, error } = useWorkers({ fullDetails: true });
   const [searchTerm, setSearchTerm] = useState("");
   const filtered = (workers ?? []).filter((worker) =>
-    worker.name.toLowerCase().includes(searchTerm.toLowerCase())
+    worker.name!.toLowerCase().includes(searchTerm.toLowerCase())
   );
   const { currentPage, totalPages, totalCount, paginatedData, setCurrentPage } =
     usePagination(filtered);
 
-  function handleSearch(e) {
+  function handleSearch(e: ChangeEvent<HTMLInputElement>) {
     setSearchTerm(e.target.value);
     setCurrentPage(1);
   }
