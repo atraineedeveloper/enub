@@ -137,36 +137,51 @@
 
 ## 3. Phase 3 — Services
 
-- [ ] Convert `src/services/supabase.js` → `.ts`, typing the client as
+> Note: a new `src/vite-env.d.ts` (standard Vite ambient-types reference,
+> `/// <reference types="vite/client" />`) was added — required for
+> `import.meta.env` to typecheck in `supabase.ts` (the first `.ts` file in
+> the repo to reference it; no prior `.tsx` file happened to need it). This
+> is not a config file and adds no runtime behavior.
+
+- [x] Convert `src/services/supabase.js` → `.ts`, typing the client as
       `createClient<Database>(...)` (Closed Decision 7); no change to env
       var names, fallback order, or the thrown-on-missing-env-var behavior.
-- [ ] Convert `src/services/apiAuth.js` → `.ts`.
-- [ ] Convert `src/services/apiDegrees.js` → `.ts`.
-- [ ] Convert `src/services/apiGroups.js` → `.ts`.
-- [ ] Convert `src/services/apiProfiles.js` → `.ts`.
-- [ ] Convert `src/services/apiRoles.js` → `.ts`.
-- [ ] Convert `src/services/apiScheduleAssignments.js` → `.ts`.
-- [ ] Convert `src/services/apiScheduleTeachers.js` → `.ts`.
-- [ ] Convert `src/services/apiSemesters.js` → `.ts`.
-- [ ] Convert `src/services/apiStateRoles.js` → `.ts`.
-- [ ] Convert `src/services/apiStudyPrograms.js` → `.ts`.
-- [ ] Convert `src/services/apiSubjects.js` → `.ts`.
-- [ ] Convert `src/services/apiUtilities.js` → `.ts`.
-- [ ] Convert `src/services/apiWorkerDocuments.js` → `.ts` (largest/most
-      complex file in this batch; author named interfaces for its nested
-      option shapes rather than inlining).
-- [ ] Convert `src/services/apiWorkers.js` → `.ts`.
-- [ ] Verify every `.from(table)`, `.select(...)`, `.rpc(...)`, and
+- [x] Convert `src/services/apiAuth.js` → `.ts`.
+- [x] Convert `src/services/apiDegrees.js` → `.ts`.
+- [x] Convert `src/services/apiGroups.js` → `.ts`.
+- [x] Convert `src/services/apiProfiles.js` → `.ts`.
+- [x] Convert `src/services/apiRoles.js` → `.ts`.
+- [x] Convert `src/services/apiScheduleAssignments.js` → `.ts`.
+- [x] Convert `src/services/apiScheduleTeachers.js` → `.ts`.
+- [x] Convert `src/services/apiSemesters.js` → `.ts`.
+- [x] Convert `src/services/apiStateRoles.js` → `.ts`.
+- [x] Convert `src/services/apiStudyPrograms.js` → `.ts`.
+- [x] Convert `src/services/apiSubjects.js` → `.ts`.
+- [x] Convert `src/services/apiUtilities.js` → `.ts`.
+- [x] Convert `src/services/apiWorkerDocuments.js` → `.ts` (largest/most
+      complex file in this batch; authored named interfaces for its nested
+      option shapes — `UploadWorkerDocumentInput`, per-helper inline object
+      types — rather than inlining `any`).
+- [x] Convert `src/services/apiWorkers.js` → `.ts`.
+- [x] Verify every `.from(table)`, `.select(...)`, `.rpc(...)`, and
       `supabase.functions.invoke(...)` call is byte-identical to the
       pre-conversion source (table names, column selections, payload keys).
-- [ ] Audit every caller (hooks in authentication/stateRoles/otherData plus
-      every already-converted `.ts` hook) for import-path breakage.
+      Confirmed via `diff` against each pre-conversion `.js` source: every
+      change across all 15 files is type-level only (parameter/return
+      annotations, `as`/`!` assertions, new `type`/`interface` declarations)
+      — no table name, select string, filter, order clause, RPC name, or
+      error message differs.
+- [x] Audit every caller (hooks in authentication/stateRoles/otherData plus
+      every already-converted `.ts` hook) for import-path breakage. Result:
+      zero import-path changes needed anywhere — every one of the ~45 call
+      sites across services/hooks/components already used extension-less
+      imports.
 - [ ] Manually verify at least one read and one write per domain still
       succeeds (e.g. fetch degrees, create a group, upload a worker
       document).
-- [ ] `bun run typecheck`
-- [ ] `bun run build`
-- [ ] `bun run lint` (record before/after counts)
+- [x] `bun run typecheck`
+- [x] `bun run build`
+- [x] `bun run lint` (record before/after counts)
 
 ## 4. Phase 4 — Authentication (live files only)
 
@@ -396,7 +411,53 @@
   create/edit-schedule form submission to exercise the conflict-detection
   path) is still recommended before merge, per `design.md`'s Manual
   Smoke-Check Plan.
-- Phase 3 code conversion + manual check: _pending_
+- Phase 3 code conversion: done. `bunx @fission-ai/openspec validate ...
+  --strict` passes; `bun run typecheck` clean; `bun run build` succeeds;
+  `bun run lint` is 82 problems (78 errors, 4 warnings) — unchanged from the
+  Phase 2 baseline (0 delta; confirmed all 15 new service files individually
+  lint-clean). `find src -type f \( -name "*.js" -o -name "*.jsx" \)` returns
+  exactly **29** files (down from 44). `git status --short` confirms exactly
+  the 15 service files renamed, one new `src/vite-env.d.ts` (see Phase 3
+  note above), and one already-converted file touched
+  (`src/features/workers/useLinkedWorkerAccounts.ts`, a single-line
+  type-only widening, justified below) — no authentication/stateRoles/
+  otherData/schedules-orphan implementation files changed.
+
+  Two cross-cutting findings surfaced only by giving `supabase.ts` a real
+  `createClient<Database>()` type (both resolved without changing any
+  runtime behavior):
+  1. **Cascading nullable-field inference**: once `supabase.ts` is typed,
+     TypeScript infers accurate (not `any`) return types for *every* untyped
+     `.js` service that flows data through it — including services not yet
+     converted. This is how the `apiProfiles.ts`/`useLinkedWorkerAccounts.ts`
+     mismatch below was caught immediately, before that hook was ever
+     touched on purpose.
+  2. **`getLinkedWorkerIds()` (`apiProfiles.ts`) → `useLinkedWorkerAccounts.ts`**:
+     `profiles.worker_id` is `number | null` in the generated types, so the
+     service's real return type is `(number | null)[]`, not the `number[]`
+     `useLinkedWorkerAccounts.ts` optimistically declared (pre-existing
+     inaccuracy, invisible while the service was untyped `any`). Widened
+     that one `useQuery<number[]>` generic to `useQuery<(number | null)[]>`
+     — a type-only fix falling squarely under "fix TypeScript-only issues
+     caused by Supabase typing"; `data ?? []` / `new Set(...)` already
+     tolerate nulls with no behavior change.
+
+  Other notable typing decisions: the `let query = supabase.from(table); if
+  (!id) query = query.insert(...); if (id) query = query.update(...).eq(...);`
+  branch-reassignment pattern (used in `apiRoles`, `apiStateRoles`,
+  `apiUtilities`, `apiScheduleAssignments`, `apiScheduleTeachers`,
+  `apiWorkers`) needed an `as never` cast on each reassignment, since
+  postgrest-js's `PostgrestQueryBuilder`/`PostgrestFilterBuilder` are
+  different generic classes that can't be reassigned to one another
+  directly — confirmed via diff that the final `query.select()...`'s
+  inferred row type is unaffected (it depends only on the table, not on
+  which branch executed) and confirmed zero runtime effect (casts are
+  erased at compile time; the original `if`/`if` branching, not
+  if/else, is untouched). `createGroup`/`createSemester` accept a bare
+  `object` (not `Record<string, unknown>`) specifically because their only
+  callers (`CreateGroupForm.tsx`/`CreateSemesterForm.tsx`) pass
+  react-hook-form's raw `data: object` with no cast, and `object` doesn't
+  satisfy an index-signature type.
 - Phase 4 code conversion + manual check: _pending_
 - Phase 5 code conversion + manual check: _pending_
 - Phase 6 dead-file re-confirmation + deletion: _pending_

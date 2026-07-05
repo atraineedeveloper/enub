@@ -1,26 +1,29 @@
 import supabase from "./supabase";
+import type { Database } from "../types/supabase";
+
+type WorkerUpdate = Database["public"]["Tables"]["workers"]["Update"];
 
 const PROFILE_PICTURES_BUCKET = "profile_pictures";
 const ALLOWED_SUSTENANCE_TYPES = new Set(["Estatal", "Federal"]);
 
-function normalizeSustenanceType(value = "") {
+function normalizeSustenanceType(value: string = "") {
   const normalizedValue = value.trim().toLowerCase();
   if (normalizedValue === "estatal") return "Estatal";
   if (normalizedValue === "federal") return "Federal";
   return value.trim();
 }
 
-function getFileExtension(fileName = "") {
+function getFileExtension(fileName: string = "") {
   const parts = fileName.split(".");
-  return parts.length > 1 ? parts.pop().toLowerCase() : "jpg";
+  return parts.length > 1 ? parts.pop()!.toLowerCase() : "jpg";
 }
 
-function createProfilePictureName(file) {
+function createProfilePictureName(file: File) {
   const extension = getFileExtension(file?.name);
   return `worker-${crypto.randomUUID()}.${extension}`;
 }
 
-async function uploadProfilePicture(file) {
+async function uploadProfilePicture(file: File) {
   const fileName = createProfilePictureName(file);
 
   const { error } = await supabase.storage
@@ -35,7 +38,7 @@ async function uploadProfilePicture(file) {
   return fileName;
 }
 
-async function removeProfilePicture(fileName) {
+async function removeProfilePicture(fileName?: string | null) {
   if (!fileName) return;
 
   const { error } = await supabase.storage
@@ -45,7 +48,13 @@ async function removeProfilePicture(fileName) {
   if (error) throw error;
 }
 
-function normalizeSustenancePlazas(sustenancePlazas = []) {
+interface SustenancePlazaInput {
+  sustenance?: string;
+  payment_key?: string;
+  plaza?: string;
+}
+
+function normalizeSustenancePlazas(sustenancePlazas: SustenancePlazaInput[] = []) {
   if (!Array.isArray(sustenancePlazas)) return [];
 
   return sustenancePlazas
@@ -59,7 +68,9 @@ function normalizeSustenancePlazas(sustenancePlazas = []) {
     );
 }
 
-function validateSustenancePlazas(sustenancePlazas = []) {
+function validateSustenancePlazas(
+  sustenancePlazas: { sustenance: string; payment_key: string; plaza: string }[] = []
+) {
   for (const sustenancePlaza of sustenancePlazas) {
     if (
       !sustenancePlaza.sustenance ||
@@ -76,7 +87,15 @@ function validateSustenancePlazas(sustenancePlazas = []) {
   }
 }
 
-async function replaceWorkerDateOfAdmissions(workerId, dateOfAdmissions = []) {
+interface DateOfAdmissionInput {
+  type?: string | null;
+  date_of_admission?: string | null;
+}
+
+async function replaceWorkerDateOfAdmissions(
+  workerId: number,
+  dateOfAdmissions: DateOfAdmissionInput[] = []
+) {
   const { error: deleteError } = await supabase
     .from("date_of_admissions")
     .delete()
@@ -105,7 +124,10 @@ async function replaceWorkerDateOfAdmissions(workerId, dateOfAdmissions = []) {
   }
 }
 
-async function replaceWorkerSustenancePlazas(workerId, sustenancePlazas = []) {
+async function replaceWorkerSustenancePlazas(
+  workerId: number,
+  sustenancePlazas: { sustenance: string; payment_key: string; plaza: string }[] = []
+) {
   const { error: deleteError } = await supabase
     .from("sustenance_plazas")
     .delete()
@@ -133,7 +155,7 @@ async function replaceWorkerSustenancePlazas(workerId, sustenancePlazas = []) {
   }
 }
 
-export function getProfilePicturePublicUrl(fileName) {
+export function getProfilePicturePublicUrl(fileName?: string | null) {
   if (!fileName) return "";
 
   const { data } = supabase.storage
@@ -167,7 +189,7 @@ export async function getWorkers() {
   return data;
 }
 
-export async function getWorkerById(id) {
+export async function getWorkerById(id: number) {
   const { data, error } = await supabase
     .from("workers")
     .select("*")
@@ -182,30 +204,38 @@ export async function getWorkerById(id) {
   return data;
 }
 
+interface CreateEditWorkerOptions {
+  profilePictureFile?: File | null;
+  removeCurrentProfilePicture?: boolean;
+  currentProfilePicture?: string | null;
+  sustenancePlazas?: SustenancePlazaInput[];
+  dateOfAdmissions?: DateOfAdmissionInput[];
+}
+
 export async function createEditWorkers(
-  newWorker,
-  id,
+  newWorker: Record<string, unknown>,
+  id?: number,
   {
     profilePictureFile = null,
     removeCurrentProfilePicture = false,
     currentProfilePicture = null,
     sustenancePlazas = [],
     dateOfAdmissions = [],
-  } = {}
+  }: CreateEditWorkerOptions = {}
 ) {
   if (!newWorker || typeof newWorker !== "object")
     throw new Error("Los datos del trabajador no son válidos");
-  if (!newWorker.name?.trim())
+  if (!(newWorker.name as string | undefined)?.trim())
     throw new Error("El nombre del trabajador es requerido");
-  if (!newWorker.RFC?.trim())
+  if (!(newWorker.RFC as string | undefined)?.trim())
     throw new Error("El RFC del trabajador es requerido");
   const normalizedSustenancePlazas =
     normalizeSustenancePlazas(sustenancePlazas);
   validateSustenancePlazas(normalizedSustenancePlazas);
 
   let query = supabase.from("workers");
-  let uploadedProfilePicture = null;
-  const workerToSave = { ...newWorker };
+  let uploadedProfilePicture: string | null = null;
+  const workerToSave: Record<string, unknown> = { ...newWorker };
 
   if (removeCurrentProfilePicture) workerToSave.profile_picture = null;
 
@@ -215,10 +245,10 @@ export async function createEditWorkers(
   }
 
   // A) CREATE
-  if (!id) query = query.insert([workerToSave]);
+  if (!id) query = query.insert([workerToSave as WorkerUpdate]) as never;
 
   // B) EDIT
-  if (id) query = query.update({ ...workerToSave }).eq("id", id);
+  if (id) query = query.update({ ...workerToSave } as WorkerUpdate).eq("id", id) as never;
 
   const { data, error } = await query.select().single();
 

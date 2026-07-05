@@ -48,7 +48,13 @@ export async function getLinkedWorkerIds() {
   return data.map((row) => row.worker_id);
 }
 
-export async function linkWorkerAccount({ workerId, email }) {
+export async function linkWorkerAccount({
+  workerId,
+  email,
+}: {
+  workerId: number;
+  email: string;
+}) {
   const { error } = await supabase.rpc("link_worker_account", {
     worker_id: workerId,
     worker_email: email,
@@ -69,7 +75,10 @@ export async function linkWorkerAccount({ workerId, email }) {
 // (the actual { error: "..." } this app cares about, e.g. "Este trabajador
 // no tiene correo registrado...") is on error.context, a Response object
 // that has to be parsed separately.
-async function extractFunctionErrorMessage(error) {
+async function extractFunctionErrorMessage(error: {
+  context?: { json?: () => Promise<{ error?: string }> };
+  message?: string;
+}) {
   try {
     if (error?.context && typeof error.context.json === "function") {
       const body = await error.context.json();
@@ -86,7 +95,7 @@ async function extractFunctionErrorMessage(error) {
 // The Edge Function always resolves the worker's email from
 // public.workers.email itself; this function must never accept or forward
 // a caller-supplied email.
-export async function createWorkerAccount({ workerId }) {
+export async function createWorkerAccount({ workerId }: { workerId: number }) {
   const { data, error } = await supabase.functions.invoke(
     "create-worker-account",
     { body: { workerId } }
@@ -104,7 +113,11 @@ export async function createWorkerAccount({ workerId }) {
 // (decisions.md #29, extended by #33). This is a separate action for a
 // worker who already has a linked account (decisions.md #30): it never
 // creates or links a profile.
-export async function resendWorkerAccessLink({ workerId }) {
+export async function resendWorkerAccessLink({
+  workerId,
+}: {
+  workerId: number;
+}) {
   const { data, error } = await supabase.functions.invoke(
     "resend-worker-access-link",
     { body: { workerId } }

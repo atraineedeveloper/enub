@@ -1,4 +1,13 @@
 import supabase from "./supabase";
+import type { Database } from "../types/supabase";
+
+type WorkerDocumentCategoryRow =
+  Database["public"]["Tables"]["worker_document_categories"]["Row"];
+type WorkerDocumentTypeRow =
+  Database["public"]["Tables"]["worker_document_types"]["Row"];
+type WorkerDocumentRow = Database["public"]["Tables"]["worker_documents"]["Row"];
+type WorkerDocumentInsert =
+  Database["public"]["Tables"]["worker_documents"]["Insert"];
 
 const WORKER_DOCUMENTS_BUCKET = "worker_documents";
 const MAX_WORKER_DOCUMENT_SIZE = 10 * 1024 * 1024;
@@ -14,7 +23,7 @@ const ALLOWED_FILE_EXTENSIONS = new Set([
   "png",
   "webp",
 ]);
-const MIME_TYPE_BY_EXTENSION = {
+const MIME_TYPE_BY_EXTENSION: Record<string, string> = {
   pdf: "application/pdf",
   doc: "application/msword",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -28,23 +37,23 @@ const MIME_TYPE_BY_EXTENSION = {
 const WORKER_DOCUMENT_SELECT =
   "*, worker_document_types(*, worker_document_categories(*)), semesters(*)";
 
-function getFileExtension(fileName = "") {
+function getFileExtension(fileName: string = "") {
   const parts = fileName.split(".");
-  return parts.length > 1 ? parts.pop().toLowerCase() : "";
+  return parts.length > 1 ? parts.pop()!.toLowerCase() : "";
 }
 
-function sanitizeStorageFileName(fileName = "") {
+function sanitizeStorageFileName(fileName: string = "") {
   return fileName
     .trim()
     .replace(/[/\\]/g, "-")
     .replace(/\s+/g, "-");
 }
 
-function normalizeSemesterId(semesterId) {
+function normalizeSemesterId(semesterId?: number | string | null) {
   return semesterId === undefined || semesterId === "" ? null : semesterId;
 }
 
-function normalizeRequiredSemesterId(semesterId) {
+function normalizeRequiredSemesterId(semesterId?: number | string | null) {
   const normalizedSemesterId = Number(semesterId);
 
   if (!Number.isInteger(normalizedSemesterId) || normalizedSemesterId <= 0) {
@@ -54,7 +63,7 @@ function normalizeRequiredSemesterId(semesterId) {
   return normalizedSemesterId;
 }
 
-function validateWorkerDocumentFile(file) {
+function validateWorkerDocumentFile(file?: File | null) {
   if (!file) throw new Error("El archivo es requerido");
 
   const extension = getFileExtension(file.name);
@@ -70,7 +79,7 @@ function validateWorkerDocumentFile(file) {
   }
 }
 
-function getWorkerDocumentMimeType(file) {
+function getWorkerDocumentMimeType(file: File) {
   const extension = getFileExtension(file.name);
   return MIME_TYPE_BY_EXTENSION[extension] ?? file.type;
 }
@@ -80,6 +89,11 @@ function createWorkerDocumentStoragePath({
   documentTypeId,
   semesterId,
   file,
+}: {
+  workerId: number;
+  documentTypeId: number;
+  semesterId?: number | string | null;
+  file: File;
 }) {
   const scopeFolder = normalizeSemesterId(semesterId) ?? "permanent";
   const safeFileName = sanitizeStorageFileName(file.name);
@@ -87,7 +101,7 @@ function createWorkerDocumentStoragePath({
   return `${workerId}/${documentTypeId}/${scopeFolder}/${crypto.randomUUID()}-${safeFileName}`;
 }
 
-async function getDocumentType(documentTypeId) {
+async function getDocumentType(documentTypeId: number) {
   const { data, error } = await supabase
     .from("worker_document_types")
     .select("*, worker_document_categories(*)")
@@ -106,6 +120,10 @@ async function getExistingWorkerDocuments({
   workerId,
   documentTypeId,
   semesterId,
+}: {
+  workerId: number;
+  documentTypeId: number;
+  semesterId?: number | string | null;
 }) {
   let query = supabase
     .from("worker_documents")
@@ -116,7 +134,10 @@ async function getExistingWorkerDocuments({
   if (normalizeSemesterId(semesterId) === null) {
     query = query.is("semester_id", null);
   } else {
-    query = query.eq("semester_id", semesterId);
+    // semesterId is proven non-null/non-empty here (the `if` branch above
+    // covers that case) but keeps its wider caller type; cast reflects that
+    // narrowing without changing what value is actually sent.
+    query = query.eq("semester_id", semesterId as number);
   }
 
   const { data, error } = await query;
@@ -129,7 +150,7 @@ async function getExistingWorkerDocuments({
   return data ?? [];
 }
 
-async function uploadWorkerDocumentFile(storagePath, file) {
+async function uploadWorkerDocumentFile(storagePath: string, file: File) {
   const { error } = await supabase.storage
     .from(WORKER_DOCUMENTS_BUCKET)
     .upload(storagePath, file, {
@@ -143,7 +164,7 @@ async function uploadWorkerDocumentFile(storagePath, file) {
   }
 }
 
-async function getWorkerDocumentForDelete(documentId) {
+async function getWorkerDocumentForDelete(documentId: number) {
   const { data, error } = await supabase
     .from("worker_documents")
     .select("id, worker_id, storage_path")
@@ -158,8 +179,8 @@ async function getWorkerDocumentForDelete(documentId) {
   return data;
 }
 
-async function removeWorkerDocumentFiles(storagePaths = []) {
-  const pathsToRemove = storagePaths.filter(Boolean);
+async function removeWorkerDocumentFiles(storagePaths: (string | null | undefined)[] = []) {
+  const pathsToRemove = storagePaths.filter(Boolean) as string[];
   if (!pathsToRemove.length) return;
 
   const { error } = await supabase.storage
@@ -178,6 +199,12 @@ async function insertWorkerDocumentMetadata({
   semesterId,
   file,
   storagePath,
+}: {
+  workerId: number;
+  documentTypeId: number;
+  semesterId?: number | string | null;
+  file: File;
+  storagePath: string;
 }) {
   const { data, error } = await supabase
     .from("worker_documents")
@@ -190,7 +217,7 @@ async function insertWorkerDocumentMetadata({
         storage_path: storagePath,
         mime_type: getWorkerDocumentMimeType(file),
         file_size: file.size,
-      },
+      } as WorkerDocumentInsert,
     ])
     .select("*, worker_document_types(*, worker_document_categories(*))")
     .single();
@@ -209,7 +236,10 @@ async function insertWorkerDocumentMetadata({
   return data;
 }
 
-function groupDocumentTypesByCategory(categories = [], documentTypes = []) {
+function groupDocumentTypesByCategory(
+  categories: WorkerDocumentCategoryRow[] = [],
+  documentTypes: WorkerDocumentTypeRow[] = []
+) {
   return categories.map((category) => ({
     ...category,
     document_types: documentTypes.filter(
@@ -218,7 +248,12 @@ function groupDocumentTypesByCategory(categories = [], documentTypes = []) {
   }));
 }
 
-function addReportStatusToCategories(categories = [], documents = []) {
+function addReportStatusToCategories(
+  categories: (WorkerDocumentCategoryRow & {
+    document_types: WorkerDocumentTypeRow[];
+  })[] = [],
+  documents: WorkerDocumentRow[] = []
+) {
   return categories.map((category) => ({
     ...category,
     document_types: category.document_types.map((documentType) => {
@@ -261,7 +296,7 @@ export async function getWorkerDocumentCategoriesAndTypes() {
   return groupDocumentTypesByCategory(categories ?? [], documentTypes ?? []);
 }
 
-export async function getWorkerDocuments(workerId) {
+export async function getWorkerDocuments(workerId: number) {
   if (!workerId) throw new Error("El trabajador es requerido");
 
   const { data, error } = await supabase
@@ -278,7 +313,10 @@ export async function getWorkerDocuments(workerId) {
   return data;
 }
 
-export async function getWorkerDocumentsBySemester(workerId, semesterId) {
+export async function getWorkerDocumentsBySemester(
+  workerId: number,
+  semesterId?: number | string | null
+) {
   if (!workerId) throw new Error("El trabajador es requerido");
   const selectedSemesterId = normalizeRequiredSemesterId(semesterId);
 
@@ -297,12 +335,19 @@ export async function getWorkerDocumentsBySemester(workerId, semesterId) {
   return data;
 }
 
+interface UploadWorkerDocumentInput {
+  workerId: number;
+  documentTypeId: number;
+  semesterId?: number | string | null;
+  file: File;
+}
+
 export async function uploadWorkerDocument({
   workerId,
   documentTypeId,
   semesterId = null,
   file,
-}) {
+}: UploadWorkerDocumentInput) {
   if (!workerId) throw new Error("El trabajador es requerido");
   if (!documentTypeId) throw new Error("El tipo de documento es requerido");
 
@@ -345,7 +390,7 @@ export async function replaceWorkerDocument({
   documentTypeId,
   semesterId = null,
   file,
-}) {
+}: UploadWorkerDocumentInput) {
   if (!workerId) throw new Error("El trabajador es requerido");
   if (!documentTypeId) throw new Error("El tipo de documento es requerido");
 
@@ -429,7 +474,7 @@ export async function replaceWorkerDocument({
 //   true instead of thrown, so callers can distinguish "fully deleted"
 //   from "deleted, but the file may need manual cleanup" rather than
 //   treating the second as an outright failure.
-export async function deleteWorkerDocument(documentId) {
+export async function deleteWorkerDocument(documentId: number) {
   if (!documentId) throw new Error("El documento es requerido");
 
   const document = await getWorkerDocumentForDelete(documentId);
@@ -462,7 +507,7 @@ export async function deleteWorkerDocument(documentId) {
   };
 }
 
-export async function getWorkerDocumentSignedUrl(storagePath) {
+export async function getWorkerDocumentSignedUrl(storagePath: string) {
   if (!storagePath) throw new Error("La ruta del archivo es requerida");
 
   const { data, error } = await supabase.storage
@@ -477,7 +522,10 @@ export async function getWorkerDocumentSignedUrl(storagePath) {
   return data.signedUrl;
 }
 
-export async function getWorkerDocumentReportData(workerId, semesterId = null) {
+export async function getWorkerDocumentReportData(
+  workerId: number,
+  semesterId?: number | string | null
+) {
   if (!workerId) throw new Error("El trabajador es requerido");
 
   const { data: worker, error: workerError } = await supabase
@@ -502,7 +550,7 @@ export async function getWorkerDocumentReportData(workerId, semesterId = null) {
     const { data: semesterData, error: semesterError } = await supabase
       .from("semesters")
       .select("*")
-      .eq("id", semesterId)
+      .eq("id", semesterId as number)
       .single();
 
     if (semesterError) {

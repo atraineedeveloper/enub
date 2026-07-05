@@ -1,4 +1,10 @@
 import supabase from "./supabase";
+import type { Database } from "../types/supabase";
+
+type ScheduleAssignmentInsert =
+  Database["public"]["Tables"]["schedule_assignments"]["Insert"];
+type ScheduleAssignmentUpdate =
+  Database["public"]["Tables"]["schedule_assignments"]["Update"];
 
 export async function getScheduleAssignments() {
   const { data, error } = await supabase
@@ -15,10 +21,12 @@ export async function getScheduleAssignments() {
   return data;
 }
 
-export async function createScheduleAssignments(newScheduleAssignment) {
+export async function createScheduleAssignments(
+  newScheduleAssignment: Record<string, unknown>
+) {
   const { data, error } = await supabase
     .from("schedule_assignments")
-    .insert([newScheduleAssignment]);
+    .insert([newScheduleAssignment as ScheduleAssignmentInsert]);
 
   if (error) {
     console.error(error);
@@ -28,7 +36,10 @@ export async function createScheduleAssignments(newScheduleAssignment) {
   return data;
 }
 
-export async function createEditScheduleAssignments(newScheduleAssignment, id) {
+export async function createEditScheduleAssignments(
+  newScheduleAssignment: Record<string, unknown>,
+  id?: number
+) {
   if (!newScheduleAssignment || typeof newScheduleAssignment !== "object")
     throw new Error("Los datos del horario no son válidos");
   if (!newScheduleAssignment.worker_id)
@@ -39,10 +50,16 @@ export async function createEditScheduleAssignments(newScheduleAssignment, id) {
   let query = supabase.from("schedule_assignments");
 
   // A) CREATE
-  if (!id) query = query.insert([newScheduleAssignment]);
+  if (!id)
+    query = query.insert([
+      newScheduleAssignment as ScheduleAssignmentInsert,
+    ]) as never;
 
   // B) EDIT
-  if (id) query = query.update({ ...newScheduleAssignment }).eq("id", id);
+  if (id)
+    query = query
+      .update({ ...newScheduleAssignment } as ScheduleAssignmentUpdate)
+      .eq("id", id) as never;
 
   const { data, error } = await query.select().single();
 
@@ -54,7 +71,7 @@ export async function createEditScheduleAssignments(newScheduleAssignment, id) {
   return data;
 }
 
-export async function deleteScheduleAssignment(id) {
+export async function deleteScheduleAssignment(id: number) {
   const { data, error } = await supabase
     .from("schedule_assignments")
     .delete()

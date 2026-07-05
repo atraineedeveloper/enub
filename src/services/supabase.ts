@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "../types/supabase";
 
-/** @type {import('./types/supabase').Database} */ // Esto ayuda a la IA a leer el esquema
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey =
   import.meta.env.VITE_SUPABASE_ANON_KEY ?? import.meta.env.VITE_SUPABASE_KEY;
@@ -11,6 +11,6 @@ if (!supabaseUrl || !supabaseKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 
 export default supabase;

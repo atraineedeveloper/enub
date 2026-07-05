@@ -1,4 +1,7 @@
 import supabase from "./supabase";
+import type { Database } from "../types/supabase";
+
+type StudyProgramUpdate = Database["public"]["Tables"]["study_programs"]["Update"];
 
 export async function getStudyPrograms() {
   const { data, error } = await supabase
@@ -13,7 +16,10 @@ export async function getStudyPrograms() {
   return data;
 }
 
-export async function editStudyProgram(newProgram, id) {
+export async function editStudyProgram(
+  newProgram: StudyProgramUpdate,
+  id: number
+) {
   if (!newProgram || typeof newProgram !== "object")
     throw new Error("Los datos del plan de estudio no son válidos");
   if (!id) throw new Error("El identificador del plan de estudio es requerido");
