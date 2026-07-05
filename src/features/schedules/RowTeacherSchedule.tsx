@@ -1,6 +1,10 @@
+import type { ReactNode } from "react";
 import styled from "styled-components";
 import HourScheduleSubjectGroup from "./HourScheduleSubjectGroup";
 import HourScheduleSubjectTeacher from "./HourScheduleTeacher";
+import type { ScheduleAssignment } from "./useScheduleAssignments";
+import type { ScheduleTeacher } from "./useScheduleTeachers";
+import type { Worker } from "../workers/useWorkers";
 
 const TableRow = styled.div`
   display: grid;
@@ -35,6 +39,16 @@ const LongRowComplete = styled.div`
 
 const WEEKDAYS = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"];
 
+interface DayCellProps {
+  schedulesScholar: ScheduleAssignment[];
+  scheduleTeacher: ScheduleTeacher[];
+  weekday: string;
+  startTime: string;
+  workers: Worker[];
+  semesterId?: string;
+  children?: ReactNode;
+}
+
 function DayCell({
   schedulesScholar,
   scheduleTeacher,
@@ -43,7 +57,7 @@ function DayCell({
   workers,
   semesterId,
   children,
-}) {
+}: DayCellProps) {
   return (
     <div>
       {children}
@@ -63,6 +77,16 @@ function DayCell({
   );
 }
 
+interface TimeSlotRowProps {
+  schedulesScholar: ScheduleAssignment[];
+  scheduleTeacher: ScheduleTeacher[];
+  workers: Worker[];
+  semesterId?: string;
+  startTime: string;
+  timeLabel: string;
+  mondayExtra?: ReactNode;
+}
+
 function TimeSlotRow({
   schedulesScholar,
   scheduleTeacher,
@@ -71,7 +95,7 @@ function TimeSlotRow({
   startTime,
   timeLabel,
   mondayExtra = null,
-}) {
+}: TimeSlotRowProps) {
   return (
     <TableRow role="row">
       <p>{timeLabel}</p>
@@ -92,7 +116,7 @@ function TimeSlotRow({
   );
 }
 
-function BreakRow({ timeLabel }) {
+function BreakRow({ timeLabel }: { timeLabel: string }) {
   return (
     <LongRow role="row">
       <p>{timeLabel}</p>
@@ -101,13 +125,21 @@ function BreakRow({ timeLabel }) {
   );
 }
 
+interface RowTeacherScheduleProps {
+  schedulesScholar: ScheduleAssignment[];
+  scheduleTeacher: ScheduleTeacher[];
+  totalHours: number;
+  workers: Worker[];
+  semesterId?: string;
+}
+
 function RowTeacherSchedule({
   schedulesScholar,
   scheduleTeacher,
   totalHours,
   workers,
   semesterId,
-}) {
+}: RowTeacherScheduleProps) {
   const hasExtraHours =
     schedulesScholar.some((s) => s.start_time === "17:00:00") ||
     scheduleTeacher.some((s) => s.start_time === "17:00:00");

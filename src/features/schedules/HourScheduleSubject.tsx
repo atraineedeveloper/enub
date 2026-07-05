@@ -1,12 +1,35 @@
-import { useState } from "react";
+import { useState, type ComponentType } from "react";
 import { FaEdit, FaTrash } from "react-icons/fa";
 import Modal from "../../ui/Modal";
 import ConfirmDelete from "../../ui/ConfirmDelete";
 import { useDeleteScheduleAssignment } from "./useDeleteScheduleAssignment";
 import capitalizeName from "../../helpers/capitalizeFirstLetter";
-import CreateEditScholarSchedule from "./CreateEditScholarSchedule";
+import UntypedCreateEditScholarSchedule from "./CreateEditScholarSchedule";
+import type { ScheduleAssignment } from "./useScheduleAssignments";
 
-function HourScheduleSubject({ schedules, weekday, startTime }) {
+// CreateEditScholarSchedule.jsx is untyped and out of scope (Phase 3) --
+// its `semesterId` param has no destructured default, so TS infers it as
+// required, even though the component itself falls back to
+// `editValues.semester_id` when editing and no semesterId is passed (which
+// is exactly what happens at this call site). Local, type-only cast rather
+// than converting the file.
+const CreateEditScholarSchedule = UntypedCreateEditScholarSchedule as ComponentType<{
+  semesterId?: string;
+  scheduleToEdit?: ScheduleAssignment;
+  onCloseModal?: () => void;
+}>;
+
+interface HourScheduleSubjectProps {
+  schedules: ScheduleAssignment[];
+  weekday: string;
+  startTime: string;
+}
+
+function HourScheduleSubject({
+  schedules,
+  weekday,
+  startTime,
+}: HourScheduleSubjectProps) {
   const { isDeleting, deleteScheduleAssignment } =
     useDeleteScheduleAssignment();
   const subjectHour = schedules.filter((schedule) => {
@@ -19,9 +42,9 @@ function HourScheduleSubject({ schedules, weekday, startTime }) {
   if (subjectHour.length > 0)
     return (
       <>
-        <b>{subjectHour[0].subjects.name.toUpperCase()}</b>
+        <b>{subjectHour[0].subjects!.name!.toUpperCase()}</b>
         <br />
-        <em>{capitalizeName(subjectHour[0].workers.name)}</em>
+        <em>{capitalizeName(subjectHour[0].workers!.name!)}</em>
         <br />
         <Modal>
           <Modal.Open opens="scholar-schedule-edit-form">

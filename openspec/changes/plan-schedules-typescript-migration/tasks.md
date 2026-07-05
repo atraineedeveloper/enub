@@ -1,9 +1,10 @@
 # Tasks — plan-schedules-typescript-migration
 
-Status: **Phase 0 (confirmations relevant to Phase 1) and Phase 1 (query/
-mutation hooks) implemented and verified.** Phases 2–6 not started — do not
-begin without explicit instruction to continue. Do not check off any item
-without actually doing the work and re-verifying it.
+Status: **Phase 0 (confirmations relevant to Phases 1–2), Phase 1 (query/
+mutation hooks), and Phase 2 (leaf cell components) implemented and
+verified.** Phases 3–6 not started — do not begin without explicit
+instruction to continue. Do not check off any item without actually doing
+the work and re-verifying it.
 
 ## 1. Planning artifacts (this change)
 
@@ -38,7 +39,7 @@ without actually doing the work and re-verifying it.
       to exactly the 6 schedule mutation hooks and their consuming
       components, with no change to query keys, mutation functions,
       invalidation, or Supabase calls
-- [ ] Confirm the `HourScheduleTeacher.jsx` `setEditModal` fix (Decision 3)
+- [x] Confirm the `HourScheduleTeacher.jsx` `setEditModal` fix (Decision 3)
       will be the minimal, sibling-pattern-consistent fix, with no modal
       redesign
 - [ ] Confirm the `subjects.semester == semesterFound` comparison (Decision 4)
@@ -68,21 +69,33 @@ without actually doing the work and re-verifying it.
 
 ## 4. Phase 2 — leaf cell components
 
-- [ ] Convert `HourScheduleSubject.jsx` → `.tsx`
-- [ ] Convert `HourScheduleSubjectGroup.jsx` → `.tsx`
-- [ ] Convert `HourScheduleTeacher.jsx` → `.tsx`
-- [ ] Apply the authorized `setEditModal` fix (Decision 3) in
+- [x] Convert `HourScheduleSubject.jsx` → `.tsx`
+- [x] Convert `HourScheduleSubjectGroup.jsx` → `.tsx`
+- [x] Convert `HourScheduleTeacher.jsx` → `.tsx`
+- [x] Apply the authorized `setEditModal` fix (Decision 3) in
       `HourScheduleTeacher.tsx`: add the same
       `const [editModal, setEditModal] = useState(false)` declaration its
       sibling components already have; do not change any other modal
       behavior
-- [ ] Update every component that consumes the 6 mutation hooks'
+- [x] Update every component that consumes the 6 mutation hooks'
       `isCreating`/`isEditing`/`isDeleting` values to reflect the
-      `isLoading` → `isPending` rename (Decision 2)
-- [ ] Convert `RowScholarSchedule.jsx` → `.tsx`
-- [ ] Convert `RowTeacherSchedule.jsx` → `.tsx`
-- [ ] Run `bun run typecheck`, `bun run build`, `bun run lint` after Phase 2;
-      resolve before continuing
+      `isLoading` → `isPending` rename (Decision 2) — no consumer-side code
+      change was needed: `HourScheduleSubject.tsx`/`HourScheduleSubjectGroup.tsx`
+      (`useDeleteScheduleAssignment`) and `HourScheduleTeacher.tsx`
+      (`useDeleteScheduleTeacher`) already destructure `isDeleting` by name,
+      which Phase 1 already wired to the hook's real `isPending` value
+      transparently
+- [x] Convert `RowScholarSchedule.jsx` → `.tsx`
+- [x] Convert `RowTeacherSchedule.jsx` → `.tsx`
+- [x] Added local `ComponentType` casts for `CreateEditScholarSchedule`
+      (still untyped, Phase 3) in `HourScheduleSubject.tsx`/
+      `HourScheduleSubjectGroup.tsx` — its `semesterId` param has no
+      destructured default so TS infers it as required, though the real
+      component always falls back to `editValues.semester_id` when editing
+- [x] Run `bun run typecheck`, `bun run build`, `bun run lint` after Phase 2;
+      resolve before continuing — typecheck clean (after adding the 2 local
+      casts above), build clean (`✓ built in 8.02s`), lint dropped to 168
+      problems (164 errors, 4 warnings) from the 205 baseline
 
 ## 5. Phase 3 — forms
 
