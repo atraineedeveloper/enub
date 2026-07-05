@@ -1,15 +1,38 @@
 import jsPDF from "jspdf";
 import "jspdf-autotable";
-import Button from "../../ui/Button.tsx";
-import Spinner from "../../ui/Spinner.tsx";
-import { useRoles } from "../../features/roles/useRoles.ts";
+import type { UserOptions, RowInput } from "jspdf-autotable";
+import Button from "../../ui/Button";
+import Spinner from "../../ui/Spinner";
+import { useRoles } from "../../features/roles/useRoles";
 import { useStateRoles } from "../../features/stateRoles/useStateRoles.js";
-import filterHourGroup from "./filterHourGroup.ts";
-import filterHourActivity from "./filterHourActivity.ts";
+import filterHourGroup from "./filterHourGroup";
+import filterHourActivity from "./filterHourActivity";
 import capitalizeName from "../../helpers/capitalizeFirstLetter.js";
 import { useUtilities } from "../../features/otherData/useUtilities.js";
+import type { ScheduleAssignment } from "../../features/schedules/useScheduleAssignments";
+import type { ScheduleTeacher } from "../../features/schedules/useScheduleTeachers";
+import type { Database } from "../../types/supabase";
 
-function ScheduleTeacherPDF({ schedulesScholar, scheduleTeacher, totalHours }) {
+type StateRole = Database["public"]["Tables"]["state_roles"]["Row"];
+
+// autoTable isn't on jsPDF's own type (jspdf-autotable only exports a
+// standalone function) despite existing at runtime once the jspdf-autotable
+// side-effect import above registers the plugin.
+type JsPdfWithAutoTable = jsPDF & {
+  autoTable: (options: UserOptions) => void;
+};
+
+interface ScheduleTeacherPDFProps {
+  schedulesScholar: ScheduleAssignment[];
+  scheduleTeacher: ScheduleTeacher[];
+  totalHours: number;
+}
+
+function ScheduleTeacherPDF({
+  schedulesScholar,
+  scheduleTeacher,
+  totalHours,
+}: ScheduleTeacherPDFProps) {
   const { isLoading: isLoadingRoles, roles } = useRoles();
   const { isLoading: isLoadingStateRoles, stateRoles } = useStateRoles();
   const { isLoading: isLoadingUtilities, utilities } = useUtilities();
@@ -18,7 +41,8 @@ function ScheduleTeacherPDF({ schedulesScholar, scheduleTeacher, totalHours }) {
   // roles[1]/stateRoles[1] are undefined. Mirrors WorkerSheetSemester.jsx's
   // `roles ?? []` + optional-chaining pattern for this same data source.
   const availableRoles = roles ?? [];
-  const availableStateRoles = stateRoles ?? [];
+  const availableStateRoles: StateRole[] =
+    (stateRoles as StateRole[] | undefined) ?? [];
 
   let hasExtraHours = false;
 
@@ -40,9 +64,9 @@ function ScheduleTeacherPDF({ schedulesScholar, scheduleTeacher, totalHours }) {
   }
 
   schedulesScholar.map((schedule) => {
-    if (schedule.groups.degrees.code == "LEPRIM") {
+    if (schedule.groups!.degrees!.code == "LEPRIM") {
       numberLEPRIM++;
-    } else if (schedule.groups.degrees.code == "LEPREES") {
+    } else if (schedule.groups!.degrees!.code == "LEPREES") {
       numberLEPREES++;
     }
   });
@@ -63,7 +87,7 @@ function ScheduleTeacherPDF({ schedulesScholar, scheduleTeacher, totalHours }) {
     await import("../../styles/Montserrat-Bold-bold.js");
     await import("../../styles/Montserrat-BoldItalic-bolditalic.js");
 
-    const doc = new jsPDF("p", "px", "letter");
+    const doc = new jsPDF("p", "px", "letter") as JsPdfWithAutoTable;
 
     // Header
 
@@ -128,14 +152,14 @@ function ScheduleTeacherPDF({ schedulesScholar, scheduleTeacher, totalHours }) {
       [
         "ESCUELA NORMAL URBANA",
         `PERIODO ESCOLAR: ${
-          schedulesScholar[0]?.semesters.school_year ||
-          scheduleTeacher[0].semesters.school_year
+          schedulesScholar[0]?.semesters!.school_year ||
+          scheduleTeacher[0].semesters!.school_year
         }`,
       ],
       [`LICENCIATURA EN ${titleDegrees}`, `PLAN: 2022`],
       [
         `DOCENTE: ${capitalizeName(
-          schedulesScholar[0]?.workers.name || scheduleTeacher[0].workers.name
+          schedulesScholar[0]?.workers!.name || scheduleTeacher[0].workers!.name
         )}`,
         `TURNO: MATUTINO`,
       ],
@@ -166,7 +190,7 @@ function ScheduleTeacherPDF({ schedulesScholar, scheduleTeacher, totalHours }) {
         "07:00:00"
       )}${filterHourActivity(scheduleTeacher, "Lunes", "07:00:00")}`;
 
-    const data = [
+    const data: RowInput[] = [
       [
         "7:00 - 8:50",
         mondayFirstBlock,
@@ -287,7 +311,7 @@ function ScheduleTeacherPDF({ schedulesScholar, scheduleTeacher, totalHours }) {
 
     // ==========ADD EXTRA HOURS IF THERE'S SOME ==============
 
-    const extraHours1 = [
+    const extraHours1: RowInput = [
       {
         content: "HORARIO EXTRACURRICULAR",
         colSpan: 6,
@@ -350,8 +374,8 @@ function ScheduleTeacherPDF({ schedulesScholar, scheduleTeacher, totalHours }) {
       theme: "grid",
     });
 
-    const infoSchool = [
-      ["", "", `Balancán, Tabasco a ${utilities[0].value}`],
+    const infoSchool: RowInput[] = [
+      ["", "", `Balancán, Tabasco a ${utilities![0].value}`],
       [
         {
           content: availableRoles[1]?.role ?? "",

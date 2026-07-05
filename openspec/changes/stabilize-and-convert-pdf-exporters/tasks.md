@@ -66,24 +66,64 @@
 - [x] `bun run build`
 - [x] `bun run lint` (record before/after counts)
 
-## 3. Phase 3 — Convert TeacherAssignmentPDF to TypeScript
+## 3. Phase 3 — Convert schedule PDF components to TypeScript
 
-- [ ] Convert `src/pdf/Schedules/TeacherAssignmentPDF.jsx` to
-      `TeacherAssignmentPDF.tsx`, typing `groupedSubjects`,
-      `uniqueTeacherSchedule: ScheduleTeacher[]`, `currentWorker: Worker | undefined`
-      per `design.md`'s Data-Shape Analysis.
-- [ ] Add optional chaining/fallback for the `roles[0]` access (null-safety
-      only — this file does not currently crash; this is a type-driven
-      hardening, not a bug fix per the spec's Requirement scope).
-- [ ] Add the `lastAutoTable: { finalY: number }` member to this file's
-      `JsPdfWithAutoTable`-equivalent type, alongside `autoTable`.
-- [ ] Update `src/features/schedules/TeacherAssignment.tsx` import
-      path/extension if required; no prop or behavior changes.
-- [ ] Manually re-run the export action and compare output against the
-      pre-Phase-3 baseline.
-- [ ] `bun run typecheck`
-- [ ] `bun run build`
-- [ ] `bun run lint` (record before/after counts)
+> Scope note: Phase 3 was re-scoped (per explicit approval) to cover all
+> three remaining schedule PDF *components* in one phase — `ScheduleGroupPDF`,
+> `ScheduleTeacherPDF` (originally slated for Phase 2, deferred when Phase 2
+> was re-scoped to helper modules first), and `TeacherAssignmentPDF`
+> (originally this phase's sole target). `WorkerSheetSemester` remains
+> deferred to the next phase.
+>
+> Correction to this task's original `currentWorker` typing: `design.md`'s
+> Data-Shape Analysis stated `currentWorker: Worker | undefined`, but reading
+> the actual call site (`TeacherAssignment.tsx`'s
+> `currentWorker = workers.filter((worker) => worker.id === selectedWorkerId)`,
+> and this file's own `currentWorker[0].name` access) shows the prop is
+> actually `Worker[]` (0 or 1 entries), never a single `Worker`. Typed as
+> `Worker[]` below to match reality instead of the design doc's assumption.
+
+- [x] Convert `src/pdf/Schedules/ScheduleGroupPDF.jsx` to
+      `ScheduleGroupPDF.tsx`, typing `schedules` as `ScheduleAssignment[]`,
+      typing `state_roles` data via a local
+      `Database["public"]["Tables"]["state_roles"]["Row"]` type alias (cast at
+      this file's own boundary, since `useStateRoles.js` stays untyped/out of
+      scope), and adding a local `JsPdfWithAutoTable` type
+      (`jsPDF & { autoTable: (options: UserOptions) => void }`) for the
+      `autoTable` call. Preserves the Phase 1 `availableRoles`/
+      `availableStateRoles` defensive-fallback lines exactly (only added
+      `RowInput[]` typing on the surrounding `infoSchool`/`data` arrays and a
+      `!` on the pre-existing, previously out-of-scope `utilities[0]` access).
+- [x] Convert `src/pdf/Schedules/ScheduleTeacherPDF.jsx` to
+      `ScheduleTeacherPDF.tsx`, typing `schedulesScholar` as
+      `ScheduleAssignment[]`, `scheduleTeacher` as `ScheduleTeacher[]`,
+      `totalHours` as `number`; same `state_roles`/`autoTable` typing and same
+      Phase 1 fallback preservation as `ScheduleGroupPDF.tsx`.
+- [x] Convert `src/pdf/Schedules/TeacherAssignmentPDF.jsx` to
+      `TeacherAssignmentPDF.tsx`, typing `groupedSubjects` as
+      `Record<string, ScheduleAssignment[]>` (matching
+      `TeacherAssignment.tsx`'s own `groupData()` return shape),
+      `uniqueTeacherSchedule` as `{ name: string; quantity: number }[]`, and
+      `currentWorker` as `Worker[]` (see scope note above).
+- [x] Add optional chaining/fallback for this file's `roles[0]` access
+      (`roles?.[0]?.workers?.name ?? ""` / `roles?.[0]?.role ?? ""`,
+      matching the Phase 1 fallback shape) — null-safety only; this file does
+      not currently crash, this is type-driven hardening per the spec's
+      Requirement scope, not a bug fix.
+- [x] Add the `lastAutoTable: { finalY: number }` member to this file's
+      `JsPdfWithAutoTable` type, alongside `autoTable`.
+- [x] Drop the explicit `.ts`/`.tsx` extensions on this file's own
+      `Button`/`Spinner`/`useRoles` imports and the other two converted
+      files' `Button`/`Spinner`/`useRoles`/`filterHour*` imports — required
+      because `tsc` rejects explicit `.ts`/`.tsx` import extensions without
+      `allowImportingTsExtensions` (not set, out of scope to change) once the
+      importing file itself becomes type-checked; `.js` extension imports are
+      unaffected and left unchanged.
+- [ ] Manually re-run all three export actions and compare output against the
+      pre-Phase-3 baseline (structure/labels/fonts/margins unchanged).
+- [x] `bun run typecheck`
+- [x] `bun run build`
+- [x] `bun run lint` (record before/after counts)
 
 ## 4. Phase 4 — Convert WorkerSheetSemester to TypeScript
 
@@ -149,7 +189,22 @@
   and `ScheduleGroupPDF` exports were run; both PDFs generate successfully;
   the previous `.role` error did not return; basic structure/header/table
   output was visually confirmed.
-- Phase 3 manual check: _pending_
+- Phase 3 code conversion: done. `bunx @fission-ai/openspec validate ... --strict`
+  passes; `bun run typecheck` clean; `bun run build` succeeds; `bun run lint`
+  is 89 problems (85 errors, 4 warnings) — down from the 129 baseline (-40).
+  The entire delta is `react/prop-types` errors disappearing (47 across the
+  three converted files, e.g. `'schedules' is missing in props validation`)
+  now that real TS prop types replace runtime prop-types checking — an
+  expected, inherent side effect of TypeScript conversion (the same pattern
+  seen in every earlier `.jsx`→`.tsx` conversion in this migration), not
+  independent lint cleanup. The 7 pre-existing unused-variable errors in
+  these three files (`Spinner`, `isLoadingRoles`, `isLoadingStateRoles`,
+  `stateRoles`, two unused `data` callback params) were left exactly as they
+  were — same 7 problems, now reported under `@typescript-eslint/no-unused-vars`
+  instead of core `no-unused-vars` (the `.tsx` ESLint block swaps that rule),
+  not removed or otherwise touched.
+- Phase 3 manual check: _pending_ — not performed in this turn (no
+  browser/dev-server session available); must be done before Phase 4 begins
 - Phase 4 manual check: _pending_
 - Final manual smoke pass (4/4 PDFs): _pending_
 - Final lint count (before → after): _pending_
