@@ -36,20 +36,17 @@ function CreateSemesterForm({ onCloseModal }: CreateSemesterFormProps) {
 
   const currentYear = new Date().getFullYear();
   const lastYear = currentYear - 1;
-  const options = [];
-  const optionsYear = [];
 
-  for (let i = 0; i < 3; i++) {
+  const options = Array.from({ length: 3 }, (_, i) => {
     const year = currentYear + i; // Año actual + i
-    options.push(`${year.toString().slice(-2)}A`);
-    options.push(`${year.toString().slice(-2)}B`);
-  }
+    return [`${year.toString().slice(-2)}A`, `${year.toString().slice(-2)}B`];
+  }).flat();
 
-  for (let i = 0; i < 4; i++) {
+  const optionsYear = Array.from({ length: 4 }, (_, i) => {
     const startYear = lastYear + i;
     const endYear = startYear + 1;
-    optionsYear.push(`${startYear} - ${endYear}`);
-  }
+    return `${startYear} - ${endYear}`;
+  });
 
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
