@@ -80,18 +80,16 @@ function CreateEditRoleForm({
         </FormRow>
       }
       <FormRow>
-        <>
-          <Button
-            variation="secondary"
-            type="reset"
-            onClick={() => onCloseModal?.()}
-          >
-            Cancelar
-          </Button>
-          <Button>
-            {isEditSession ? "Editar Rol Escolar" : "Añadir Rol Escolar"}
-          </Button>
-        </>
+        <Button
+          variation="secondary"
+          type="reset"
+          onClick={() => onCloseModal?.()}
+        >
+          Cancelar
+        </Button>
+        <Button>
+          {isEditSession ? "Editar Rol Escolar" : "Añadir Rol Escolar"}
+        </Button>
       </FormRow>
     </Form>
   );

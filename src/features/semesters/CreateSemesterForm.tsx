@@ -17,7 +17,7 @@ function CreateSemesterForm({ onCloseModal }: CreateSemesterFormProps) {
   const { register, handleSubmit, reset, formState } = useForm();
   const { errors } = formState;
 
-  const mutation = useMutation({
+  const { mutate, isPending: isCreating } = useMutation({
     mutationFn: createSemester,
     onSuccess: () => {
       toast.success("El registro se creó correctamente");
@@ -27,14 +27,6 @@ function CreateSemesterForm({ onCloseModal }: CreateSemesterFormProps) {
     },
     onError: (err) => toast.error(err.message),
   });
-  const { mutate } = mutation;
-  // TanStack Query v5's useMutation has no `isLoading` (only `isPending`) —
-  // this was already always `undefined` at runtime before this file had any
-  // type checking at all, so `disabled={isCreating}` below has never
-  // actually disabled anything during submission. Preserved exactly, not
-  // fixed, per "do not change runtime behavior" — see design.md.
-  const isCreating = (mutation as unknown as { isLoading?: boolean })
-    .isLoading;
 
   function onSubmit(data: object) {
     mutate(data);
@@ -95,12 +87,10 @@ function CreateSemesterForm({ onCloseModal }: CreateSemesterFormProps) {
       </FormRow>
 
       <FormRow>
-        <>
-          <Button variation="secondary" type="button" onClick={onCloseModal}>
-            Cancelar
-          </Button>
-          <Button>Agregar Semestre</Button>
-        </>
+        <Button variation="secondary" type="button" onClick={onCloseModal}>
+          Cancelar
+        </Button>
+        <Button>Agregar Semestre</Button>
       </FormRow>
     </Form>
   );

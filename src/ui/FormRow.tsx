@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import type { ReactElement } from "react";
+import { isValidElement, type ReactNode } from "react";
 
 const StyledFormRow = styled.div<{ $alignTop?: boolean }>`
   display: grid;
@@ -53,13 +53,17 @@ interface FormRowProps {
   label?: string;
   error?: string;
   alignTop?: boolean;
-  children: ReactElement<{ id?: string }>;
+  children: ReactNode;
 }
 
 function FormRow({ label, error, children, alignTop }: FormRowProps) {
+  const htmlFor = isValidElement<{ id?: string }>(children)
+    ? children.props.id
+    : undefined;
+
   return (
     <StyledFormRow $alignTop={alignTop}>
-      {label && <Label htmlFor={children.props.id}>{label}</Label>}
+      {label && <Label htmlFor={htmlFor}>{label}</Label>}
       {children}
       {error && <Error>{error}</Error>}
     </StyledFormRow>

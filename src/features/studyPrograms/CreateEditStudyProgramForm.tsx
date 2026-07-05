@@ -59,12 +59,10 @@ function CreateEditStudyProgramForm({
         />
       </FormRow>
       <FormRow>
-        <>
-          <Button type="reset" variation="secondary" onClick={onCloseModal}>
-            Cancelar
-          </Button>
-          <Button disabled={isEditing}>Guardar</Button>
-        </>
+        <Button type="reset" variation="secondary" onClick={onCloseModal}>
+          Cancelar
+        </Button>
+        <Button disabled={isEditing}>Guardar</Button>
       </FormRow>
     </Form>
   );

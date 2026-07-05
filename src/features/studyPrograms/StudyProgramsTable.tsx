@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type ComponentType, type HTMLAttributes } from "react";
+import { useState, type ChangeEvent } from "react";
 import Spinner from "../../ui/Spinner";
 import { useStudyPrograms } from "./useStudyPrograms";
 import Table from "../../ui/Table";
@@ -6,16 +6,8 @@ import StudyProgramRow from "./StudyProgramRow";
 import ErrorMessage from "../../ui/ErrorMessage";
 import { usePagination } from "../../hooks/usePagination";
 import Pagination from "../../ui/Pagination";
-import UntypedRow from "../../ui/Row";
+import Row from "../../ui/Row";
 import SearchBar from "../../ui/SearchBar";
-
-// Row.jsx is a plain, untyped styled-component whose `type` prop is only
-// consumed via runtime prop interpolation (see Row.jsx) — this local cast
-// describes its real contract without converting that out-of-scope file.
-type RowProps = HTMLAttributes<HTMLDivElement> & {
-  type?: "horizontal" | "vertical";
-};
-const Row = UntypedRow as ComponentType<RowProps>;
 
 function StudyProgramsTable() {
   const { isLoading, studyPrograms, error } = useStudyPrograms();

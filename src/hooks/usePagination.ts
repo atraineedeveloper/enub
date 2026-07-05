@@ -2,7 +2,7 @@ import { useState } from "react";
 
 const PAGE_SIZE = 10;
 
-export function usePagination(data = []) {
+export function usePagination<T>(data: T[] = []) {
   const [currentPage, setCurrentPage] = useState(1);
 
   const totalCount = data.length;
