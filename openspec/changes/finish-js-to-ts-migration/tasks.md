@@ -183,6 +183,58 @@
 - [x] `bun run build`
 - [x] `bun run lint` (record before/after counts)
 
+## 3.5 — Roles duplicate-toast regression check/fix
+
+> Triggered by manual smoke testing on `/roles` after Phase 3: editing a role
+> showed both "El registro se creó correctamente" and "El registro se
+> actualizó con éxito". Investigated and fixed as a targeted, roles-only
+> detour before Phase 4; not a Phase 3 service defect.
+
+- [x] Confirm `src/services/apiRoles.ts` preserved the original `id`
+      truthiness create/edit branching exactly (`if (!id) insert; if (id)
+      update`) — confirmed via diff against the pre-Phase-3 source; byte-identical
+      apart from type annotations/casts. Not the source of the bug.
+- [x] Confirm root cause: `src/features/roles/CreateEditRoleForm.tsx`'s
+      `onSubmit` called `editRole(variables, { onSuccess: (data) => {...} })`
+      with an inline **per-call** `onSuccess` that showed
+      `toast.success("El registro se creó correctamente")` (the wrong,
+      create-flavored message, on the **edit** path) — copy-paste residue,
+      unrelated to and pre-dating Phase 3 (this file was last touched in
+      commit `78af657`, well before the Phase 3 services commit). TanStack
+      Query calls both a mutation's hook-level `onSuccess`
+      (`useEditRole.ts`'s, which already correctly shows "se actualizó con
+      éxito" and invalidates the roles query) and a per-call `onSuccess`
+      passed to `mutate()` — both fired, producing both toasts on every
+      edit. **Confirmed a real, reachable regression**, not expected toast
+      stacking.
+- [x] Fix: removed the duplicate `toast.success(...)` call from the inline
+      per-call `onSuccess` in `CreateEditRoleForm.tsx`, keeping only the
+      form-local `reset()`/`onCloseModal?.()` there (the hook's own
+      `onSuccess` already owns the toast + cache invalidation). Removed the
+      now-unused `toast` import and the now-unused shadowing `data` parameter
+      on that callback (incidentally fixed one pre-existing lint error).
+- [x] `bunx @fission-ai/openspec validate finish-js-to-ts-migration --type change --strict`
+- [x] `bun run typecheck`
+- [x] `bun run build`
+- [x] `bun run lint` — 81 problems (77 errors, 4 warnings), **-1** from the
+      Phase 3 baseline of 82 (the removed unused `data` parameter's
+      pre-existing `@typescript-eslint/no-unused-vars` error).
+- [ ] Manual smoke: reload `/roles`, edit one existing role, confirm only
+      the update toast appears. Not performed this turn (no
+      browser/dev-server session available) — must be done before Phase 4
+      begins.
+
+**Separate, out-of-scope finding (not fixed, flagged only)**: `onSubmit` has
+no `else`/unconditional branch — for a **new** role (`isEditSession` false),
+submitting the form currently calls no mutation at all (silently does
+nothing). This is unreachable in the live UI today: neither `RoleTable.tsx`
+nor `RoleRow.tsx` render `CreateEditRoleForm` in create mode anywhere (no
+"Add Role" entry point exists), so this latent gap was not part of the
+reported regression and is left untouched, per this detour's narrow scope
+("do not change role CRUD behavior except the minimal fix needed to prevent
+duplicate success toasts"). Worth a future, separately-scoped fix if/when a
+"create role" entry point is added to the UI.
+
 ## 4. Phase 4 — Authentication (live files only)
 
 - [ ] Convert `src/features/authentication/useLogin.js` → `.ts`, applying

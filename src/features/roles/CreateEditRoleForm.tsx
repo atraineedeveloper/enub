@@ -7,7 +7,6 @@ import { useEditRole } from "./useEditRole";
 import { useWorkers } from "../workers/useWorkers";
 import Spinner from "../../ui/Spinner";
 import Select from "../../ui/Select";
-import toast from "react-hot-toast";
 import type { Role } from "./useRoles";
 
 interface CreateEditRoleFormProps {
@@ -40,8 +39,13 @@ function CreateEditRoleForm({
       editRole(
         { newRole: { ...data }, id: editId! },
         {
-          onSuccess: (data) => {
-            toast.success("El registro se creó correctamente");
+          // useEditRole.ts's own onSuccess already shows the correct
+          // "se actualizó" toast and invalidates the roles query -- this
+          // per-call onSuccess previously duplicated it with the wrong
+          // "se creó" message (both fire; react-query calls the hook-level
+          // and per-call onSuccess handlers in sequence, not either/or).
+          // Only the form-local reset/close belong here.
+          onSuccess: () => {
             reset();
             onCloseModal?.();
           },
