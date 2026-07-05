@@ -5,7 +5,7 @@ import { deleteScheduleAssignment as deleteScheduleAssignmentApi } from "../../s
 export function useDeleteScheduleAssignment() {
   const queryClient = useQueryClient();
 
-  const { isLoading: isDeleting, mutate: deleteScheduleAssignment } =
+  const { isPending: isDeleting, mutate: deleteScheduleAssignment } =
     useMutation({
       mutationFn: deleteScheduleAssignmentApi,
       onSuccess: () => {

@@ -5,7 +5,7 @@ import { createEditScheduleAssignments } from "../../services/apiScheduleAssignm
 export function useCreateScheduleAssignments() {
   const queryClient = useQueryClient();
 
-  const { mutate: createScheduleAssignments, isLoading: isCreating } =
+  const { mutate: createScheduleAssignments, isPending: isCreating } =
     useMutation({
       mutationFn: createEditScheduleAssignments,
       onSuccess: () => {

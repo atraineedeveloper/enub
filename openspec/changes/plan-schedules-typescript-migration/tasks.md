@@ -1,40 +1,40 @@
 # Tasks — plan-schedules-typescript-migration
 
-Status: **Planning only. No implementation task below is started or
-complete.** This task list governs a future implementation change; it is
-recorded here so the phase structure, validation gates, and closed decisions
-are on record before any file is touched. Do not check off any item without
-actually doing the work and re-verifying it.
+Status: **Phase 0 (confirmations relevant to Phase 1) and Phase 1 (query/
+mutation hooks) implemented and verified.** Phases 2–6 not started — do not
+begin without explicit instruction to continue. Do not check off any item
+without actually doing the work and re-verifying it.
 
 ## 1. Planning artifacts (this change)
 
-- [ ] Confirm `proposal.md` accurately states Why/What Changes/Capabilities/Impact,
+- [x] Confirm `proposal.md` accurately states Why/What Changes/Capabilities/Impact,
       including the two explicitly authorized fixes
-- [ ] Confirm `specs/schedule-typescript-safety/spec.md` requirements cover
+- [x] Confirm `specs/schedule-typescript-safety/spec.md` requirements cover
       list/table behavior, assignment behavior, teacher schedule behavior,
       group schedule behavior, React Query/Supabase behavior, route/page
       integration, the PDF-exporter exclusion boundary, and pre-existing-bug
       handling (default preservation plus the two authorized exceptions)
-- [ ] Confirm every requirement in `spec.md` has a body containing SHALL or
+- [x] Confirm every requirement in `spec.md` has a body containing SHALL or
       MUST immediately after its `### Requirement:` header, not only in the
       header text
-- [ ] Confirm `design.md` includes Context, Goals/Non-Goals, Decisions,
+- [x] Confirm `design.md` includes Context, Goals/Non-Goals, Decisions,
       Risks/Trade-offs, Migration Plan, and a Closed Decisions section (not
       Open Questions) covering all 5 prior questions
-- [ ] Run `openspec validate` against this change and resolve any structural
-      errors it reports
-- [ ] Run `bunx @fission-ai/openspec validate plan-schedules-typescript-migration --type change --strict`
-      and resolve any error it reports
-- [ ] Get explicit human sign-off that the 5 Closed Decisions in `design.md`
+- [x] Run `openspec validate` against this change and resolve any structural
+      errors it reports — passed: "Change 'plan-schedules-typescript-migration' is valid"
+- [x] Run `bunx @fission-ai/openspec validate plan-schedules-typescript-migration --type change --strict`
+      and resolve any error it reports — passed: "Change 'plan-schedules-typescript-migration' is valid"
+- [x] Get explicit human sign-off that the 5 Closed Decisions in `design.md`
       are acceptable before any implementation task below begins
 
 ## 2. Phase 0 — confirm closed decisions still hold (blocks all later phases)
 
-- [ ] Re-check (do not assume) that `CreateScholarSchedule.jsx`,
+- [x] Re-check (do not assume) that `CreateScholarSchedule.jsx`,
       `EditScholarSchedule.jsx`, and `RowTeacherAssignment.jsx` still have
       zero live importers; if any now has one, stop and re-plan that file
-      before proceeding (Decision 1)
-- [ ] Confirm the `isLoading` → `isPending` fix (Decision 2) will be applied
+      before proceeding (Decision 1) — re-confirmed via grep: still zero live
+      importers, unchanged from planning
+- [x] Confirm the `isLoading` → `isPending` fix (Decision 2) will be applied
       to exactly the 6 schedule mutation hooks and their consuming
       components, with no change to query keys, mutation functions,
       invalidation, or Supabase calls
@@ -49,20 +49,22 @@ actually doing the work and re-verifying it.
 
 ## 3. Phase 1 — query/mutation hooks
 
-- [ ] Convert `useScheduleAssignments.js` → `.ts`
-- [ ] Convert `useScheduleTeachers.js` → `.ts`
-- [ ] Convert `useCreateScheduleAssignments.js` → `.ts`
-- [ ] Convert `useEditScheduleAssignments.js` → `.ts`
-- [ ] Convert `useDeleteScheduleAssignment.js` → `.ts`
-- [ ] Convert `useCreateScheduleTeacher.js` → `.ts`
-- [ ] Convert `useEditScheduleTeacher.js` → `.ts`
-- [ ] Convert `useDeleteScheduleTeacher.js` → `.ts`
-- [ ] Apply the authorized `isLoading` → `isPending` fix (Decision 2) in all
+- [x] Convert `useScheduleAssignments.js` → `.ts`
+- [x] Convert `useScheduleTeachers.js` → `.ts`
+- [x] Convert `useCreateScheduleAssignments.js` → `.ts`
+- [x] Convert `useEditScheduleAssignments.js` → `.ts`
+- [x] Convert `useDeleteScheduleAssignment.js` → `.ts`
+- [x] Convert `useCreateScheduleTeacher.js` → `.ts`
+- [x] Convert `useEditScheduleTeacher.js` → `.ts`
+- [x] Convert `useDeleteScheduleTeacher.js` → `.ts`
+- [x] Apply the authorized `isLoading` → `isPending` fix (Decision 2) in all
       6 mutation hooks above; leave `useScheduleAssignments.ts`/
       `useScheduleTeachers.ts` untouched beyond typing (they use `isLoading`
       correctly already — query hooks, not mutations)
-- [ ] Run `bun run typecheck`, `bun run build`, `bun run lint` after Phase 1;
-      resolve before continuing
+- [x] Run `bun run typecheck`, `bun run build`, `bun run lint` after Phase 1;
+      resolve before continuing — typecheck clean, build clean
+      (`✓ built in 7.89s`), lint unchanged at 205 problems (201 errors, 4
+      warnings), none attributable to the 8 converted files
 
 ## 4. Phase 2 — leaf cell components
 
