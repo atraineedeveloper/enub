@@ -401,23 +401,39 @@ duplicate success toasts"). Worth a future, separately-scoped fix if/when a
 
 ## 8. Phase 8 — Final verification and full manual smoke pass
 
-- [ ] `bunx @fission-ai/openspec validate finish-js-to-ts-migration --type change --strict`
-- [ ] `bun run typecheck`
-- [ ] `bun run build`
-- [ ] `bun run lint` (record final before/after counts across the whole
+- [x] `bunx @fission-ai/openspec validate finish-js-to-ts-migration --type change --strict`
+- [x] `bun run typecheck`
+- [x] `bun run build`
+- [x] `bun run lint` (record final before/after counts across the whole
       change)
-- [ ] `find src -type f \( -name "*.js" -o -name "*.jsx" \) | sort` — expect
+- [x] `find src -type f \( -name "*.js" -o -name "*.jsx" \) | sort` — expect
       exactly the 4 Montserrat font files and nothing else.
-- [ ] Confirm `src/services/**` behavior (query/mutation shapes),
+- [x] Confirm `src/services/**` behavior (query/mutation shapes),
       `src/types/supabase.ts`, `supabase/**`, `package.json`, `tsconfig.json`,
       `eslint.config.js` are unchanged in behavior/content by
-      `git diff --stat` against this change's base commit.
-- [ ] Confirm the 5 dead files are actually removed (not just unreferenced)
-      and the 4 Montserrat files are unchanged.
+      `git diff --stat` against this change's base commit (`24f107d`).
+      Confirmed via `git diff --stat 24f107d HEAD -- src/types/supabase.ts
+      package.json tsconfig.json eslint.config.js supabase/`: zero diff.
+      Services (`src/services/**`) were renamed `.js`→`.ts` in Phase 3 with
+      byte-diffed, type-only changes only (documented in that phase's own
+      report) — no query/mutation/table/column/error-message behavior
+      differs.
+- [x] Confirm the 5 dead files are actually removed (not just unreferenced)
+      and the 4 Montserrat files are unchanged. Confirmed: `find` shows only
+      the 4 Montserrat files remain under `src/`; full-tree stale-import
+      audit for all 5 deleted files' names returns zero live references
+      (only unrelated substring collisions with the distinct, live
+      `CreateEditScholarSchedule.tsx`).
 - [ ] Run the full manual smoke pass from `design.md`'s Manual Smoke-Check
       Plan (login/logout, password set/recovery, worker account linking,
       role-based redirects, dark mode persistence, State Roles/Other Data
       CRUD, PDF export sanity check) and record pass/fail per item below.
+      Per-phase results already reported and recorded (Phases 1, 3, 4, 5 —
+      see Verification Results); the consolidated final-round pass across
+      the whole app (login, logout, dashboard/admin layout, schedules page,
+      one PDF export, workers page, worker document view, State
+      Roles/Other Data pages, console-error check) has **not** been
+      reported as performed yet — left unchecked pending that report.
 
 ## Verification Results
 
@@ -711,6 +727,63 @@ duplicate success toasts"). Worth a future, separately-scoped fix if/when a
   -name "*.js" -o -name "*.jsx" \)` still returns exactly the same 4
   Montserrat files. `git status --short` confirms only this file
   (`tasks.md`) changed this phase.
-- Final manual smoke pass (all items): _pending_
-- Final lint count (before → after): _pending_
-- Final `find src -type f \( -name "*.js" -o -name "*.jsx" \)` output: _pending_
+- Phase 8 final verification: done.
+  `bunx @fission-ai/openspec validate finish-js-to-ts-migration --type
+  change --strict` → valid. `bunx @fission-ai/openspec status --change
+  finish-js-to-ts-migration` → 4/4 artifacts complete. `bun run typecheck` →
+  clean. `bun run build` → succeeds (all 4 Montserrat font chunks present
+  in the build output, confirming they still load correctly at runtime).
+  `bun run lint` → 43 problems (39 errors, 4 warnings) — unchanged from the
+  Phase 7 baseline (0 delta this phase). Full stale-import audit (old
+  helpers `.js`, old services `.js`, old auth `.js`/`.jsx`, old stateRoles
+  `.js`/`.jsx`, old otherData `.js`/`.jsx`, the 5 deleted dead files, old PDF
+  helper/component names) returns **zero live references** anywhere in
+  `src/` — the only matches are two categories of pre-existing, harmless
+  stale *comments* (not imports), both predating this migration entirely:
+  (1) `HourScheduleSubjectGroup.tsx`/`HourScheduleSubject.tsx` reference
+  "`CreateEditScholarSchedule.jsx` is untyped... (Phase 3)" — a relic of the
+  earlier, separate `convert-schedules-to-ts` change's own phase numbering,
+  describing a file that is in fact already `.tsx`; (2)
+  `ScheduleDashboard.tsx`/`ScheduleGroupPDF.tsx`/`ScheduleTeacherPDF.tsx`
+  reference "`WorkerSheetSemester.jsx`" — a relic of the earlier, separate
+  `stabilize-and-convert-pdf-exporters` change, from before that file was
+  renamed to `.tsx`. Neither predates nor was introduced by this change;
+  both are documentation-only and cause no verification failure, so left
+  untouched per this phase's "do not touch `src/` unless required by a
+  failing verification" / "do not do unrelated lint cleanup" constraints.
+  `git diff --stat 24f107d HEAD -- src/types/supabase.ts package.json
+  tsconfig.json eslint.config.js supabase/` → zero diff, confirming these
+  files were never touched across the whole change.
+- Final manual smoke pass (all items): **partially reported**. Per-phase
+  results already recorded and confirmed: Phase 1 (app load, dark mode
+  persistence, layouts, menu/modal outside-click), Phase 3 (service smoke,
+  login/logout and representative service paths), Phase 4 (auth smoke,
+  login/logout), Phase 5 (State Roles edit — found and fixed a modal-close/
+  stale-values bug, then passed: one toast, modal closes, table refreshes;
+  Other Data edit passed the same checks). The broader final-PR round
+  (login, logout, dashboard/admin layout, schedules page, one PDF export,
+  workers page, worker document view, State Roles/Other Data pages,
+  console-error check) is **recommended but not yet reported as
+  performed** — see the Phase 8 task list above.
+- Final lint count (before → after): **83 → 43** across the whole change
+  (start-of-change baseline recorded in Phase 0 → current). Breakdown by
+  phase: Phase 1 -1 (83→82), Phase 2 0 (82), Phase 3 0 (82), Phase 3.5 -1
+  (82→81), Phase 4 0 (81), Phase 5 -13 (81→68), Phase 5 smoke-fix 0 (68),
+  Phase 6 -25 (68→43), Phase 7 0 (43), Phase 8 0 (43). Every reduction
+  traced to either (a) `react/prop-types` errors made obsolete by real TS
+  types (the expected, inherent effect of conversion, confirmed file-by-file
+  in every phase's own report) or (b) deleting dead files outright; zero
+  pre-existing unused-variable/other errors were removed as "cleanup" —
+  every one that existed before conversion still exists today, just
+  reported under the renamed `@typescript-eslint/*` rule where applicable.
+- Final `find src -type f \( -name "*.js" -o -name "*.jsx" \)` output:
+  ```
+  src/styles/Montserrat-Bold-bold.js
+  src/styles/Montserrat-BoldItalic-bolditalic.js
+  src/styles/Montserrat-Italic-italic.js
+  src/styles/Montserrat-Regular-normal.js
+  ```
+  Exactly 4 files — the generated jsPDF font-registration assets, matching
+  the final target this whole change set out to reach (zero active untyped
+  application source files; only explicitly-justified generated data files
+  remain as `.js`).
