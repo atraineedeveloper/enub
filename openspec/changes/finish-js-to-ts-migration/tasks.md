@@ -383,11 +383,20 @@ duplicate success toasts"). Worth a future, separately-scoped fix if/when a
 
 ## 7. Phase 7 — Generated font asset decision (no conversion)
 
-- [ ] Re-review Closed Decision 1 against the current state of the 4
+- [x] Re-review Closed Decision 1 against the current state of the 4
       Montserrat files and their 16 call sites; confirm the "leave as `.js`"
       decision still holds (no application logic has been added to these
-      files since this document was written).
-- [ ] Record the re-review outcome in this file's Verification Results.
+      files since this document was written). Re-confirmed: each file is
+      still exactly 7 lines (`import { jsPDF } from "jspdf"`, one base64
+      font string, an `addFileToVFS`/`addFont` `callAddFont` function, and a
+      `jsPDF.API.events.push(['addFonts', callAddFont])` side effect) — no
+      exports, no application/business logic. All 16 call sites (4 files ×
+      4 fonts) remain `await import(".../Montserrat-*.js")` with an explicit
+      `.js` extension, exclusively from the 4 already-converted PDF
+      exporters (`ScheduleGroupPDF.tsx`, `ScheduleTeacherPDF.tsx`,
+      `TeacherAssignmentPDF.tsx`, `WorkerSheetSemester.tsx`) — no static
+      imports anywhere. Decision stands: leave as `.js`.
+- [x] Record the re-review outcome in this file's Verification Results.
       No code changes in this phase.
 
 ## 8. Phase 8 — Final verification and full manual smoke pass
@@ -690,7 +699,18 @@ duplicate success toasts"). Worth a future, separately-scoped fix if/when a
   `git status --short` confirms exactly the 5 deletions plus the one
   single-line edit in `HourScheduleSubjectGroup.tsx` — no active
   schedules/authentication/services/stateRoles/otherData/PDF files touched.
-- Phase 7 font-asset decision re-review: _pending_
+- Phase 7 font-asset decision re-review: done. Re-confirmed all 4
+  Montserrat files are still exactly 7 lines of generated base64 font data
+  plus a jsPDF registration side effect, no exports, no application logic;
+  all 16 dynamic-import call sites unchanged (confirmed via `rg
+  "Montserrat-.*\.js" src`). Closed Decision 1 ("leave as `.js`") stands, no
+  code changed. `bunx @fission-ai/openspec validate ... --strict` passes;
+  `bun run typecheck` clean; `bun run build` succeeds; `bun run lint` is 43
+  problems (39 errors, 4 warnings) — unchanged from the Phase 6 baseline (0
+  delta, as expected since no code was touched). `find src -type f \(
+  -name "*.js" -o -name "*.jsx" \)` still returns exactly the same 4
+  Montserrat files. `git status --short` confirms only this file
+  (`tasks.md`) changed this phase.
 - Final manual smoke pass (all items): _pending_
 - Final lint count (before → after): _pending_
 - Final `find src -type f \( -name "*.js" -o -name "*.jsx" \)` output: _pending_
