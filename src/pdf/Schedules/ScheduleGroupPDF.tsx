@@ -3,12 +3,12 @@ import "jspdf-autotable";
 import type { UserOptions, RowInput } from "jspdf-autotable";
 import Button from "../../ui/Button";
 import { useRoles } from "../../features/roles/useRoles";
-import { useStateRoles } from "../../features/stateRoles/useStateRoles.js";
+import { useStateRoles } from "../../features/stateRoles/useStateRoles";
 import Spinner from "../../ui/Spinner";
 import filterHour from "./filterHour";
-import calculateSemesterGroup from "../../helpers/calculateSemesterGroup.js";
-import capitalizeName from "../../helpers/capitalizeFirstLetter.js";
-import { useUtilities } from "../../features/otherData/useUtilities.js";
+import calculateSemesterGroup from "../../helpers/calculateSemesterGroup";
+import capitalizeName from "../../helpers/capitalizeFirstLetter";
+import { useUtilities } from "../../features/otherData/useUtilities";
 import type { ScheduleAssignment } from "../../features/schedules/useScheduleAssignments";
 import type { Database } from "../../types/supabase";
 

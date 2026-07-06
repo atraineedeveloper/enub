@@ -3,7 +3,6 @@ import Row from "../../ui/Row";
 import calculateSemesterGroup from "../../helpers/calculateSemesterGroup";
 import { useState, type ComponentType } from "react";
 import Modal from "../../ui/Modal";
-import CreateScholarSchedule from "./EditScholarSchedule";
 import ConfirmDelete from "../../ui/ConfirmDelete";
 import { useDeleteScheduleAssignment } from "./useDeleteScheduleAssignment";
 import UntypedCreateEditScholarSchedule from "./CreateEditScholarSchedule";
