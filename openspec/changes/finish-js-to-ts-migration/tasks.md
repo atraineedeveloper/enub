@@ -348,31 +348,38 @@ duplicate success toasts"). Worth a future, separately-scoped fix if/when a
 
 ## 6. Phase 6 — Dead-file disposition (delete, do not convert)
 
-- [ ] Re-confirm `src/features/schedules/CreateScholarSchedule.jsx` has zero
-      live importers (full-tree grep, immediately before deleting).
-- [ ] Delete `src/features/schedules/CreateScholarSchedule.jsx`.
-- [ ] Re-confirm `src/features/schedules/EditScholarSchedule.jsx`'s only
+- [x] Re-confirm `src/features/schedules/CreateScholarSchedule.jsx` has zero
+      live importers (full-tree grep, immediately before deleting). Only
+      matches were its own internal function/export and
+      `EditScholarSchedule.jsx`'s own copy-paste-misnamed internal function
+      (not an import of this file) — confirmed zero real importers.
+- [x] Delete `src/features/schedules/CreateScholarSchedule.jsx`.
+- [x] Re-confirm `src/features/schedules/EditScholarSchedule.jsx`'s only
       textual reference (`HourScheduleSubjectGroup.tsx` line 6) is truly a
-      dead, unreferenced local binding, not a live render path.
-- [ ] Delete `src/features/schedules/EditScholarSchedule.jsx`.
-- [ ] Remove the now-fully-dead `import CreateScholarSchedule from "./EditScholarSchedule";`
+      dead, unreferenced local binding, not a live render path. Confirmed:
+      the bound name `CreateScholarSchedule` appears exactly once in that
+      file — the import line itself.
+- [x] Delete `src/features/schedules/EditScholarSchedule.jsx`.
+- [x] Remove the now-fully-dead `import CreateScholarSchedule from "./EditScholarSchedule";`
       line from `src/features/schedules/HourScheduleSubjectGroup.tsx` (the
-      only change authorized in that file this phase — no other line
-      touched).
-- [ ] Re-confirm `src/features/schedules/RowTeacherAssignment.jsx` has zero
-      live importers.
-- [ ] Delete `src/features/schedules/RowTeacherAssignment.jsx`.
-- [ ] Re-confirm `src/features/authentication/UpdatePasswordForm.jsx` has
+      only change made in that file this phase — no other line touched;
+      required because `tsc`/the bundler can no longer resolve the deleted
+      module, confirmed via `bun run typecheck` failing with `TS2307`
+      before this removal and passing clean after).
+- [x] Re-confirm `src/features/schedules/RowTeacherAssignment.jsx` has zero
+      live importers. Confirmed: zero matches anywhere except its own file.
+- [x] Delete `src/features/schedules/RowTeacherAssignment.jsx`.
+- [x] Re-confirm `src/features/authentication/UpdatePasswordForm.jsx` has
       zero live importers and still references a non-existent
-      `useUpdateUser` module.
-- [ ] Delete `src/features/authentication/UpdatePasswordForm.jsx`.
-- [ ] Re-confirm `src/features/authentication/UpdateUserDataForm.jsx` has
+      `useUpdateUser` module. Both confirmed via fresh grep.
+- [x] Delete `src/features/authentication/UpdatePasswordForm.jsx`.
+- [x] Re-confirm `src/features/authentication/UpdateUserDataForm.jsx` has
       zero live importers and still references a non-existent
-      `useUpdateUser` module.
-- [ ] Delete `src/features/authentication/UpdateUserDataForm.jsx`.
-- [ ] `bun run typecheck`
-- [ ] `bun run build`
-- [ ] `bun run lint` (record before/after counts)
+      `useUpdateUser` module. Both confirmed via fresh grep.
+- [x] Delete `src/features/authentication/UpdateUserDataForm.jsx`.
+- [x] `bun run typecheck`
+- [x] `bun run build`
+- [x] `bun run lint` (record before/after counts)
 
 ## 7. Phase 7 — Generated font asset decision (no conversion)
 
@@ -662,7 +669,27 @@ duplicate success toasts"). Worth a future, separately-scoped fix if/when a
   toast, confirm the modal closes automatically, confirm the table shows
   the updated value, then reopen the same row and confirm the form defaults
   reflect the update; open Other Data, edit one row, confirm the same.
-- Phase 6 dead-file re-confirmation + deletion: _pending_
+- Phase 6 dead-file re-confirmation + deletion: done.
+  `bunx @fission-ai/openspec validate ... --strict` passes; `bun run
+  typecheck` clean; `bun run build` succeeds; `bun run lint` is 43 problems
+  (39 errors, 4 warnings) — down from the Phase 5 baseline of 68 (**-25**).
+  24 of those came from deleting the 5 dead files outright (confirmed by
+  isolated-lint of each pre-deletion source: `react/prop-types`,
+  `no-unused-vars`, and `react/no-unescaped-entities` errors that existed
+  only because these files were never fixed while dead); the 25th is
+  `HourScheduleSubjectGroup.tsx`'s own pre-existing `'CreateScholarSchedule'
+  is defined but never used` error, resolved as a direct, required
+  consequence of removing the dead import line that pointed at the deleted
+  `EditScholarSchedule.jsx` (not independent cleanup — `bun run typecheck`
+  failed with `TS2307: Cannot find module './EditScholarSchedule'` until
+  that one line was removed). `find src -type f \( -name "*.js" -o -name
+  "*.jsx" \)` returns exactly the 4 Montserrat font files and nothing else —
+  the expected final state. `rg` for all 5 deleted files' names across `src`
+  returns only unrelated substring collisions with the distinct, live
+  `CreateEditScholarSchedule.tsx` file — zero real references remain.
+  `git status --short` confirms exactly the 5 deletions plus the one
+  single-line edit in `HourScheduleSubjectGroup.tsx` — no active
+  schedules/authentication/services/stateRoles/otherData/PDF files touched.
 - Phase 7 font-asset decision re-review: _pending_
 - Final manual smoke pass (all items): _pending_
 - Final lint count (before → after): _pending_
