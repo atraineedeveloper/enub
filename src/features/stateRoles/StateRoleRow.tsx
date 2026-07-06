@@ -3,6 +3,7 @@ import Modal from "../../ui/Modal";
 import Menus from "../../ui/Menus";
 import CreateEditStateRoleForm from "./CreateEditStateRoleForm";
 import { HiPencil } from "react-icons/hi2";
+import type { StateRole } from "./useStateRoles";
 
 const TableRow = styled.div`
   display: grid;
@@ -16,7 +17,11 @@ const TableRow = styled.div`
   }
 `;
 
-function StateRoleRow({ role }) {
+interface StateRoleRowProps {
+  role: StateRole;
+}
+
+function StateRoleRow({ role }: StateRoleRowProps) {
   return (
     <Modal>
       <TableRow role="row">

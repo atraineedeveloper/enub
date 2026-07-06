@@ -3,13 +3,18 @@ import Menus from "../../ui/Menus";
 import Table from "../../ui/Table";
 import CreateEditOtherForm from "./CreateEditOtherForm";
 import { HiPencil } from "react-icons/hi2";
+import type { Utility } from "./useUtilities";
 
-function OtherRow({ utility }) {
+interface OtherRowProps {
+  utility: Utility;
+}
+
+function OtherRow({ utility }: OtherRowProps) {
   const { description, value } = utility;
 
   return (
     <Modal>
-      <Table.Row role="row">
+      <Table.Row>
         <p>{description}</p>
         <p>{value}</p>
         <Menus>

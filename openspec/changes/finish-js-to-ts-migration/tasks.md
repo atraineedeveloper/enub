@@ -287,26 +287,64 @@ duplicate success toasts"). Worth a future, separately-scoped fix if/when a
 
 ## 5. Phase 5 — stateRoles + otherData
 
-- [ ] Convert `src/features/stateRoles/useStateRoles.js` → `.ts`.
-- [ ] Convert `src/features/stateRoles/useEditStateRole.js` → `.ts`, applying
-      the `isLoading`→`isPending` fix (Closed Decision 5).
-- [ ] Convert `src/features/stateRoles/StateRoleRow.jsx` → `.tsx`.
-- [ ] Convert `src/features/stateRoles/StateRoleTable.jsx` → `.tsx`.
-- [ ] Convert `src/features/stateRoles/CreateEditStateRoleForm.jsx` → `.tsx`.
-- [ ] Convert `src/features/otherData/useUtilities.js` → `.ts`.
-- [ ] Convert `src/features/otherData/useEditUtilities.js` → `.ts`, applying
-      the `isLoading`→`isPending` fix (Closed Decision 5); preserve the
-      exported name (`useEditUtility`, singular) exactly as-is.
-- [ ] Convert `src/features/otherData/OtherRow.jsx` → `.tsx`.
-- [ ] Convert `src/features/otherData/OtherTable.jsx` → `.tsx`.
-- [ ] Convert `src/features/otherData/CreateEditOtherForm.jsx` → `.tsx`.
-- [ ] Audit callers (`src/pages/Records/StateRoles.tsx`,
-      `src/pages/Records/Others.tsx`) for import-path breakage.
+> Note: found the same latent gap Phase 3.5 flagged in
+> `CreateEditRoleForm.tsx` — both `CreateEditStateRoleForm.jsx` and
+> `CreateEditOtherForm.jsx`'s `onSubmit` only ever call `if (isEditSession)
+> editX(...)`, with no create-mode branch. Unlike Phase 3.5's finding, this
+> was **not fixed** here — explicitly out of scope per this phase's own
+> instructions ("do not fix unrelated create-mode... behavior"). Also
+> unlike Phase 3.5, neither of these two forms' inline `onSuccess` shows a
+> (wrong or duplicate) toast — both only call `reset()`/`onCloseModal?.()`,
+> so there was no duplicate-toast bug to fix here. Both forms remain
+> unreachable in create mode from the live UI today (`StateRoles.tsx`/
+> `Others.tsx` render only the table, no "Add" entry point), matching the
+> Roles precedent exactly.
+
+- [x] Convert `src/features/stateRoles/useStateRoles.js` → `.ts`, adding an
+      exported `StateRole` type alias (`Database["state_roles"]["Row"]`),
+      matching the established per-domain-hook type-export convention.
+- [x] Convert `src/features/stateRoles/useEditStateRole.js` → `.ts`, applying
+      the `isLoading`→`isPending` fix (Closed Decision 5) — local return name
+      (`isEditing`) was already descriptive, not `isLoading`, so no aliasing
+      was needed; only the internal `useMutation` destructure changed.
+- [x] Convert `src/features/stateRoles/StateRoleRow.jsx` → `.tsx`.
+- [x] Convert `src/features/stateRoles/StateRoleTable.jsx` → `.tsx`, adding a
+      `!` on `role.name_worker!.toLowerCase()` (nullable in generated types,
+      existing unguarded access preserved via assertion, not a new guard).
+- [x] Convert `src/features/stateRoles/CreateEditStateRoleForm.jsx` → `.tsx`.
+- [x] Convert `src/features/otherData/useUtilities.js` → `.ts`, adding an
+      exported `Utility` type alias (`Database["utilities"]["Row"]`).
+- [x] Convert `src/features/otherData/useEditUtilities.js` → `.ts`, applying
+      the `isLoading`→`isPending` fix (Closed Decision 5); preserved the
+      exported name (`useEditUtility`, singular) exactly as-is; local return
+      name (`isEditing`) needed no aliasing, same reasoning as
+      `useEditStateRole.ts`.
+- [x] Convert `src/features/otherData/OtherRow.jsx` → `.tsx`, adding a `!` on
+      `utility.value!.toLowerCase()`; also removed the redundant
+      `role="row"` prop from `<Table.Row role="row">` — required by
+      `Table.tsx`'s typed `RowProps` (`children` only, no `role`), and
+      confirmed zero DOM difference since `Table.tsx`'s own `Row` component
+      already hardcodes `role="row"` on its rendered element regardless of
+      what's passed in.
+- [x] Convert `src/features/otherData/OtherTable.jsx` → `.tsx`.
+- [x] Convert `src/features/otherData/CreateEditOtherForm.jsx` → `.tsx`.
+- [x] Audit callers (`src/pages/Records/StateRoles.tsx`,
+      `src/pages/Records/Others.tsx`) for import-path breakage. Result: zero
+      changes needed — both already used extension-less imports.
+- [x] **Correction (post-review)**: the original audit above missed 3
+      `src/pdf/Schedules/**` files that import `useStateRoles`/`useUtilities`
+      with an explicit, now-stale `.js` extension:
+      `ScheduleGroupPDF.tsx`/`ScheduleTeacherPDF.tsx` (both `useStateRoles`
+      and `useUtilities`) and `TeacherAssignmentPDF.tsx` (`useStateRoles`
+      only, matching its established data usage). Fixed by dropping the
+      stale `.js` extension on all 5 import lines (no other change to those
+      files); `rg "useStateRoles\.js|useUtilities\.js" src` now returns
+      nothing.
 - [ ] Manually verify: create/edit one State Roles row and one Other Data
       (utilities) row, confirm both tables refresh correctly.
-- [ ] `bun run typecheck`
-- [ ] `bun run build`
-- [ ] `bun run lint` (record before/after counts)
+- [x] `bun run typecheck`
+- [x] `bun run build`
+- [x] `bun run lint` (record before/after counts)
 
 ## 6. Phase 6 — Dead-file disposition (delete, do not convert)
 
@@ -562,7 +600,68 @@ duplicate success toasts"). Worth a future, separately-scoped fix if/when a
   redirect and spinner now actually shows while pending), logout (confirm
   redirect to `/login`), `/set-password` flow if a valid link is available,
   and worker-row create-account/link-account/resend-link actions.
-- Phase 5 code conversion + manual check: _pending_
+- Phase 5 code conversion: done. `bunx @fission-ai/openspec validate ...
+  --strict` passes; `bun run typecheck` clean; `bun run build` succeeds;
+  `bun run lint` is 68 problems (64 errors, 4 warnings) — down from the
+  Phase 4 baseline of 81 (**-13**). All 13 fewer are `react/prop-types`
+  errors across these 10 files disappearing (confirmed via isolated lint of
+  every pre-conversion source: 1 in `CreateEditStateRoleForm.jsx`, 2 in
+  `CreateEditOtherForm.jsx`, 5 in `OtherRow.jsx`, 5 in `StateRoleRow.jsx`) —
+  the same expected, inherent side effect of real TS prop types seen in
+  every earlier phase. The 2 pre-existing unused-`data`-parameter errors
+  (`CreateEditStateRoleForm`/`CreateEditOtherForm`'s inline `onSuccess`) were
+  preserved verbatim under `@typescript-eslint/no-unused-vars`, not removed.
+  `find src -type f \( -name "*.js" -o -name "*.jsx" \)` returns exactly
+  **9** files (down from 19). `git status --short` confirms exactly the 10
+  target files renamed and nothing else — no services/authentication/
+  schedules/config files touched.
+
+  Investigated for the Phase 3.5-class duplicate-toast bug in both
+  `CreateEditStateRoleForm.jsx` and `CreateEditOtherForm.jsx` (same
+  `createEditX` pattern as Roles): **not present**. Neither form's inline
+  per-call `onSuccess` shows a toast at all (only `reset()`, plus
+  `onCloseModal?.()` for Other Data) — the hook-level `onSuccess`
+  (`useEditStateRole.ts`/`useEditUtilities.ts`) is the only toast source in
+  both cases, so there was nothing to fix here. Both forms do share the
+  OTHER latent gap Phase 3.5 found in `CreateEditRoleForm.tsx` (no
+  create-mode branch in `onSubmit`), left untouched per this phase's
+  explicit instruction not to fix unrelated create-mode behavior; both
+  remain unreachable in create mode from the live UI today (no "Add" entry
+  point on either page), same as Roles.
+
+  **Smoke-failure fix (post-conversion, pre-commit)**: manual smoke on
+  `/state-roles` found editing a role updates the data but the modal never
+  closes, and while it stays open the form visibly reverts to the pre-edit
+  values; closing the modal manually then shows the correct updated row.
+  Root cause: `Modal.Window` (`Modal.tsx`) always injects an `onCloseModal`
+  prop via `cloneElement` onto whatever it renders, but
+  `CreateEditStateRoleForm` never declared or read that prop in its function
+  signature — so it was silently dropped. **Confirmed pre-existing, not a
+  Phase 5 regression**: diffed against the original `.jsx` (`git show
+  HEAD:...`) and found this gap already there, unchanged by the TS
+  conversion; the original file simply never had `onCloseModal` at all. The
+  "reverts to pre-edit values while open" symptom is a second, related
+  effect: react-hook-form's no-argument `reset()` restores the *originally
+  captured* `defaultValues` (the stale pre-edit data), not fresh
+  post-invalidation data — `CreateEditOtherForm.tsx` has the identical
+  `reset()` call and the identical latent effect, but it's imperceptible
+  there because `onCloseModal?.()` unmounts the form in the same tick right
+  after. Fix: added `onCloseModal?: () => void` to
+  `CreateEditStateRoleFormProps`, destructured it, and called it right after
+  `reset()` in the mutation's per-call `onSuccess` — the exact same pattern
+  already used by `CreateEditOtherForm.tsx`. No change needed in
+  `StateRoleRow.tsx` (`Modal.Window` injects the prop automatically via
+  `cloneElement`) or in `useEditStateRole.ts`/`apiStateRoles.ts` (verified
+  the mutation variables shape and hook/per-call `onSuccess` split are both
+  unchanged and standard v5 behavior — not the cause). **Other Data
+  (`CreateEditOtherForm.tsx`) already has this pattern correctly and needs
+  no change.**
+- Phase 5 manual check: _pending_ — not performed in this turn (no
+  browser/dev-server session available); must be done before Phase 6
+  begins. Recommended: open State Roles, edit one row, confirm exactly one
+  toast, confirm the modal closes automatically, confirm the table shows
+  the updated value, then reopen the same row and confirm the form defaults
+  reflect the update; open Other Data, edit one row, confirm the same.
 - Phase 6 dead-file re-confirmation + deletion: _pending_
 - Phase 7 font-asset decision re-review: _pending_
 - Final manual smoke pass (all items): _pending_

@@ -4,8 +4,17 @@ import Form from "../../ui/Form";
 import Button from "../../ui/Button";
 import FormRow from "../../ui/FormRow";
 import { useEditUtility } from "./useEditUtilities";
+import type { Utility } from "./useUtilities";
 
-function CreateEditOtherForm({ otherToEdit = {}, onCloseModal }) {
+interface CreateEditOtherFormProps {
+  otherToEdit?: Partial<Utility>;
+  onCloseModal?: () => void;
+}
+
+function CreateEditOtherForm({
+  otherToEdit = {},
+  onCloseModal,
+}: CreateEditOtherFormProps) {
   const { id: editId, ...editValues } = otherToEdit;
   const { isEditing, editUtility } = useEditUtility();
   const isEditSession = Boolean(editId);
@@ -16,12 +25,12 @@ function CreateEditOtherForm({ otherToEdit = {}, onCloseModal }) {
 
   const { errors } = formState;
 
-  function onSubmit(data) {
+  function onSubmit(data: Record<string, unknown>) {
     if (isEditSession)
       editUtility(
         { newUtility: { ...data }, id: editId },
         {
-          onSuccess: (data) => {
+          onSuccess: (data: unknown) => {
             reset();
             onCloseModal?.();
           },
@@ -31,7 +40,7 @@ function CreateEditOtherForm({ otherToEdit = {}, onCloseModal }) {
 
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
-      <FormRow label="Fecha de expedición" error={errors?.description?.message}>
+      <FormRow label="Fecha de expedición" error={errors?.description?.message as string | undefined}>
         <Input
           type="text"
           id="description"
@@ -41,7 +50,7 @@ function CreateEditOtherForm({ otherToEdit = {}, onCloseModal }) {
           })}
         />
       </FormRow>
-      <FormRow label="Valor" error={errors?.value?.message}>
+      <FormRow label="Valor" error={errors?.value?.message as string | undefined}>
         <Input
           type="text"
           id="value"

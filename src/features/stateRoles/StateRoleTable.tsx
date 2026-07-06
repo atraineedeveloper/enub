@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 import styled from "styled-components";
 import Spinner from "../../ui/Spinner";
 import { useStateRoles } from "./useStateRoles";
@@ -48,12 +48,12 @@ function StateRoleTable() {
   const { isLoading, stateRoles, error } = useStateRoles();
   const [searchTerm, setSearchTerm] = useState("");
   const filtered = (stateRoles ?? []).filter((role) =>
-    role.name_worker.toLowerCase().includes(searchTerm.toLowerCase())
+    role.name_worker!.toLowerCase().includes(searchTerm.toLowerCase())
   );
   const { currentPage, totalPages, totalCount, paginatedData, setCurrentPage } =
     usePagination(filtered);
 
-  function handleSearch(e) {
+  function handleSearch(e: ChangeEvent<HTMLInputElement>) {
     setSearchTerm(e.target.value);
     setCurrentPage(1);
   }

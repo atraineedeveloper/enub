@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 import Table from "../../ui/Table";
 import { useUtilities } from "./useUtilities";
 import Spinner from "../../ui/Spinner";
@@ -13,12 +13,12 @@ function OtherTable() {
   const { isLoading, utilities, error } = useUtilities();
   const [searchTerm, setSearchTerm] = useState("");
   const filtered = (utilities ?? []).filter((utility) =>
-    utility.value.toLowerCase().includes(searchTerm.toLowerCase())
+    utility.value!.toLowerCase().includes(searchTerm.toLowerCase())
   );
   const { currentPage, totalPages, totalCount, paginatedData, setCurrentPage } =
     usePagination(filtered);
 
-  function handleSearch(e) {
+  function handleSearch(e: ChangeEvent<HTMLInputElement>) {
     setSearchTerm(e.target.value);
     setCurrentPage(1);
   }
