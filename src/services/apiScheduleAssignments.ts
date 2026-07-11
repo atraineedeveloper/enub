@@ -6,12 +6,13 @@ type ScheduleAssignmentInsert =
 type ScheduleAssignmentUpdate =
   Database["public"]["Tables"]["schedule_assignments"]["Update"];
 
-export async function getScheduleAssignments() {
+export async function getScheduleAssignments(semesterId: number) {
   const { data, error } = await supabase
     .from("schedule_assignments")
     .select(
       "*, workers(id, name), subjects(id, name), groups(id, year_of_admission, letter, degrees(id, code, name)), semesters(id, school_year)"
-    );
+    )
+    .eq("semester_id", semesterId);
 
   if (error) {
     console.error(error);

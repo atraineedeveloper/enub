@@ -23,15 +23,19 @@ export type ScheduleAssignment =
     semesters: Pick<Semester, "id" | "school_year"> | null;
   };
 
-export function useScheduleAssignments() {
+export function useScheduleAssignments(semesterId: number | undefined) {
+  const isValidSemesterId =
+    typeof semesterId === "number" && Number.isFinite(semesterId);
+
   const {
     isLoading,
     data: scheduleAssignments,
     error,
   } = useQuery<ScheduleAssignment[]>({
-    queryKey: ["scheduleAssignments"],
-    queryFn: getScheduleAssignments,
+    queryKey: ["scheduleAssignments", semesterId],
+    queryFn: () => getScheduleAssignments(semesterId as number),
     staleTime: 30 * 1000,
+    enabled: isValidSemesterId,
   });
 
   return { isLoading, error, scheduleAssignments };

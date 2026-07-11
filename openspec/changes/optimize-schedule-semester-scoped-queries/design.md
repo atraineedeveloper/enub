@@ -108,10 +108,46 @@ and `semesterId` being `NaN` (a malformed route param, e.g. a non-numeric
 malformed `id` produces `+id!` → `NaN`, and `array.filter((s) => s.semester_id === NaN)`
 always returns `[]` — so the page already effectively showed empty schedules
 for this edge case. After this change, the query simply never fires and the
-hook's `data` stays `undefined`, which `ScheduleDashboard.tsx`'s existing
-`isLoading` gate already renders as `<Spinner />` (since a disabled query
-with no data is `isLoading: true` in TanStack Query v5) — matching, not
-changing, the page's observable behavior for this already-degenerate case.
+hook's `data` stays `undefined`.
+
+**Correction (found during implementation):** this decision originally
+assumed `ScheduleDashboard.tsx`'s existing `isLoading` gate alone would
+render `<Spinner />` for this case, on the premise that a disabled query
+reports `isLoading: true` while it has no data. That premise does not hold
+for this codebase's installed `@tanstack/react-query` (`^5.51.23`): v5
+derives `isLoading` as `isPending && isFetching`, and a disabled query never
+fetches, so `isFetching` is `false` and `isLoading` is `false` even though
+`data` stays `undefined` indefinitely. Left uncorrected, the loading gate
+would have returned `false` for this edge case and let the page render past
+it with `scheduleAssignments`/`scheduleTeachers` still `undefined` —
+crashing at the `SemesterContext` value and every downstream prop expecting
+an array. The implementation instead adds an explicit
+`!scheduleAssignments || !scheduleTeachers` check to the same loading-gate
+condition in `ScheduleDashboard.tsx`, which keeps `<Spinner />` showing for
+as long as either scoped query has no data — covering the disabled case
+this decision intended, by a condition that actually holds in this
+codebase's TanStack Query version, rather than by `isLoading` alone.
+
+**Second correction (post-review):** the first correction above introduced
+its own regression — `!scheduleAssignments || !scheduleTeachers` is also
+`true` while either query is in an *error* state (a failed fetch also
+leaves `data` `undefined`), and that new guard was checked *before* the
+existing `anyError` check further down the component. This made the
+`<ErrorMessage message={anyError.message} />` branch unreachable for
+`errorAssignments`/`errorTeachers` (and, incidentally, for
+`errorWorkers`/`errorSubjects`/`errorGroups`/`errorSemesters` too, since the
+same single `if` covered all of them) — a real query error would render an
+infinite `<Spinner />` instead of the error message, changing pre-existing
+error behavior. Fixed by computing `anyError` before the loading/missing-data
+`if` and excluding that `if` whenever `anyError` is truthy
+(`if (!anyError && (...loading/missing-data conditions...)) return <Spinner />;`),
+so an error always falls through to the existing
+`if (anyError) return <ErrorMessage .../>;` check immediately after,
+regardless of what `scheduleAssignments`/`scheduleTeachers`/the loading
+flags are doing. The invalid/missing-`semesterId` case (no error, just a
+disabled query) is unaffected — it still has `anyError` falsy, so the
+missing-data guard still applies and still renders `<Spinner />` as
+intended.
 
 **4. Does `queryKey` including `semesterId` break the existing mutation
 hooks' cache invalidation? *(Verified by inspection, confirm behaviorally)***

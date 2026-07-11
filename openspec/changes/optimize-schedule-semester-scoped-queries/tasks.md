@@ -1,13 +1,13 @@
 ## 1. Services — scope reads by semester_id
 
-- [ ] 1.1 `src/services/apiScheduleAssignments.ts`: change
+- [x] 1.1 `src/services/apiScheduleAssignments.ts`: change
       `getScheduleAssignments()` to `getScheduleAssignments(semesterId: number)`
       and add `.eq("semester_id", semesterId)` to its existing `select(...)`
       call — no internal `Number(...)` coercion needed, `semesterId` arrives
       already parsed (design.md Decision 2). Do not change the selected
       columns/embedded relations or the create/edit/delete functions in this
       file.
-- [ ] 1.2 `src/services/apiScheduleTeachers.ts`: change
+- [x] 1.2 `src/services/apiScheduleTeachers.ts`: change
       `getScheduleTeachers()` to `getScheduleTeachers(semesterId: number)`
       and add `.eq("semester_id", semesterId)` to its existing `select(...)`
       call — no internal `Number(...)` coercion needed. Do not change the
@@ -16,7 +16,7 @@
 
 ## 2. Hooks — accept a parsed numeric semesterId, scope queryKey, guard on validity
 
-- [ ] 2.1 `src/features/schedules/useScheduleAssignments.ts`: accept a
+- [x] 2.1 `src/features/schedules/useScheduleAssignments.ts`: accept a
       `semesterId: number | undefined` parameter, pass it to
       `getScheduleAssignments`, change `queryKey` to the plain array
       `["scheduleAssignments", semesterId]` (element `[0]` must stay exactly
@@ -24,12 +24,12 @@
       assumption to hold, design.md Decision 4), and add
       `enabled: typeof semesterId === "number" && Number.isFinite(semesterId)`
       (design.md Decision 3 — not `Boolean(semesterId)`).
-- [ ] 2.2 `src/features/schedules/useScheduleTeachers.ts`: accept a
+- [x] 2.2 `src/features/schedules/useScheduleTeachers.ts`: accept a
       `semesterId: number | undefined` parameter, pass it to
       `getScheduleTeachers`, change `queryKey` to the plain array
       `["scheduleTeachers", semesterId]`, and add
       `enabled: typeof semesterId === "number" && Number.isFinite(semesterId)`.
-- [ ] 2.3 Do NOT modify `useCreateScheduleAssignments.ts`,
+- [x] 2.3 Do NOT modify `useCreateScheduleAssignments.ts`,
       `useEditScheduleAssignments.ts`, `useDeleteScheduleAssignment.ts`,
       `useCreateScheduleTeacher.ts`, `useEditScheduleTeacher.ts`, or
       `useDeleteScheduleTeacher.ts` as a starting assumption — inspection
@@ -51,13 +51,13 @@
 
 ## 3. Page — parse semesterId once, pass it into the hooks, drop redundant client filters
 
-- [ ] 3.1 `src/pages/ScheduleDashboard.tsx`: parse the route param once —
+- [x] 3.1 `src/pages/ScheduleDashboard.tsx`: parse the route param once —
       `const semesterId = id !== undefined ? Number(id) : undefined;` —
       immediately after `const { id } = useParams();`, and call
       `useScheduleAssignments(semesterId)` / `useScheduleTeachers(semesterId)`
       with the parsed value (design.md Decision 2). Do not pass the raw
       string `id` into either hook.
-- [ ] 3.2 Remove the now-redundant
+- [x] 3.2 Remove the now-redundant
       `scheduleAssignments!.filter((s) => s.semester_id === +id!)` and
       `scheduleTeachers!.filter((s) => s.semester_id === +id!)` lines;
       use the hooks' already-scoped `scheduleAssignments`/`scheduleTeachers`
@@ -65,15 +65,15 @@
       `scheduleTeachersBySemester` were previously used (`SemesterContext`
       value, `WorkerSheetSemester` props, `ScholarSchedule`/`TeacherSchedule`
       props).
-- [ ] 3.3 Leave `currentSemester = semesters!.find((s) => s.id === +id!)`
+- [x] 3.3 Leave `currentSemester = semesters!.find((s) => s.id === +id!)`
       and every other line in this file unchanged.
 
 ## 4. Verification
 
-- [ ] 4.1 `bun run typecheck`
-- [ ] 4.2 `bun run build`
-- [ ] 4.3 `bun run lint`
-- [ ] 4.4 `bunx @fission-ai/openspec validate optimize-schedule-semester-scoped-queries --type change --strict`
+- [x] 4.1 `bun run typecheck`
+- [x] 4.2 `bun run build`
+- [x] 4.3 `bun run lint`
+- [x] 4.4 `bunx @fission-ai/openspec validate optimize-schedule-semester-scoped-queries --type change --strict`
 - [ ] 4.5 Manual smoke test on `/semesters/:id` (an existing semester with
       both scholar and teacher schedule data):
       - Scholar schedule tab renders the same rows/cells as before this
@@ -104,13 +104,18 @@
       - Switch between two different semesters (navigate to a different
         `:id`) and confirm each shows only its own data, with no
         stale/leftover rows from the previously-viewed semester.
+      - Force a schedules query error (e.g. temporarily revoke read access
+        to `schedule_assignments`/`schedule_teachers`, or simulate a network
+        failure) and confirm `<ErrorMessage message={anyError.message} />`
+        renders — not an infinite `<Spinner />` — verifying the post-review
+        fix that moved the `anyError` check ahead of the missing-data guard.
 - [ ] 4.6 Record pass/fail for each 4.5 item, plus the 4.1–4.4 command
       output, in this file's Verification Results section before considering
       this change complete.
 
 ## 5. Non-blocking follow-up (not part of this change's scope)
 
-- [ ] 5.1 Confirmed by inspection (design.md Decision 6): neither
+- [x] 5.1 Confirmed by inspection (design.md Decision 6): neither
       `schedule_assignments.semester_id` nor `schedule_teachers.semester_id`
       has a database index today. No migration is added in this change. If a
       follow-up is desired, a separate OpenSpec change should add one,
@@ -120,4 +125,102 @@
 
 ## Verification Results
 
-(To be filled in during implementation; do not pre-fill.)
+- Tasks 1.1–1.2, 2.1–2.2, 3.1–3.3 implemented as specified. Task 2.3 (no
+  mutation hook changes) held — no mutation hook files were touched.
+- `bunx @fission-ai/openspec validate optimize-schedule-semester-scoped-queries --type change --strict`
+  → valid.
+- `bun run typecheck` → clean, zero errors.
+- `bun run build` → succeeds.
+- `bun run lint` → 43 problems (39 errors, 4 warnings) — unchanged from the
+  pre-existing baseline (matches the `finish-js-to-ts-migration` change's
+  final recorded count). Zero new lint issues in any of the 5 files touched
+  by this change; the one warning under `ScheduleDashboard.tsx`
+  (`react-refresh/only-export-components`, on the `SemesterContext` export)
+  pre-dates this change and is unrelated to it.
+
+**Implementation correction found during 3.1 (not explicitly anticipated by
+design.md Decision 3), applied and documented here rather than deferred:**
+`ScheduleDashboard.tsx`'s pre-existing loading gate was
+`isLoadingWorkers || ... || isLoadingScheduleAssignments || isLoadingScheduleTeachers || ...`.
+design.md Decision 3 assumed a disabled TanStack Query v5 query reports
+`isLoading: true` while it has no data — that assumption is incorrect for
+this codebase's installed version (`@tanstack/react-query ^5.51.23`). In v5,
+`isLoading` is derived as `isPending && isFetching`; a disabled query never
+fetches, so `isFetching` is `false` and `isLoading` is `false` even though
+`data` stays `undefined` indefinitely. Left as originally drafted, the
+malformed/`NaN`-`semesterId` edge case (Decision 3's own target case) would
+have let the loading gate return `false`, allowing the component to render
+past it with `scheduleAssignments`/`scheduleTeachers` still `undefined` —
+crashing at the `SemesterContext` value and every downstream prop that
+expects an array (a regression the original unfiltered-fetch code never had,
+since it always fetched unconditionally and only ever produced `[]`, never
+`undefined`, from the old client-side filter).
+
+Fix applied: added `!scheduleAssignments || !scheduleTeachers` to the same
+loading-gate condition (`src/pages/ScheduleDashboard.tsx`). This keeps the
+`<Spinner />` showing for as long as either scoped query has no data yet —
+covering both the normal in-flight-fetch case (already covered by
+`isLoading*`) and the disabled/invalid-`semesterId` case (not covered by
+`isLoading*` alone) — which is what Decision 3 described as the intended
+observable behavior, just achieved by a condition that actually holds in
+this codebase's TanStack Query version. No other line in the loading gate,
+and no other file, changed as a result. `design.md` Decision 3's specific
+claim about `isLoading` being `true` for a disabled query should be
+corrected in a follow-up edit to reflect this; not done here since the
+scope of this task was implementation, not further spec editing.
+- Task 4.5 (manual smoke test) and 4.6 (recording its results): **not
+  performed** — no browser/dev-server session was available in this
+  implementation pass. Still required before this change is considered
+  fully complete, per `tasks.md`'s own instructions.
+- Task 2.4 (conditional mutation-hook fallback): not evaluated — depends on
+  4.5's outcome, not yet run.
+
+**Second correction (post-implementation review, this pass):** the missing-data
+guard added in the correction above (`!scheduleAssignments || !scheduleTeachers`)
+was itself checked before the existing `anyError` check, so it also matched
+the error state (a failed query also leaves `data` `undefined`) and made
+`if (anyError) return <ErrorMessage message={anyError.message} />;`
+unreachable — a real `getScheduleAssignments`/`getScheduleTeachers` failure
+(or any of the other 4 hooks' failures) would render an infinite
+`<Spinner />` instead of the error message. Fixed in
+`src/pages/ScheduleDashboard.tsx` by moving the `anyError` computation above
+the loading/missing-data `if` and gating that `if` on `!anyError`:
+
+```ts
+const anyError = errorWorkers || errorSubjects || errorGroups || errorAssignments || errorTeachers || errorSemesters;
+
+if (
+  !anyError && (
+    isLoadingWorkers || isLoadingSubjects || isLoadingGroups ||
+    isLoadingScheduleAssignments || isLoadingScheduleTeachers || isLoadingSemesters ||
+    !scheduleAssignments || !scheduleTeachers
+  )
+) return <Spinner />;
+
+if (anyError) return <ErrorMessage message={anyError.message} />;
+```
+
+This also required adding `!` non-null assertions at the 4 usage sites where
+`scheduleAssignments`/`scheduleTeachers` are consumed after the guards
+(`SemesterContext` value, `ScholarSchedule` prop, `TeacherSchedule`'s two
+props) — `tsc` can no longer narrow those to non-`undefined` automatically
+once the guard condition became `!anyError && (...)` instead of a flat `||`
+chain (it did narrow correctly before this fix). This matches the file's
+pre-existing convention of using `!` for other hook results
+(`groups!`, `workers!`, `subjects!`, `semesters!`) once the loading/error
+gates have already returned.
+
+Re-ran after this fix:
+- `bun run typecheck` → clean, zero errors.
+- `bun run build` → succeeds.
+- `bun run lint` → 43 problems (39 errors, 4 warnings), unchanged from
+  baseline; no new issues from the added `!` assertions.
+- `bunx @fission-ai/openspec validate optimize-schedule-semester-scoped-queries --type change --strict`
+  → valid.
+
+Task 4.5/4.6 (manual smoke test) remain **not performed** — this fix
+specifically restores the error-message path, so 4.5's checklist should
+also include manually forcing a schedules query error (e.g. temporarily
+revoking read access, or simulating a network failure) and confirming
+`<ErrorMessage />` renders instead of an infinite spinner, in addition to
+the scenarios already listed there.

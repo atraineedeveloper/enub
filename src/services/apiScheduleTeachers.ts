@@ -6,10 +6,11 @@ type ScheduleTeacherInsert =
 type ScheduleTeacherUpdate =
   Database["public"]["Tables"]["schedule_teachers"]["Update"];
 
-export async function getScheduleTeachers() {
+export async function getScheduleTeachers(semesterId: number) {
   const { data, error } = await supabase
     .from("schedule_teachers")
-    .select("*, workers(*), semesters(*)");
+    .select("*, workers(*), semesters(*)")
+    .eq("semester_id", semesterId);
 
   if (error) {
     console.error(error);
