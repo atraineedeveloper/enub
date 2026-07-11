@@ -12,15 +12,19 @@ export type ScheduleTeacher =
     semesters: Semester | null;
   };
 
-export function useScheduleTeachers() {
+export function useScheduleTeachers(semesterId: number | undefined) {
+  const isValidSemesterId =
+    typeof semesterId === "number" && Number.isFinite(semesterId);
+
   const {
     isLoading,
     data: scheduleTeachers,
     error,
   } = useQuery<ScheduleTeacher[]>({
-    queryKey: ["scheduleTeachers"],
-    queryFn: getScheduleTeachers,
+    queryKey: ["scheduleTeachers", semesterId],
+    queryFn: () => getScheduleTeachers(semesterId as number),
     staleTime: 30 * 1000,
+    enabled: isValidSemesterId,
   });
 
   return { isLoading, error, scheduleTeachers };

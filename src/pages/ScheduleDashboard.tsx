@@ -91,28 +91,37 @@ const Tab = styled.button<{ $active: boolean; $tab: string }>`
 
 function ScheduleDashboard() {
   const { id } = useParams();
+  const semesterId = id !== undefined ? Number(id) : undefined;
+  const isValidSemesterId =
+    typeof semesterId === "number" && Number.isFinite(semesterId);
   const [activeTab, setActiveTab] = useState("scholar");
 
   const { isLoading: isLoadingWorkers, workers, error: errorWorkers } = useWorkers({ fullDetails: true });
   const { isLoading: isLoadingSubjects, subjects, error: errorSubjects } = useSubjects();
   const { isLoading: isLoadingGroups, groups, error: errorGroups } = useGroups();
-  const { isLoading: isLoadingScheduleAssignments, scheduleAssignments, error: errorAssignments } = useScheduleAssignments();
-  const { isLoading: isLoadingScheduleTeachers, scheduleTeachers, error: errorTeachers } = useScheduleTeachers();
+  const { isLoading: isLoadingScheduleAssignments, scheduleAssignments, error: errorAssignments } = useScheduleAssignments(semesterId);
+  const { isLoading: isLoadingScheduleTeachers, scheduleTeachers, error: errorTeachers } = useScheduleTeachers(semesterId);
   const { isLoading: isLoadingSemesters, semesters, error: errorSemesters } = useSemesters();
 
-  if (
-    isLoadingWorkers || isLoadingSubjects || isLoadingGroups ||
-    isLoadingScheduleAssignments || isLoadingScheduleTeachers || isLoadingSemesters
-  ) return <Spinner />;
+  if (!isValidSemesterId) {
+    return <ErrorMessage message="El semestre solicitado no es válido." />;
+  }
 
   const anyError = errorWorkers || errorSubjects || errorGroups || errorAssignments || errorTeachers || errorSemesters;
+
+  if (
+    !anyError && (
+      isLoadingWorkers || isLoadingSubjects || isLoadingGroups ||
+      isLoadingScheduleAssignments || isLoadingScheduleTeachers || isLoadingSemesters ||
+      !scheduleAssignments || !scheduleTeachers
+    )
+  ) return <Spinner />;
+
   if (anyError) return <ErrorMessage message={anyError.message} />;
 
   const currentGroups = groups!.filter((g) => calculateSemesterGroup(g.year_of_admission) <= 8);
   const currentWorkers = workers!.filter((w) => w.status === 1);
   const sortedCurrentWorkers = sortWorkersBySurname(currentWorkers);
-  const scheduleAssignmentsBySemester = scheduleAssignments!.filter((s) => s.semester_id === +id!);
-  const scheduleTeachersBySemester = scheduleTeachers!.filter((s) => s.semester_id === +id!);
   const currentSemester = semesters!.find((s) => s.id === +id!);
 
   const breadcrumbItems = [
@@ -126,7 +135,7 @@ function ScheduleDashboard() {
         groups: currentGroups,
         workers: sortedCurrentWorkers,
         subjects: subjects!,
-        scheduleAssignments: scheduleAssignmentsBySemester,
+        scheduleAssignments: scheduleAssignments!,
       }}
     >
       <Breadcrumbs items={breadcrumbItems} />
@@ -139,8 +148,8 @@ function ScheduleDashboard() {
         <WorkerSheetSemester
           semester={currentSemester ? [currentSemester] : []}
           workers={sortedCurrentWorkers}
-          scheduleAssignments={scheduleAssignmentsBySemester}
-          scheduleTeachers={scheduleTeachersBySemester}
+          scheduleAssignments={scheduleAssignments}
+          scheduleTeachers={scheduleTeachers}
         />
       </SemesterHeader>
 
@@ -159,15 +168,15 @@ function ScheduleDashboard() {
           subjects={subjects}
           groups={currentGroups}
           semesterId={id}
-          scheduleAssignments={scheduleAssignmentsBySemester}
+          scheduleAssignments={scheduleAssignments!}
         />
       )}
       {activeTab === "teacher" && (
         <TeacherSchedule
           workers={sortedCurrentWorkers}
           semesterId={id}
-          scheduleTeachers={scheduleTeachersBySemester}
-          scheduleAssignments={scheduleAssignmentsBySemester}
+          scheduleTeachers={scheduleTeachers!}
+          scheduleAssignments={scheduleAssignments!}
         />
       )}
     </SemesterContext.Provider>
