@@ -62,6 +62,13 @@ const SEMESTER_CODE_PATTERN = /^(\d{2}|\d{4})-?([AB])$/i;
  * calculateSemesterGroup(entryYear) -- today's-date-based -- for
  * unparseable/unknown semester codes, logging a warning since that is
  * degraded behavior for legacy/unknown data, not the normal path.
+ *
+ * Deliberately NOT floored at 1: a group's cohort has not started yet in
+ * any semester before its entry term, and the resulting grade (0 or
+ * negative) is the signal callers use to exclude it from
+ * active-group visibility (see ScheduleDashboard.tsx's `currentGroups`
+ * filter, which requires `grade >= 1`). Clamping here would hide that
+ * signal and let not-yet-started groups appear as a false "1°".
  */
 export function calculateSemesterGroupForSemester(
   entryYear: number | null | undefined,
@@ -85,9 +92,7 @@ export function calculateSemesterGroupForSemester(
   const entryIndex = termIndex(entryYear!, "B");
   const targetIndex = termIndex(targetYear, letter);
 
-  const grade = targetIndex - entryIndex + 1;
-
-  return grade < 1 ? 1 : grade;
+  return targetIndex - entryIndex + 1;
 }
 
 export default calculateSemesterGroup;

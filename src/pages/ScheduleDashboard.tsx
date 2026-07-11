@@ -121,9 +121,10 @@ function ScheduleDashboard() {
   if (anyError) return <ErrorMessage message={anyError.message} />;
 
   const currentSemester = semesters!.find((s) => s.id === +id!);
-  const currentGroups = groups!.filter(
-    (g) => calculateSemesterGroupForSemester(g.year_of_admission, currentSemester?.semester) <= 8
-  );
+  const currentGroups = groups!.filter((g) => {
+    const grade = calculateSemesterGroupForSemester(g.year_of_admission, currentSemester?.semester);
+    return grade >= 1 && grade <= 8;
+  });
   const currentWorkers = workers!.filter((w) => w.status === 1);
   const sortedCurrentWorkers = sortWorkersBySurname(currentWorkers);
 

@@ -27,12 +27,19 @@ code (`currentSemester.semester`), not relative to today's real-world date.
   compute grade `3`, `25A` SHALL compute grade `4`, and `25B` SHALL compute
   grade `5`
 
-#### Scenario: Grade never computes below 1
+#### Scenario: Grade is not floored — a group not yet started computes below 1
 
 - WHEN the selected semester's term precedes the group's assumed entry term
-  (August of `year_of_admission`)
-- THEN the computed grade SHALL be `1`, matching
-  `calculateSemesterGroup`'s existing pre-entry-date floor
+  (August of `year_of_admission`) — e.g. `year_of_admission = 2024` and the
+  selected semester is `24A`, or `year_of_admission = 2025` and the
+  selected semester is `25A`
+- THEN the computed grade SHALL be `0` or negative, reflecting that the
+  group's cohort has not started yet as of the selected semester — it SHALL
+  NOT be floored or clamped to `1`, since that would make a not-yet-started
+  group indistinguishable from a genuine first-semester group. Callers that
+  need to exclude not-yet-started groups (see the active-group visibility
+  filter requirement below) are responsible for checking `grade >= 1`
+  themselves
 
 ### Requirement: Semester code parsing SHALL support both known formats and SHALL fall back safely when unparseable
 
@@ -77,24 +84,38 @@ groups appear at all in the schedules module's dropdowns and
 selected semester's code, using the same
 `calculateSemesterGroupForSemester` function and fallback behavior as every
 grade label, and SHALL include a group only when that semester-relative
-grade is `<= 8`. The schedules module SHALL NOT mix two different time
-references (a semester-relative grade for labels and a today's-date-relative
-grade for visibility) within the same screen.
+grade is within the valid academic range: `>= 1 AND <= 8`. A group whose
+selected-semester-relative grade is below `1` has not started yet as of
+that semester and SHALL be excluded, exactly like a group whose grade is
+above `8` (already graduated) is excluded. The schedules module SHALL NOT
+mix two different time references (a semester-relative grade for labels
+and a today's-date-relative grade for visibility) within the same screen.
 
 #### Scenario: Group visibility is evaluated against the selected semester, not today's date
 
 - WHEN `ScheduleDashboard.tsx` builds its list of active groups for a
   selected semester
 - THEN a group SHALL appear only if
-  `calculateSemesterGroupForSemester(group.year_of_admission, currentSemester.semester) <= 8`,
-  not `calculateSemesterGroup(group.year_of_admission) <= 8`
+  `calculateSemesterGroupForSemester(group.year_of_admission, currentSemester.semester)`
+  is `>= 1 AND <= 8`, not `calculateSemesterGroup(group.year_of_admission) <= 8`
+
+#### Scenario: A group not yet started in the selected semester is excluded
+
+- WHEN a group has `year_of_admission = 2024` and the selected semester's
+  code is `24A` (before the group's assumed `24B` entry term), or a group
+  has `year_of_admission = 2025` and the selected semester's code is `25A`
+- THEN that group's semester-relative grade SHALL be `<= 0`, and it SHALL
+  NOT appear in the schedule group dropdown or `SemesterContext`'s
+  `groups` value for that selected semester
 
 #### Scenario: Switching semesters can change which groups are visible
 
 - WHEN an admin switches from one selected semester to another
 - THEN the set of groups appearing in the schedules module's dropdowns
   SHALL be re-evaluated against the newly-selected semester's code, and MAY
-  differ from the previously-selected semester's group set as a result
+  differ from the previously-selected semester's group set as a result —
+  both because groups may have graduated (grade `> 8`) and because groups
+  may not have started yet (grade `< 1`)
 
 ### Requirement: Non-schedules-module screens SHALL keep using today's-date-based grade calculation
 

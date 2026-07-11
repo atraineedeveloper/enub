@@ -15,8 +15,13 @@
       format, `console.warn` the offending value (this is a recoverable
       degradation for unknown/legacy data, not a hard failure) and return
       `calculateSemesterGroup(entryYear)`.
-- [x] 1.4 Implement the `grade < 1 → 1` floor, mirroring the existing
-      function's `diffTime < 0` guard.
+- [x] 1.4 **Revised (see design.md Decision 1's Correction):** do NOT floor
+      the result at 1. Return the raw signed `grade` (which is `0` or
+      negative for a semester before the group's assumed entry term) —
+      flooring here made not-yet-started groups indistinguishable from
+      real first-semester groups and caused task 2.2's filter to admit
+      them incorrectly. Bounding to a valid academic range (`1`–`8`) is the
+      caller's responsibility (task 2.2), not this function's.
 
 ## 2. SemesterContext — carry the selected semester's code
 
@@ -26,11 +31,15 @@
       value.
 - [x] 2.2 `src/pages/ScheduleDashboard.tsx`: update the `currentGroups`
       filter (design.md Decision 5, closed) from
-      `calculateSemesterGroup(g.year_of_admission) <= 8` to
-      `calculateSemesterGroupForSemester(g.year_of_admission, currentSemester?.semester) <= 8`
-      — computed directly here (no `SemesterContext` read needed; this
-      filter runs before the Provider is constructed and `currentSemester`
-      is already in scope).
+      `calculateSemesterGroup(g.year_of_admission) <= 8` to a
+      **two-sided** bounds check —
+      `calculateSemesterGroupForSemester(g.year_of_admission, currentSemester?.semester)`
+      must be `>= 1 && <= 8` — computed directly here (no `SemesterContext`
+      read needed; this filter runs before the Provider is constructed and
+      `currentSemester` is already in scope). **Revised (see design.md
+      Decision 5's Correction):** an upper-bound-only filter incorrectly
+      admitted groups that had not started yet as of the selected
+      semester, once task 1.4's floor was removed.
 
 ## 3. Schedules-module display call sites — switch to semester-scoped grade
 
@@ -106,6 +115,14 @@
         (design.md Decision 5 — the active-group filter is semester-scoped
         too, so group visibility should shift consistently with the
         labels, not stay fixed to today's date).
+      - **Lower-bound check (design.md Decision 5's Correction):** for a
+        group with `year_of_admission = 2024`, select semester `24A` and
+        confirm the group does **not** appear in the schedule group
+        dropdown (its cohort has not started — grade `0`); select `24B`
+        and confirm it now appears as `1°`. Repeat with a group whose
+        `year_of_admission` matches a future/upcoming semester relative to
+        today to confirm not-yet-started groups are excluded generally, not
+        just for this one example.
       - `/groups` (the standalone Groups admin table) is unaffected —
         grades there still reflect today's date, not any selected
         semester.
@@ -132,16 +149,18 @@
   byte-identical to before this change (confirmed via `git diff`, the only
   diff is the new function appended after it). Implements the
   `termIndex`/`entryIndex` formula, the `/^(\d{2}|\d{4})-?([AB])$/i` regex
-  (case-insensitive via `.trim().toUpperCase()`), the `console.warn` +
+  (case-insensitive via `.trim().toUpperCase()`), and the `console.warn` +
   `calculateSemesterGroup(entryYear)` fallback for unparseable/missing
-  codes, and the `grade < 1 → 1` floor.
+  codes. **Superseded by the Correction below**: the originally-implemented
+  `grade < 1 → 1` floor was removed.
 - Tasks 2.1–2.2: `SemesterContextValue` gained `semesterCode: string | null`,
   populated as `currentSemester?.semester ?? null`. The `currentGroups`
-  filter now uses `calculateSemesterGroupForSemester(g.year_of_admission, currentSemester?.semester) <= 8`.
-  `currentSemester`'s computation was moved above `currentGroups` (it was
-  previously computed after, but the filter now depends on it) — the only
-  structural reordering in this change, required for the new filter to
-  compile; no other line in `ScheduleDashboard.tsx` reordered.
+  filter now uses a two-sided bounds check (see Correction below —
+  originally implemented as `<= 8` only). `currentSemester`'s computation
+  was moved above `currentGroups` (it was previously computed after, but
+  the filter now depends on it) — the only structural reordering in this
+  change, required for the new filter to compile; no other line in
+  `ScheduleDashboard.tsx` reordered.
 - Tasks 3.1–3.9: all 9 schedules-module call sites switched from
   `calculateSemesterGroup(entryYear)` to
   `calculateSemesterGroupForSemester(entryYear, semesterCode)`, sourcing
@@ -180,6 +199,39 @@
   `TeacherAssignmentPDF.tsx`'s pre-existing unused-var errors) is
   confirmed pre-existing — none fall on a line this change added or
   modified (verified via `git diff` for each).
+
+**Correction (found during manual testing, this pass):** the user's manual
+visual test found that groups admitted after the selected semester (not yet
+started) incorrectly appeared in the schedule group dropdown — e.g. viewing
+semester `24A`, a group admitted `2024` (whose cohort starts `24B`)
+appeared as if it already existed. Root cause: two compounding issues,
+both now fixed —
+1. `calculateSemesterGroupForSemester` (task 1.4) floored its result at 1,
+   so a not-yet-started group's true grade (`0` or negative) was reported
+   as `1°`, indistinguishable from a real first-semester group.
+2. `ScheduleDashboard.tsx`'s active-group filter (task 2.2) only checked
+   the upper bound (`<= 8`), so even without the floor bug, nothing
+   excluded a group whose grade was `0` or negative.
+
+Fixed by removing the floor entirely (the function now returns the raw
+signed grade) and changing the filter to a two-sided bounds check
+(`grade >= 1 && grade <= 8`). Re-verified the full formula via an ad hoc
+`bun`-run script (not committed — no test framework exists in this project
+per `AGENTS.md`): verified 15 assertions successfully across 12 distinct
+input pairs. This includes the bug-report lower-bound cases, the original
+worked examples, and overlapping cases intentionally rerun. All 15
+assertions pass, confirming the fix resolves the reported bug without
+regressing any previously-verified case. `git diff`
+confirms only `src/helpers/calculateSemesterGroup.ts` (the floor removal)
+and `src/pages/ScheduleDashboard.tsx` (the filter's bounds check) changed
+in this pass — no other file touched.
+
+Re-ran after this fix:
+- `bun run typecheck` → clean, zero errors.
+- `bunx @fission-ai/openspec validate scope-group-grade-to-selected-semester --type change --strict`
+  → valid.
+- `bun run build` → succeeds.
+
 - Task 5.5 (manual smoke test) and 5.6 (recording its results): **not
   performed** — no browser/dev-server session was available in this
   implementation pass. Required before this change is considered fully
