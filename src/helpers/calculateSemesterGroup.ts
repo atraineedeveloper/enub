@@ -54,4 +54,40 @@ function calculateSemesterGroup(entryYear: number | null | undefined): number {
   return grade;
 }
 
+const SEMESTER_CODE_PATTERN = /^(\d{2}|\d{4})-?([AB])$/i;
+
+/**
+ * Calculates a group's grade relative to a selected semester code (e.g.
+ * "26A", "2026-A") instead of today's date. Falls back to
+ * calculateSemesterGroup(entryYear) -- today's-date-based -- for
+ * unparseable/unknown semester codes, logging a warning since that is
+ * degraded behavior for legacy/unknown data, not the normal path.
+ */
+export function calculateSemesterGroupForSemester(
+  entryYear: number | null | undefined,
+  semesterCode: string | null | undefined
+): number {
+  const match = semesterCode?.trim().toUpperCase().match(SEMESTER_CODE_PATTERN);
+
+  if (!match) {
+    console.warn(
+      `calculateSemesterGroupForSemester: no se pudo interpretar el semestre "${semesterCode}", usando el cálculo por fecha actual`
+    );
+    return calculateSemesterGroup(entryYear);
+  }
+
+  const rawYear = match[1];
+  const letter = match[2].toUpperCase();
+  const targetYear = rawYear.length === 2 ? 2000 + Number(rawYear) : Number(rawYear);
+
+  const termIndex = (year: number, term: string) => year * 2 + (term === "A" ? 0 : 1);
+
+  const entryIndex = termIndex(entryYear!, "B");
+  const targetIndex = termIndex(targetYear, letter);
+
+  const grade = targetIndex - entryIndex + 1;
+
+  return grade < 1 ? 1 : grade;
+}
+
 export default calculateSemesterGroup;

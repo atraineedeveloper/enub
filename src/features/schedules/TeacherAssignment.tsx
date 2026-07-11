@@ -1,9 +1,10 @@
-import { useState, useMemo } from "react";
+import { useContext, useState, useMemo } from "react";
 import Select from "../../ui/Select";
 import styled from "styled-components";
-import calculateSemesterGroup from "../../helpers/calculateSemesterGroup";
+import { calculateSemesterGroupForSemester } from "../../helpers/calculateSemesterGroup";
 import TeacherAssignmentPDF from "../../pdf/Schedules/TeacherAssignmentPDF";
 import capitalizeName from "../../helpers/capitalizeFirstLetter";
+import { SemesterContext } from "../../pages/ScheduleDashboard";
 import type { ScheduleAssignment } from "./useScheduleAssignments";
 import type { ScheduleTeacher } from "./useScheduleTeachers";
 import type { Worker } from "../workers/useWorkers";
@@ -96,6 +97,8 @@ function TeacherAssignment({
   scheduleTeachers,
   scheduleAssignments,
 }: TeacherAssignmentProps) {
+  const semesterData = useContext(SemesterContext);
+  const semesterCode = semesterData?.semesterCode ?? null;
   const [selectedWorkerId, setSelectedWorkerId] = useState<number | null>(
     null
   );
@@ -198,10 +201,11 @@ function TeacherAssignment({
                   <>
                     <span key={group}>
                       (
-                      {calculateSemesterGroup(
+                      {calculateSemesterGroupForSemester(
                         groupData(groupedSubjects[subject], "group_id")[
                           group
-                        ][0].groups!.year_of_admission
+                        ][0].groups!.year_of_admission,
+                        semesterCode
                       )}
                       ° "
                       {

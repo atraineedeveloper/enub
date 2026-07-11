@@ -5,7 +5,7 @@ import type { PageInfo } from "jspdf";
 import { useState } from "react";
 import Button from "../ui/Button";
 import { useRoles } from "../features/roles/useRoles";
-import calculateSemesterGroup from "../helpers/calculateSemesterGroup";
+import { calculateSemesterGroupForSemester } from "../helpers/calculateSemesterGroup";
 import capitalizeName from "../helpers/capitalizeFirstLetter";
 import Spinner from "../ui/Spinner";
 import type { WorkerWithDetails } from "../features/workers/useWorkers";
@@ -508,9 +508,10 @@ function WorkerSheetSemester({
 
   ${Object.keys(groupData(groupedSubjects[subject], "group_id")).map(
     (group) =>
-      ` (${calculateSemesterGroup(
+      ` (${calculateSemesterGroupForSemester(
         groupData(groupedSubjects[subject], "group_id")[group][0].groups!
-          .year_of_admission
+          .year_of_admission,
+        semester[0]?.semester
       )} ° "${
         groupData(groupedSubjects[subject], "group_id")[group][0].groups!.letter
       }")`
@@ -670,9 +671,10 @@ function WorkerSheetSemester({
 
   ${Object.keys(groupData(groupedSubjects[subject], "group_id")).map(
     (group) =>
-      ` (${calculateSemesterGroup(
+      ` (${calculateSemesterGroupForSemester(
         groupData(groupedSubjects[subject], "group_id")[group][0].groups!
-          .year_of_admission
+          .year_of_admission,
+        semester[0]?.semester
       )} ° "${
         groupData(groupedSubjects[subject], "group_id")[group][0].groups!.letter
       }")`
@@ -832,9 +834,10 @@ function WorkerSheetSemester({
 
   ${Object.keys(groupData(groupedSubjects[subject], "group_id")).map(
     (group) =>
-      ` (${calculateSemesterGroup(
+      ` (${calculateSemesterGroupForSemester(
         groupData(groupedSubjects[subject], "group_id")[group][0].groups!
-          .year_of_admission
+          .year_of_admission,
+        semester[0]?.semester
       )} ° "${
         groupData(groupedSubjects[subject], "group_id")[group][0].groups!.letter
       }")`

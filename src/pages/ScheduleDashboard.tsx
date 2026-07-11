@@ -10,7 +10,7 @@ import { useGroups } from "../features/groups/useGroups";
 import type { Group } from "../features/groups/useGroups";
 import { useParams } from "react-router-dom";
 import { useScheduleAssignments } from "../features/schedules/useScheduleAssignments";
-import calculateSemesterGroup from "../helpers/calculateSemesterGroup";
+import { calculateSemesterGroupForSemester } from "../helpers/calculateSemesterGroup";
 import sortWorkersBySurname from "../helpers/sortWorkersBySurname";
 import TeacherSchedule from "../features/schedules/TeacherSchedule";
 import { useScheduleTeachers } from "../features/schedules/useScheduleTeachers";
@@ -39,6 +39,7 @@ interface SemesterContextValue {
   workers: Worker[];
   subjects: Subject[];
   scheduleAssignments: unknown[];
+  semesterCode: string | null;
 }
 
 export const SemesterContext = createContext<SemesterContextValue | null>(
@@ -119,10 +120,12 @@ function ScheduleDashboard() {
 
   if (anyError) return <ErrorMessage message={anyError.message} />;
 
-  const currentGroups = groups!.filter((g) => calculateSemesterGroup(g.year_of_admission) <= 8);
+  const currentSemester = semesters!.find((s) => s.id === +id!);
+  const currentGroups = groups!.filter(
+    (g) => calculateSemesterGroupForSemester(g.year_of_admission, currentSemester?.semester) <= 8
+  );
   const currentWorkers = workers!.filter((w) => w.status === 1);
   const sortedCurrentWorkers = sortWorkersBySurname(currentWorkers);
-  const currentSemester = semesters!.find((s) => s.id === +id!);
 
   const breadcrumbItems = [
     { label: "Administrar horarios", to: "/semesters" },
@@ -136,6 +139,7 @@ function ScheduleDashboard() {
         workers: sortedCurrentWorkers,
         subjects: subjects!,
         scheduleAssignments: scheduleAssignments!,
+        semesterCode: currentSemester?.semester ?? null,
       }}
     >
       <Breadcrumbs items={breadcrumbItems} />

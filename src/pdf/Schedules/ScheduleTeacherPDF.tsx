@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import type { UserOptions, RowInput } from "jspdf-autotable";
+import { useContext } from "react";
 import Button from "../../ui/Button";
 import Spinner from "../../ui/Spinner";
 import { useRoles } from "../../features/roles/useRoles";
@@ -9,6 +10,7 @@ import filterHourGroup from "./filterHourGroup";
 import filterHourActivity from "./filterHourActivity";
 import capitalizeName from "../../helpers/capitalizeFirstLetter";
 import { useUtilities } from "../../features/otherData/useUtilities";
+import { SemesterContext } from "../../pages/ScheduleDashboard";
 import type { ScheduleAssignment } from "../../features/schedules/useScheduleAssignments";
 import type { ScheduleTeacher } from "../../features/schedules/useScheduleTeachers";
 import type { Database } from "../../types/supabase";
@@ -36,6 +38,8 @@ function ScheduleTeacherPDF({
   const { isLoading: isLoadingRoles, roles } = useRoles();
   const { isLoading: isLoadingStateRoles, stateRoles } = useStateRoles();
   const { isLoading: isLoadingUtilities, utilities } = useUtilities();
+  const semesterData = useContext(SemesterContext);
+  const semesterCode = semesterData?.semesterCode ?? null;
 
   // Deterministic fix: seed data only guarantees 1 row in each table, so
   // roles[1]/stateRoles[1] are undefined. Mirrors WorkerSheetSemester.jsx's
@@ -187,7 +191,8 @@ function ScheduleTeacherPDF({
       `${filterHourGroup(
         schedulesScholar,
         "Lunes",
-        "07:00:00"
+        "07:00:00",
+        semesterCode
       )}${filterHourActivity(scheduleTeacher, "Lunes", "07:00:00")}`;
 
     const data: RowInput[] = [
@@ -197,22 +202,26 @@ function ScheduleTeacherPDF({
         `${filterHourGroup(
           schedulesScholar,
           "Martes",
-          "07:00:00"
+          "07:00:00",
+        semesterCode
         )}${filterHourActivity(scheduleTeacher, "Martes", "07:00:00")}`,
         `${filterHourGroup(
           schedulesScholar,
           "Miercoles",
-          "07:00:00"
+          "07:00:00",
+        semesterCode
         )}${filterHourActivity(scheduleTeacher, "Miercoles", "07:00:00")}`,
         `${filterHourGroup(
           schedulesScholar,
           "Jueves",
-          "07:00:00"
+          "07:00:00",
+        semesterCode
         )}${filterHourActivity(scheduleTeacher, "Jueves", "07:00:00")}`,
         `${filterHourGroup(
           schedulesScholar,
           "Viernes",
-          "07:00:00"
+          "07:00:00",
+        semesterCode
         )}${filterHourActivity(scheduleTeacher, "Viernes", "07:00:00")}`,
       ],
       [
@@ -224,27 +233,32 @@ function ScheduleTeacherPDF({
         `${filterHourGroup(
           schedulesScholar,
           "Lunes",
-          "09:20:00"
+          "09:20:00",
+        semesterCode
         )}${filterHourActivity(scheduleTeacher, "Lunes", "09:20:00")}`,
         `${filterHourGroup(
           schedulesScholar,
           "Martes",
-          "09:20:00"
+          "09:20:00",
+        semesterCode
         )}${filterHourActivity(scheduleTeacher, "Martes", "09:20:00")}`,
         `${filterHourGroup(
           schedulesScholar,
           "Miercoles",
-          "09:20:00"
+          "09:20:00",
+        semesterCode
         )}${filterHourActivity(scheduleTeacher, "Miercoles", "09:20:00")}`,
         `${filterHourGroup(
           schedulesScholar,
           "Jueves",
-          "09:20:00"
+          "09:20:00",
+        semesterCode
         )}${filterHourActivity(scheduleTeacher, "Jueves", "09:20:00")}`,
         `${filterHourGroup(
           schedulesScholar,
           "Viernes",
-          "09:20:00"
+          "09:20:00",
+        semesterCode
         )}${filterHourActivity(scheduleTeacher, "Viernes", "09:20:00")}`,
       ],
       [
@@ -252,27 +266,32 @@ function ScheduleTeacherPDF({
         `${filterHourGroup(
           schedulesScholar,
           "Lunes",
-          "11:10:00"
+          "11:10:00",
+        semesterCode
         )}${filterHourActivity(scheduleTeacher, "Lunes", "11:10:00")}`,
         `${filterHourGroup(
           schedulesScholar,
           "Martes",
-          "11:10:00"
+          "11:10:00",
+        semesterCode
         )}${filterHourActivity(scheduleTeacher, "Martes", "11:10:00")}`,
         `${filterHourGroup(
           schedulesScholar,
           "Miercoles",
-          "11:10:00"
+          "11:10:00",
+        semesterCode
         )}${filterHourActivity(scheduleTeacher, "Miercoles", "11:10:00")}`,
         `${filterHourGroup(
           schedulesScholar,
           "Jueves",
-          "11:10:00"
+          "11:10:00",
+        semesterCode
         )}${filterHourActivity(scheduleTeacher, "Jueves", "11:10:00")}`,
         `${filterHourGroup(
           schedulesScholar,
           "Viernes",
-          "11:10:00"
+          "11:10:00",
+        semesterCode
         )}${filterHourActivity(scheduleTeacher, "Viernes", "11:10:00")}`,
       ],
       [
@@ -284,27 +303,32 @@ function ScheduleTeacherPDF({
         `${filterHourGroup(
           schedulesScholar,
           "Lunes",
-          "13:10:00"
+          "13:10:00",
+        semesterCode
         )}${filterHourActivity(scheduleTeacher, "Lunes", "13:10:00")}`,
         `${filterHourGroup(
           schedulesScholar,
           "Martes",
-          "13:10:00"
+          "13:10:00",
+        semesterCode
         )}${filterHourActivity(scheduleTeacher, "Martes", "13:10:00")}`,
         `${filterHourGroup(
           schedulesScholar,
           "Miercoles",
-          "13:10:00"
+          "13:10:00",
+        semesterCode
         )}${filterHourActivity(scheduleTeacher, "Miercoles", "13:10:00")}`,
         `${filterHourGroup(
           schedulesScholar,
           "Jueves",
-          "13:10:00"
+          "13:10:00",
+        semesterCode
         )}${filterHourActivity(scheduleTeacher, "Jueves", "13:10:00")}`,
         `${filterHourGroup(
           schedulesScholar,
           "Viernes",
-          "13:10:00"
+          "13:10:00",
+        semesterCode
         )}${filterHourActivity(scheduleTeacher, "Viernes", "13:10:00")}`,
       ],
     ];
@@ -324,27 +348,32 @@ function ScheduleTeacherPDF({
       `${filterHourGroup(
         schedulesScholar,
         "Lunes",
-        "17:00:00"
+        "17:00:00",
+        semesterCode
       )}${filterHourActivity(scheduleTeacher, "Lunes", "17:00:00")}`,
       `${filterHourGroup(
         schedulesScholar,
         "Martes",
-        "17:00:00"
+        "17:00:00",
+        semesterCode
       )}${filterHourActivity(scheduleTeacher, "Martes", "17:00:00")}`,
       `${filterHourGroup(
         schedulesScholar,
         "Miercoles",
-        "17:00:00"
+        "17:00:00",
+        semesterCode
       )}${filterHourActivity(scheduleTeacher, "Miercoles", "17:00:00")}`,
       `${filterHourGroup(
         schedulesScholar,
         "Jueves",
-        "17:00:00"
+        "17:00:00",
+        semesterCode
       )}${filterHourActivity(scheduleTeacher, "Jueves", "17:00:00")}`,
       `${filterHourGroup(
         schedulesScholar,
         "Viernes",
-        "17:00:00"
+        "17:00:00",
+        semesterCode
       )}${filterHourActivity(scheduleTeacher, "Viernes", "17:00:00")}`,
     ];
 

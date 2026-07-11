@@ -6,7 +6,7 @@ import Select from "../../ui/Select";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { useContext, useEffect, useState } from "react";
-import calculateSemesterGroup from "../../helpers/calculateSemesterGroup";
+import { calculateSemesterGroupForSemester } from "../../helpers/calculateSemesterGroup";
 import { createScheduleAssignments } from "../../services/apiScheduleAssignments";
 import { useWorkers } from "../workers/useWorkers";
 import { useSubjects } from "../subjects/useSubjects";
@@ -37,7 +37,8 @@ function CreateEditScholarSchedule({
 
   const semesterData = useContext(SemesterContext);
 
-  const { groups, workers, subjects, scheduleAssignments } = semesterData!;
+  const { groups, workers, subjects, scheduleAssignments, semesterCode } =
+    semesterData!;
 
   const { id: editId, ...editValues } = scheduleToEdit;
   const isEditSession = Boolean(editId);
@@ -58,8 +59,9 @@ function CreateEditScholarSchedule({
   function selectingGroup(value: string | number | null | undefined) {
     const groupFound = groups.find((gp) => gp.id === +value!);
 
-    const semesterFound = calculateSemesterGroup(
-      groupFound!.year_of_admission
+    const semesterFound = calculateSemesterGroupForSemester(
+      groupFound!.year_of_admission,
+      semesterCode
     );
 
     const subjectsFilterSemester = subjects.filter((subject) => {
@@ -152,8 +154,8 @@ function CreateEditScholarSchedule({
           <option value="">Seleccione...</option>
           {groups.map((group) => (
             <option key={group.id} value={group.id}>
-              {calculateSemesterGroup(group.year_of_admission)}° "{group.letter}
-              " - {group.degrees!.code}
+              {calculateSemesterGroupForSemester(group.year_of_admission, semesterCode)}°{" "}
+              "{group.letter}" - {group.degrees!.code}
             </option>
           ))}
         </Select>
