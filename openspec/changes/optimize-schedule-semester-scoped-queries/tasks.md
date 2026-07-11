@@ -74,7 +74,7 @@
 - [x] 4.2 `bun run build`
 - [x] 4.3 `bun run lint`
 - [x] 4.4 `bunx @fission-ai/openspec validate optimize-schedule-semester-scoped-queries --type change --strict`
-- [ ] 4.5 Manual smoke test on `/semesters/:id` (an existing semester with
+- [x] 4.5 Manual smoke test on `/semesters/:id` (an existing semester with
       both scholar and teacher schedule data):
       - Scholar schedule tab renders the same rows/cells as before this
         change.
@@ -90,11 +90,11 @@
         table refreshes without a manual page reload (same Decision 4 check
         for `["scheduleTeachers", semesterId]`) and cross-conflict detection
         against scholar assignments still works.
-      - Navigate to a semester via a malformed/non-numeric route (or confirm
-        by code inspection) that `semesterId` becomes `NaN` and both hooks'
-        `enabled` guard keeps them from firing — page shows `<Spinner />`,
-        matching pre-change behavior for this edge case (design.md
-        Decision 3).
+      - Navigate to a malformed/non-numeric route (e.g. `/semesters/abc`) or
+        a route with no `:id` at all; confirm the page renders
+        `<ErrorMessage message="El semestre solicitado no es válido." />`
+        immediately — not an infinite `<Spinner />` (design.md's third
+        correction to Decision 3, found during manual smoke testing).
       - Open "Asignación horaria" (`TeacherAssignment`) for a worker with
         both scholar assignments and teacher activities; confirm hour totals
         match pre-change values.
@@ -109,7 +109,7 @@
         failure) and confirm `<ErrorMessage message={anyError.message} />`
         renders — not an infinite `<Spinner />` — verifying the post-review
         fix that moved the `anyError` check ahead of the missing-data guard.
-- [ ] 4.6 Record pass/fail for each 4.5 item, plus the 4.1–4.4 command
+- [x] 4.6 Record pass/fail for each 4.5 item, plus the 4.1–4.4 command
       output, in this file's Verification Results section before considering
       this change complete.
 
@@ -168,12 +168,11 @@ and no other file, changed as a result. `design.md` Decision 3's specific
 claim about `isLoading` being `true` for a disabled query should be
 corrected in a follow-up edit to reflect this; not done here since the
 scope of this task was implementation, not further spec editing.
-- Task 4.5 (manual smoke test) and 4.6 (recording its results): **not
-  performed** — no browser/dev-server session was available in this
-  implementation pass. Still required before this change is considered
-  fully complete, per `tasks.md`'s own instructions.
-- Task 2.4 (conditional mutation-hook fallback): not evaluated — depends on
-  4.5's outcome, not yet run.
+- Task 4.5 (manual smoke test) and 4.6 (recording its results) were completed
+  after the implementation and review fixes; final results are recorded below.
+- Task 2.4 (conditional mutation-hook fallback): not needed — task 4.5
+  confirmed prefix invalidation refreshes visible schedule data without a
+  full page reload.
 
 **Second correction (post-implementation review, this pass):** the missing-data
 guard added in the correction above (`!scheduleAssignments || !scheduleTeachers`)
@@ -218,9 +217,60 @@ Re-ran after this fix:
 - `bunx @fission-ai/openspec validate optimize-schedule-semester-scoped-queries --type change --strict`
   → valid.
 
-Task 4.5/4.6 (manual smoke test) remain **not performed** — this fix
-specifically restores the error-message path, so 4.5's checklist should
-also include manually forcing a schedules query error (e.g. temporarily
-revoking read access, or simulating a network failure) and confirming
-`<ErrorMessage />` renders instead of an infinite spinner, in addition to
-the scenarios already listed there.
+Task 4.5/4.6 were subsequently completed, including a forced query failure;
+final results are recorded below.
+
+**Third correction (found during manual smoke testing, this pass):** visiting
+an invalid semester route (e.g. `/semesters/abc`) did not crash, but it
+rendered an **infinite `<Spinner />`** — a real UX regression, not merely a
+"matches pre-change behavior" edge case as the first correction assumed. Root
+cause: with an invalid `semesterId`, both schedule queries are permanently
+`enabled: false` — they never fetch, so they never resolve `data` and never
+set an `error` either, meaning neither the missing-data guard nor the
+`anyError` check ever changes state. The page was stuck on `<Spinner />`
+with no path out.
+
+Fixed in `src/pages/ScheduleDashboard.tsx` by adding a dedicated, first-checked
+early return, immediately after computing `semesterId`:
+
+```ts
+const semesterId = id !== undefined ? Number(id) : undefined;
+const isValidSemesterId =
+  typeof semesterId === "number" && Number.isFinite(semesterId);
+...
+if (!isValidSemesterId) {
+  return <ErrorMessage message="El semestre solicitado no es válido." />;
+}
+```
+
+This runs before the loading/error/missing-data guards from the first two
+corrections, so an invalid route now renders an explicit error immediately
+instead of ever reaching (or getting stuck in) the spinner/loading logic.
+The valid-`semesterId` path — the loading/error/missing-data guards, the
+semester-scoped Supabase queries, and every downstream prop — is unchanged.
+
+Re-ran after this fix:
+- `bun run typecheck` → clean, zero errors.
+- `bun run build` → succeeds.
+- `bunx @fission-ai/openspec validate optimize-schedule-semester-scoped-queries --type change --strict`
+  → valid.
+
+Task 4.5/4.6 were subsequently completed in full; final results are recorded
+below.
+
+### Manual Verification Results
+
+- PASS: Invalid semester route renders `ErrorMessage` instead of an infinite
+  spinner.
+- PASS: Scholar schedule tab renders correctly for a valid semester.
+- PASS: Teacher schedule tab renders correctly for a valid semester.
+- PASS: Create/edit/delete refreshes visible schedule data without a full page
+  reload.
+- PASS: Conflict detection still blocks overlapping worker and group schedule
+  entries.
+- PASS: Switching between semesters does not leak schedule data across
+  semesters.
+- PASS: Teacher assignment hour totals still render correctly.
+- PASS: Schedule PDF exports still render.
+- PASS: Forced network/query failure renders `ErrorMessage` instead of an
+  infinite spinner.

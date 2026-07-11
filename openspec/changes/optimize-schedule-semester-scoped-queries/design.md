@@ -149,6 +149,34 @@ disabled query) is unaffected — it still has `anyError` falsy, so the
 missing-data guard still applies and still renders `<Spinner />` as
 intended.
 
+**Third correction (found during manual smoke testing):** the invalid/missing-`semesterId`
+case addressed by the first two corrections was, in practice, worse than
+"matches pre-change behavior" — visiting a malformed route (e.g.
+`/semesters/abc`) rendered an **infinite `<Spinner />`**, not a one-time
+empty view. This is because the disabled queries' `data` never resolves and
+never errors (`enabled: false` means no fetch ever runs, so no
+`isLoading`/`anyError` transition ever happens either) — the missing-data
+guard from the first correction keeps the component on `<Spinner />`
+forever, with no path out. This is a real UX regression versus the
+pre-change behavior (which, while not itself semester-scoped, at least
+rendered a completed — if empty — schedule view, not a permanently spinning
+one), and needed an explicit fix rather than being merely "matched" to a
+`NaN`-derived empty array.
+
+Fixed by adding a dedicated, first-checked guard in `ScheduleDashboard.tsx`:
+immediately after computing `semesterId`, compute
+`isValidSemesterId = typeof semesterId === "number" && Number.isFinite(semesterId)`
+and `return <ErrorMessage message="El semestre solicitado no es válido." />`
+before any of the loading/error/missing-data logic runs, whenever
+`isValidSemesterId` is `false`. This is the same validity check already
+used inside `useScheduleAssignments`/`useScheduleTeachers`'s `enabled`
+option (Decision 3) — duplicated here at the page level specifically so the
+page can react to "invalid route" as its own explicit, terminal state
+instead of only as a side effect of the hooks silently never firing. The
+valid-`semesterId` path (the loading/error/missing-data guards from the
+first two corrections) is unchanged and only ever reached once
+`isValidSemesterId` is confirmed `true`.
+
 **4. Does `queryKey` including `semesterId` break the existing mutation
 hooks' cache invalidation? *(Verified by inspection, confirm behaviorally)***
 Inspected all 6 mutation hooks directly; every one calls `invalidateQueries`

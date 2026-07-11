@@ -92,6 +92,8 @@ const Tab = styled.button<{ $active: boolean; $tab: string }>`
 function ScheduleDashboard() {
   const { id } = useParams();
   const semesterId = id !== undefined ? Number(id) : undefined;
+  const isValidSemesterId =
+    typeof semesterId === "number" && Number.isFinite(semesterId);
   const [activeTab, setActiveTab] = useState("scholar");
 
   const { isLoading: isLoadingWorkers, workers, error: errorWorkers } = useWorkers({ fullDetails: true });
@@ -100,6 +102,10 @@ function ScheduleDashboard() {
   const { isLoading: isLoadingScheduleAssignments, scheduleAssignments, error: errorAssignments } = useScheduleAssignments(semesterId);
   const { isLoading: isLoadingScheduleTeachers, scheduleTeachers, error: errorTeachers } = useScheduleTeachers(semesterId);
   const { isLoading: isLoadingSemesters, semesters, error: errorSemesters } = useSemesters();
+
+  if (!isValidSemesterId) {
+    return <ErrorMessage message="El semestre solicitado no es válido." />;
+  }
 
   const anyError = errorWorkers || errorSubjects || errorGroups || errorAssignments || errorTeachers || errorSemesters;
 
