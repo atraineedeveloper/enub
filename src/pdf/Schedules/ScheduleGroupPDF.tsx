@@ -1,14 +1,16 @@
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import type { UserOptions, RowInput } from "jspdf-autotable";
+import { useContext } from "react";
 import Button from "../../ui/Button";
 import { useRoles } from "../../features/roles/useRoles";
 import { useStateRoles } from "../../features/stateRoles/useStateRoles";
 import Spinner from "../../ui/Spinner";
 import filterHour from "./filterHour";
-import calculateSemesterGroup from "../../helpers/calculateSemesterGroup";
+import { calculateSemesterGroupForSemester } from "../../helpers/calculateSemesterGroup";
 import capitalizeName from "../../helpers/capitalizeFirstLetter";
 import { useUtilities } from "../../features/otherData/useUtilities";
+import { SemesterContext } from "../../pages/ScheduleDashboard";
 import type { ScheduleAssignment } from "../../features/schedules/useScheduleAssignments";
 import type { Database } from "../../types/supabase";
 
@@ -29,6 +31,8 @@ function ScheduleGroupPDF({ schedules }: ScheduleGroupPDFProps) {
   const { isLoading: isLoadingRoles, roles } = useRoles();
   const { isLoading: isLoadingStateRoles, stateRoles } = useStateRoles();
   const { isLoading: isLoadingUtilities, utilities } = useUtilities();
+  const semesterData = useContext(SemesterContext);
+  const semesterCode = semesterData?.semesterCode ?? null;
 
   // Deterministic fix: seed data only guarantees 1 row in each table, so
   // roles[1]/stateRoles[1] are undefined. Mirrors WorkerSheetSemester.jsx's
@@ -52,8 +56,9 @@ function ScheduleGroupPDF({ schedules }: ScheduleGroupPDFProps) {
       ],
       [schedules[0].groups!.degrees!.name!.toUpperCase(), `PLAN: 2022`],
       [
-        `SEMESTRE: ${calculateSemesterGroup(
-          schedules[0].groups!.year_of_admission
+        `SEMESTRE: ${calculateSemesterGroupForSemester(
+          schedules[0].groups!.year_of_admission,
+          semesterCode
         )}°    GRUPO: ${schedules[0].groups!.letter}`,
         `TURNO: MATUTINO`,
       ],

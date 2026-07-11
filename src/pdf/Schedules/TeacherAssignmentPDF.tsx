@@ -1,12 +1,14 @@
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import type { UserOptions } from "jspdf-autotable";
+import { useContext } from "react";
 import Button from "../../ui/Button";
 import Spinner from "../../ui/Spinner";
 import { useRoles } from "../../features/roles/useRoles";
 import { useStateRoles } from "../../features/stateRoles/useStateRoles";
-import calculateSemesterGroup from "../../helpers/calculateSemesterGroup";
+import { calculateSemesterGroupForSemester } from "../../helpers/calculateSemesterGroup";
 import capitalizeName from "../../helpers/capitalizeFirstLetter";
+import { SemesterContext } from "../../pages/ScheduleDashboard";
 import type { ScheduleAssignment } from "../../features/schedules/useScheduleAssignments";
 import type { Worker } from "../../features/workers/useWorkers";
 
@@ -36,6 +38,8 @@ function TeacherAssignmentPDF({
 }: TeacherAssignmentPDFProps) {
   const { isLoading: isLoadingRoles, roles } = useRoles();
   const { isLoading: isLoadingStateRoles, stateRoles } = useStateRoles();
+  const semesterData = useContext(SemesterContext);
+  const semesterCode = semesterData?.semesterCode ?? null;
 
   let totalHours = 2;
 
@@ -360,9 +364,10 @@ function TeacherAssignmentPDF({
           groupedSubjects[subject][0].groups!.degrees!.code,
           `${Object.keys(groupData(groupedSubjects[subject], "group_id")).map(
             (group) => {
-              return `   ${calculateSemesterGroup(
+              return `   ${calculateSemesterGroupForSemester(
                 groupData(groupedSubjects[subject], "group_id")[group][0]
-                  .groups!.year_of_admission
+                  .groups!.year_of_admission,
+                semesterCode
               )}° " ${
                 groupData(groupedSubjects[subject], "group_id")[group][0]
                   .groups!.letter

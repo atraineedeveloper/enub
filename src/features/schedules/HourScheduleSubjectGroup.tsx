@@ -1,11 +1,12 @@
 import { FaEdit, FaTrash } from "react-icons/fa";
 import Row from "../../ui/Row";
-import calculateSemesterGroup from "../../helpers/calculateSemesterGroup";
-import { useState, type ComponentType } from "react";
+import { calculateSemesterGroupForSemester } from "../../helpers/calculateSemesterGroup";
+import { useContext, useState, type ComponentType } from "react";
 import Modal from "../../ui/Modal";
 import ConfirmDelete from "../../ui/ConfirmDelete";
 import { useDeleteScheduleAssignment } from "./useDeleteScheduleAssignment";
 import UntypedCreateEditScholarSchedule from "./CreateEditScholarSchedule";
+import { SemesterContext } from "../../pages/ScheduleDashboard";
 import type { ScheduleAssignment } from "./useScheduleAssignments";
 
 // CreateEditScholarSchedule.jsx is untyped and out of scope (Phase 3) -- see
@@ -30,6 +31,8 @@ function HourScheduleSubjectGroup({
 }: HourScheduleSubjectGroupProps) {
   const { isDeleting, deleteScheduleAssignment } =
     useDeleteScheduleAssignment();
+  const semesterData = useContext(SemesterContext);
+  const semesterCode = semesterData?.semesterCode ?? null;
   const schedulesHour = schedules.filter((schedule) => {
     return schedule.weekday === weekday && schedule.start_time === startTime;
   });
@@ -45,7 +48,7 @@ function HourScheduleSubjectGroup({
             <b>{schedule?.subjects!.name!.toUpperCase()}</b>
             <br />
             <em>
-              {calculateSemesterGroup(schedule?.groups?.year_of_admission)}° "
+              {calculateSemesterGroupForSemester(schedule?.groups?.year_of_admission, semesterCode)}° "
               {schedule?.groups?.letter}" - {schedule?.groups?.degrees?.code}
             </em>
             <br />

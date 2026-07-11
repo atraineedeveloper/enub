@@ -1,9 +1,10 @@
 import styled from "styled-components";
 import RowScholarSchedule from "./RowScholarSchedule";
 import Select from "../../ui/Select";
-import calculateSemesterGroup from "../../helpers/calculateSemesterGroup";
-import { useMemo, useState } from "react";
+import { calculateSemesterGroupForSemester } from "../../helpers/calculateSemesterGroup";
+import { useContext, useMemo, useState } from "react";
 import ScheduleGroupPDF from "../../pdf/Schedules/ScheduleGroupPDF";
+import { SemesterContext } from "../../pages/ScheduleDashboard";
 import type { ScheduleAssignment } from "./useScheduleAssignments";
 import type { Group } from "../groups/useGroups";
 
@@ -41,6 +42,8 @@ function ShowScholarSchedule({
   groups,
 }: ShowScholarScheduleProps) {
   const [selectedGroupId, setSelectedGroupId] = useState("");
+  const semesterData = useContext(SemesterContext);
+  const semesterCode = semesterData?.semesterCode ?? null;
 
   const filteredSchedules = useMemo(() => {
     if (!selectedGroupId) return [];
@@ -55,8 +58,8 @@ function ShowScholarSchedule({
         <option value="">Seleccione grupo escolar</option>
         {groups.map((group) => (
           <option key={group.id} value={group.id}>
-            {calculateSemesterGroup(group.year_of_admission)}° "{group.letter}"
-            - {group.degrees!.code}
+            {calculateSemesterGroupForSemester(group.year_of_admission, semesterCode)}°{" "}
+            "{group.letter}" - {group.degrees!.code}
           </option>
         ))}
       </Select>
