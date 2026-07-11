@@ -1,12 +1,11 @@
 import { FaEdit, FaTrash } from "react-icons/fa";
-import Row from "../../ui/Row";
 import { calculateSemesterGroupForSemester } from "../../helpers/calculateSemesterGroup";
-import { useContext, useState, type ComponentType } from "react";
+import { useContext, type ComponentType } from "react";
 import Modal from "../../ui/Modal";
 import ConfirmDelete from "../../ui/ConfirmDelete";
 import { useDeleteScheduleAssignment } from "./useDeleteScheduleAssignment";
 import UntypedCreateEditScholarSchedule from "./CreateEditScholarSchedule";
-import { SemesterContext } from "../../pages/ScheduleDashboard";
+import { SemesterContext } from "../../pages/SemesterContext";
 import type { ScheduleAssignment } from "./useScheduleAssignments";
 
 // CreateEditScholarSchedule.jsx is untyped and out of scope (Phase 3) -- see
@@ -37,9 +36,6 @@ function HourScheduleSubjectGroup({
     return schedule.weekday === weekday && schedule.start_time === startTime;
   });
 
-  const [editModal, setEditModal] = useState(false);
-  const [deleteModal, setDeleteModal] = useState(false);
-
   if (schedulesHour.length > 0)
     return (
       <>
@@ -48,8 +44,8 @@ function HourScheduleSubjectGroup({
             <b>{schedule?.subjects!.name!.toUpperCase()}</b>
             <br />
             <em>
-              {calculateSemesterGroupForSemester(schedule?.groups?.year_of_admission, semesterCode)}° "
-              {schedule?.groups?.letter}" - {schedule?.groups?.degrees?.code}
+              {calculateSemesterGroupForSemester(schedule?.groups?.year_of_admission, semesterCode)}° &quot;
+              {schedule?.groups?.letter}&quot; - {schedule?.groups?.degrees?.code}
             </em>
             <br />
             <Modal>
@@ -59,7 +55,6 @@ function HourScheduleSubjectGroup({
               <Modal.Window name={`scholar-schedule-edit-form-${schedule.id}`}>
                 <CreateEditScholarSchedule
                   scheduleToEdit={schedule}
-                  onCloseModal={() => setEditModal(false)}
                 />
               </Modal.Window>
             </Modal>
@@ -72,7 +67,6 @@ function HourScheduleSubjectGroup({
                 <ConfirmDelete
                   resourceName="horario"
                   disabled={isDeleting}
-                  onCloseModal={() => setDeleteModal(false)}
                   onConfirm={() => deleteScheduleAssignment(schedule.id)}
                 />
               </Modal.Window>

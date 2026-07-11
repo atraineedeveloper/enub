@@ -10,7 +10,7 @@ import filterHour from "./filterHour";
 import { calculateSemesterGroupForSemester } from "../../helpers/calculateSemesterGroup";
 import capitalizeName from "../../helpers/capitalizeFirstLetter";
 import { useUtilities } from "../../features/otherData/useUtilities";
-import { SemesterContext } from "../../pages/ScheduleDashboard";
+import { SemesterContext } from "../../pages/SemesterContext";
 import type { ScheduleAssignment } from "../../features/schedules/useScheduleAssignments";
 import type { Database } from "../../types/supabase";
 
@@ -119,7 +119,7 @@ function ScheduleGroupPDF({ schedules }: ScheduleGroupPDFProps) {
     doc.addImage(logoSetab, "JPEG", 15, 17, 130, 36);
 
     doc.autoTable({
-      willDrawPage: function (data) {
+      willDrawPage: function () {
         // Header
         doc.autoTable({
           styles: {

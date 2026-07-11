@@ -4,7 +4,7 @@ import Select from "../../ui/Select";
 import { calculateSemesterGroupForSemester } from "../../helpers/calculateSemesterGroup";
 import { useContext, useMemo, useState } from "react";
 import ScheduleGroupPDF from "../../pdf/Schedules/ScheduleGroupPDF";
-import { SemesterContext } from "../../pages/ScheduleDashboard";
+import { SemesterContext } from "../../pages/SemesterContext";
 import type { ScheduleAssignment } from "./useScheduleAssignments";
 import type { Group } from "../groups/useGroups";
 
@@ -59,7 +59,7 @@ function ShowScholarSchedule({
         {groups.map((group) => (
           <option key={group.id} value={group.id}>
             {calculateSemesterGroupForSemester(group.year_of_admission, semesterCode)}°{" "}
-            "{group.letter}" - {group.degrees!.code}
+            &quot;{group.letter}&quot; - {group.degrees!.code}
           </option>
         ))}
       </Select>

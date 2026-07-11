@@ -1,14 +1,13 @@
-import { createContext, useState } from "react";
+import { useState } from "react";
 import styled from "styled-components";
 import ScholarSchedule from "../features/schedules/ScholarSchedule";
 import { useWorkers } from "../features/workers/useWorkers";
 import type { Worker } from "../features/workers/useWorkers";
 import Spinner from "../ui/Spinner";
 import { useSubjects } from "../features/subjects/useSubjects";
-import type { Subject } from "../features/subjects/useSubjects";
 import { useGroups } from "../features/groups/useGroups";
-import type { Group } from "../features/groups/useGroups";
 import { useParams } from "react-router-dom";
+import { SemesterContext } from "./SemesterContext";
 import { useScheduleAssignments } from "../features/schedules/useScheduleAssignments";
 import { calculateSemesterGroupForSemester } from "../helpers/calculateSemesterGroup";
 import sortWorkersBySurname from "../helpers/sortWorkersBySurname";
@@ -33,18 +32,6 @@ const WorkerSheetSemester = UntypedWorkerSheetSemester as ComponentType<{
   scheduleAssignments?: unknown[];
   scheduleTeachers?: unknown[];
 }>;
-
-interface SemesterContextValue {
-  groups: Group[];
-  workers: Worker[];
-  subjects: Subject[];
-  scheduleAssignments: unknown[];
-  semesterCode: string | null;
-}
-
-export const SemesterContext = createContext<SemesterContextValue | null>(
-  null
-);
 
 const SemesterHeader = styled.div`
   display: flex;

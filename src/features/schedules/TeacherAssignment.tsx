@@ -4,7 +4,7 @@ import styled from "styled-components";
 import { calculateSemesterGroupForSemester } from "../../helpers/calculateSemesterGroup";
 import TeacherAssignmentPDF from "../../pdf/Schedules/TeacherAssignmentPDF";
 import capitalizeName from "../../helpers/capitalizeFirstLetter";
-import { SemesterContext } from "../../pages/ScheduleDashboard";
+import { SemesterContext } from "../../pages/SemesterContext";
 import type { ScheduleAssignment } from "./useScheduleAssignments";
 import type { ScheduleTeacher } from "./useScheduleTeachers";
 import type { Worker } from "../workers/useWorkers";
@@ -207,13 +207,13 @@ function TeacherAssignment({
                         ][0].groups!.year_of_admission,
                         semesterCode
                       )}
-                      ° "
+                      ° &quot;
                       {
                         groupData(groupedSubjects[subject], "group_id")[
                           group
                         ][0].groups!.letter
                       }
-                      ") &nbsp; &nbsp; &nbsp;
+                      &quot;) &nbsp; &nbsp; &nbsp;
                     </span>
                   </>
                 )

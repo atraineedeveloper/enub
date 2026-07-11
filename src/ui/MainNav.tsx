@@ -149,7 +149,7 @@ function MainNav({ onNavigate = () => {} }: MainNavProps) {
           </li>
         </NavList>
       )}
-      <NavLink to="/semesters" onClick={onNavigate} style={({ isActive }) => ({ textDecoration: "none" })}>
+      <NavLink to="/semesters" onClick={onNavigate} style={() => ({ textDecoration: "none" })}>
         {({ isActive }) => (
           <NavLinkHeader style={{
             color: isActive ? "var(--color-gold-700)" : undefined,

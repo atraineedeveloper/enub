@@ -4,7 +4,6 @@ import Button from "../../ui/Button";
 import FormRow from "../../ui/FormRow";
 import Select from "../../ui/Select";
 import toast from "react-hot-toast";
-import Input from "../../ui/Input";
 import Textarea from "../../ui/Textarea";
 import capitalizeName from "../../helpers/capitalizeFirstLetter";
 import { useCreateScheduleTeacher } from "./useCreateScheduleTeacher";
@@ -32,7 +31,7 @@ function CreateEditTeacherSchedule({
   scheduleTeachers = [],
   scheduleAssignments = [],
 }: CreateEditTeacherScheduleProps) {
-  const { id: editId, semesters, workers: workerData, ...editValues } = scheduleToEdit || {};
+  const { id: editId, ...editValues } = scheduleToEdit || {};
   const isEditSession = Boolean(editId);
 
   const { isCreating, createScheduleTeacher } = useCreateScheduleTeacher();

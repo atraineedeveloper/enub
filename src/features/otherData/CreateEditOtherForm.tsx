@@ -30,7 +30,7 @@ function CreateEditOtherForm({
       editUtility(
         { newUtility: { ...data }, id: editId },
         {
-          onSuccess: (data: unknown) => {
+          onSuccess: () => {
             reset();
             onCloseModal?.();
           },

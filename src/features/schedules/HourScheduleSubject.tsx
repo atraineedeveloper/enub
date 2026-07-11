@@ -1,4 +1,4 @@
-import { useState, type ComponentType } from "react";
+import { type ComponentType } from "react";
 import { FaEdit, FaTrash } from "react-icons/fa";
 import Modal from "../../ui/Modal";
 import ConfirmDelete from "../../ui/ConfirmDelete";
@@ -36,9 +36,6 @@ function HourScheduleSubject({
     return schedule.weekday === weekday && schedule.start_time === startTime;
   });
 
-  const [editModal, setEditModal] = useState(false);
-  const [deleteModal, setDeleteModal] = useState(false);
-
   if (subjectHour.length > 0)
     return (
       <>
@@ -53,7 +50,6 @@ function HourScheduleSubject({
           <Modal.Window name="scholar-schedule-edit-form">
             <CreateEditScholarSchedule
               scheduleToEdit={subjectHour[0]}
-              onCloseModal={() => setEditModal(false)}
             />
           </Modal.Window>
         </Modal>
@@ -66,7 +62,6 @@ function HourScheduleSubject({
             <ConfirmDelete
               resourceName="horario"
               disabled={isDeleting}
-              onCloseModal={() => setDeleteModal(false)}
               onConfirm={() => deleteScheduleAssignment(subjectHour[0].id)}
             />
           </Modal.Window>

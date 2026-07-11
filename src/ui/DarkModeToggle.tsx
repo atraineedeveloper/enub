@@ -1,6 +1,6 @@
 import { HiOutlineMoon, HiOutlineSun } from "react-icons/hi2";
 import styled from "styled-components";
-import { useDarkMode } from "../context/DarkModeContext";
+import { useDarkMode } from "../context/useDarkMode";
 
 const ButtonIcon = styled.button`
   background: none;

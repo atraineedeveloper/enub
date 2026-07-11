@@ -40,7 +40,7 @@ function CreateEditStateRoleForm({
           // react-hook-form's no-argument `reset()` restoring the
           // originally-captured `defaultValues`, not fresh post-update
           // data) invisible to the user there.
-          onSuccess: (data: unknown) => {
+          onSuccess: () => {
             reset();
             onCloseModal?.();
           },

@@ -3,19 +3,13 @@ import Form from "../../ui/Form";
 import Button from "../../ui/Button";
 import FormRow from "../../ui/FormRow";
 import Select from "../../ui/Select";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { calculateSemesterGroupForSemester } from "../../helpers/calculateSemesterGroup";
-import { createScheduleAssignments } from "../../services/apiScheduleAssignments";
-import { useWorkers } from "../workers/useWorkers";
-import { useSubjects } from "../subjects/useSubjects";
 import type { Subject } from "../subjects/useSubjects";
-import { useGroups } from "../groups/useGroups";
 import { useEditScheduleAssignment } from "./useEditScheduleAssignments";
-import Spinner from "../../ui/Spinner";
 import { useCreateScheduleAssignments } from "./useCreateScheduleAssignments";
-import { SemesterContext } from "../../pages/ScheduleDashboard";
+import { SemesterContext } from "../../pages/SemesterContext";
 import { hasWorkerConflict, hasGroupConflict } from "../../helpers/detectScheduleConflict";
 import type { ScheduleAssignment } from "./useScheduleAssignments";
 
@@ -31,9 +25,7 @@ function CreateEditScholarSchedule({
   onCloseModal,
 }: CreateEditScholarScheduleProps) {
   const { isEditing, editScheduleAssignment } = useEditScheduleAssignment();
-  const { isCreating, createScheduleAssignments } =
-    useCreateScheduleAssignments();
-  const isWorking = isCreating || isEditing;
+  const { createScheduleAssignments } = useCreateScheduleAssignments();
 
   const semesterData = useContext(SemesterContext);
 
@@ -43,42 +35,45 @@ function CreateEditScholarSchedule({
   const { id: editId, ...editValues } = scheduleToEdit;
   const isEditSession = Boolean(editId);
 
+  const [filteredSubjects, setFilteredSubjects] = useState<Subject[]>([]);
+
+  const selectingGroup = useCallback(
+    (value: string | number | null | undefined) => {
+      const groupFound = groups.find((gp) => gp.id === +value!);
+
+      const semesterFound = calculateSemesterGroupForSemester(
+        groupFound!.year_of_admission,
+        semesterCode
+      );
+
+      const subjectsFilterSemester = subjects.filter((subject) => {
+        // Decision 4: preserve the existing loose-equality comparison exactly
+        // -- `semester` is a nullable string column compared against
+        // calculateSemesterGroup()'s numeric return, so both sides are
+        // normalized to number here rather than switching to strict equality
+        // (which would change behavior for numeric-string values like "3" vs 3).
+        return Number(subject.semester) == semesterFound;
+      });
+
+      const subjectsFilterDegree = subjectsFilterSemester.filter((subject) => {
+        return subject.degrees!.id === groupFound!.degrees!.id;
+      });
+
+      setFilteredSubjects(subjectsFilterDegree);
+    },
+    [groups, subjects, semesterCode]
+  );
+
   useEffect(() => {
     if (isEditSession) {
       selectingGroup(editValues.group_id);
     }
-  }, [isEditSession, editValues.group_id]);
+  }, [isEditSession, editValues.group_id, selectingGroup]);
 
   const { register, handleSubmit, reset, formState } = useForm<FieldValues>({
     defaultValues: (isEditSession ? editValues : {}) as FieldValues,
   });
   const { errors } = formState;
-
-  const [filteredSubjects, setFilteredSubjects] = useState<Subject[]>([]);
-
-  function selectingGroup(value: string | number | null | undefined) {
-    const groupFound = groups.find((gp) => gp.id === +value!);
-
-    const semesterFound = calculateSemesterGroupForSemester(
-      groupFound!.year_of_admission,
-      semesterCode
-    );
-
-    const subjectsFilterSemester = subjects.filter((subject) => {
-      // Decision 4: preserve the existing loose-equality comparison exactly
-      // -- `semester` is a nullable string column compared against
-      // calculateSemesterGroup()'s numeric return, so both sides are
-      // normalized to number here rather than switching to strict equality
-      // (which would change behavior for numeric-string values like "3" vs 3).
-      return Number(subject.semester) == semesterFound;
-    });
-
-    const subjectsFilterDegree = subjectsFilterSemester.filter((subject) => {
-      return subject.degrees!.id === groupFound!.degrees!.id;
-    });
-
-    setFilteredSubjects(subjectsFilterDegree);
-  }
 
   function onSubmit(data: FieldValues) {
     const resolvedSemesterId = Number(semesterId || editValues.semester_id);
@@ -155,7 +150,7 @@ function CreateEditScholarSchedule({
           {groups.map((group) => (
             <option key={group.id} value={group.id}>
               {calculateSemesterGroupForSemester(group.year_of_admission, semesterCode)}°{" "}
-              "{group.letter}" - {group.degrees!.code}
+              &quot;{group.letter}&quot; - {group.degrees!.code}
             </option>
           ))}
         </Select>

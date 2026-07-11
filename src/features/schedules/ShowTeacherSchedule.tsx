@@ -1,6 +1,6 @@
 import styled from "styled-components";
 import Select from "../../ui/Select";
-import { useState, useEffect, useMemo } from "react";
+import { useCallback, useState, useEffect, useMemo } from "react";
 import RowTeacherSchedule from "./RowTeacherSchedule";
 import ScheduleTeacherPDF from "../../pdf/Schedules/ScheduleTeacherPDF";
 import capitalizeName from "../../helpers/capitalizeFirstLetter";
@@ -77,18 +77,21 @@ function ShowTeacherSchedule({
     null
   );
 
-  function selectingWorker(workerId: string | number) {
-    setSelectedWorkerId(workerId ? +workerId : null);
-    const scheduleTeacherFilter = scheduleTeachers.filter((schedule) => {
-      return schedule.worker_id === +workerId;
-    });
+  const selectingWorker = useCallback(
+    (workerId: string | number) => {
+      setSelectedWorkerId(workerId ? +workerId : null);
+      const scheduleTeacherFilter = scheduleTeachers.filter((schedule) => {
+        return schedule.worker_id === +workerId;
+      });
 
-    const scheduleAssignmentsFilter = scheduleAssignments.filter((schedule) => {
-      return schedule.worker_id === +workerId;
-    });
-    setFilteredSchedulesTeacher(scheduleTeacherFilter);
-    setFilteredSchedulesAssignments(scheduleAssignmentsFilter);
-  }
+      const scheduleAssignmentsFilter = scheduleAssignments.filter((schedule) => {
+        return schedule.worker_id === +workerId;
+      });
+      setFilteredSchedulesTeacher(scheduleTeacherFilter);
+      setFilteredSchedulesAssignments(scheduleAssignmentsFilter);
+    },
+    [scheduleTeachers, scheduleAssignments]
+  );
 
   const recordExist =
     filteredSchedulesTeacher.length > 0 ||
@@ -97,7 +100,7 @@ function ShowTeacherSchedule({
   // Re-aplicar filtros cuando cambian los datos cargados
   useEffect(() => {
     if (selectedWorkerId) selectingWorker(selectedWorkerId);
-  }, [scheduleTeachers, scheduleAssignments, selectedWorkerId]);
+  }, [selectedWorkerId, selectingWorker]);
 
   //******************* Extract Subjects *********************
 
