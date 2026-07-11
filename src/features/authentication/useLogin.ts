@@ -24,7 +24,7 @@ export function useLogin() {
       queryClient.setQueryData(["user"], user.user);
       navigate("/dashboard", { replace: true });
     },
-    onError: (err: Error) => {
+    onError: () => {
       toast.error("El correo o contraseña son incorrectos");
     },
   });

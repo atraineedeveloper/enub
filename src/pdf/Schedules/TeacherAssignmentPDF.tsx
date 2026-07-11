@@ -3,12 +3,11 @@ import "jspdf-autotable";
 import type { UserOptions } from "jspdf-autotable";
 import { useContext } from "react";
 import Button from "../../ui/Button";
-import Spinner from "../../ui/Spinner";
 import { useRoles } from "../../features/roles/useRoles";
 import { useStateRoles } from "../../features/stateRoles/useStateRoles";
 import { calculateSemesterGroupForSemester } from "../../helpers/calculateSemesterGroup";
 import capitalizeName from "../../helpers/capitalizeFirstLetter";
-import { SemesterContext } from "../../pages/ScheduleDashboard";
+import { SemesterContext } from "../../pages/SemesterContext";
 import type { ScheduleAssignment } from "../../features/schedules/useScheduleAssignments";
 import type { Worker } from "../../features/workers/useWorkers";
 
@@ -36,8 +35,12 @@ function TeacherAssignmentPDF({
   uniqueTeacherSchedule,
   currentWorker,
 }: TeacherAssignmentPDFProps) {
-  const { isLoading: isLoadingRoles, roles } = useRoles();
-  const { isLoading: isLoadingStateRoles, stateRoles } = useStateRoles();
+  const { roles } = useRoles();
+  // Neither returned value is read anywhere in this file, but the call
+  // itself is kept (not removed) so the query it fires still runs --
+  // matching this file's siblings' behavior, which do use their own
+  // useStateRoles() return values (design.md's explicit reasoning).
+  useStateRoles();
   const semesterData = useContext(SemesterContext);
   const semesterCode = semesterData?.semesterCode ?? null;
 
@@ -82,7 +85,7 @@ function TeacherAssignmentPDF({
     doc.addImage(logoSetab, "JPEG", 15, 17, 130, 36);
 
     doc.autoTable({
-      willDrawPage: function (data) {
+      willDrawPage: function () {
         // Header
         doc.autoTable({
           styles: {

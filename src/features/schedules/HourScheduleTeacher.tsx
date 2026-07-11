@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { FaTrash, FaPencilAlt } from "react-icons/fa";
 import Modal from "../../ui/Modal";
 import ConfirmDelete from "../../ui/ConfirmDelete";
@@ -27,14 +26,6 @@ function HourScheduleSubjectTeacher({
     return schedule.weekday === weekday && schedule.start_time === startTime;
   });
 
-  // Authorized fix (design.md Decision 3): onCloseModal below already
-  // referenced setEditModal without this file ever declaring it -- a live
-  // no-undef ReferenceError when the edit modal closed. Adding the same
-  // paired declaration its sibling components (HourScheduleSubject.jsx/
-  // HourScheduleSubjectGroup.jsx) already use is the minimal, pattern-
-  // consistent fix; no other modal behavior changes.
-  const [editModal, setEditModal] = useState(false);
-
   if (activitiesHour.length > 0)
     return (
       <>
@@ -52,7 +43,6 @@ function HourScheduleSubjectTeacher({
                     scheduleToEdit={activity}
                     workers={workers} // Necesitamos pasar workers y semesterId
                     semesterId={semesterId}
-                    onCloseModal={() => setEditModal(false)}
                   />
                 </Modal.Window>
               </Modal>

@@ -14,9 +14,6 @@ function calculateSemesterGroup(entryYear: number | null | undefined): number {
   // (Si ingresó en agosto, ese día comienza semestre 1).
 
   const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth(); // 0 = Enero, ..., 7 = Agosto
-  const currentDay = now.getDate();
 
   // Fecha de referencia inicial: 1 de Agosto del año de ingreso
   const startDate = new Date(entryYear!, 7, 1); // Mes 7 = Agosto, Dia 1
