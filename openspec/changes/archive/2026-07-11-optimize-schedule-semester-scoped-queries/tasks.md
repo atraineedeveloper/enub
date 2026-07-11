@@ -38,9 +38,9 @@
       default prefix matching should still satisfy against the new
       semester-suffixed keys from 2.1/2.2. This is verified behaviorally in
       task 4.5, not left as an unchecked assumption.
-- [ ] 2.4 **Conditional fallback** — only if task 4.5's manual verification
+- [x] 2.4 **Conditional fallback** — only if task 4.5's manual verification
       finds that creating, editing, or deleting a scholar schedule assignment
-      or teacher activity does *not* refresh the visible table without a
+      or teacher activity does _not_ refresh the visible table without a
       manual reload: update the corresponding mutation hook(s)'
       `invalidateQueries` call to explicitly target the scoped key currently
       in view (e.g. `queryKey: ["scheduleAssignments", semesterId]`, sourced
@@ -48,6 +48,13 @@
       predicate-based `invalidateQueries({ predicate: (query) => query.queryKey[0] === "scheduleAssignments" })`
       call. Do not perform this task speculatively — only if 4.5 demonstrates
       the prefix-matching assumption in Decision 4 does not hold.
+      **Resolved as not required**: task 4.5's completed manual smoke test
+      recorded "PASS: Create/edit/delete refreshes visible schedule data
+      without a full page reload" for both scholar assignments and teacher
+      activities, confirming the existing mutation hooks' unmodified
+      `invalidateQueries` calls already invalidate the new semester-scoped
+      keys via TanStack Query's default prefix matching. No mutation hook
+      was changed.
 
 ## 3. Page — parse semesterId once, pass it into the hooks, drop redundant client filters
 
@@ -75,40 +82,31 @@
 - [x] 4.3 `bun run lint`
 - [x] 4.4 `bunx @fission-ai/openspec validate optimize-schedule-semester-scoped-queries --type change --strict`
 - [x] 4.5 Manual smoke test on `/semesters/:id` (an existing semester with
-      both scholar and teacher schedule data):
-      - Scholar schedule tab renders the same rows/cells as before this
-        change.
-      - Teacher schedule tab renders the same rows/cells, including the
-        extracurricular block when applicable.
-      - Create, edit, and delete one scholar schedule assignment; confirm
-        the table refreshes without a manual page reload (behaviorally
-        confirms design.md Decision 4's prefix-matching invalidation holds
-        for the new scoped keys — if it does not, do task 2.4) and conflict
-        detection (`hasWorkerConflict`/`hasGroupConflict`) still blocks an
-        overlapping submission.
-      - Create, edit, and delete one teacher schedule activity; confirm the
-        table refreshes without a manual page reload (same Decision 4 check
-        for `["scheduleTeachers", semesterId]`) and cross-conflict detection
-        against scholar assignments still works.
-      - Navigate to a malformed/non-numeric route (e.g. `/semesters/abc`) or
-        a route with no `:id` at all; confirm the page renders
-        `<ErrorMessage message="El semestre solicitado no es válido." />`
-        immediately — not an infinite `<Spinner />` (design.md's third
-        correction to Decision 3, found during manual smoke testing).
-      - Open "Asignación horaria" (`TeacherAssignment`) for a worker with
-        both scholar assignments and teacher activities; confirm hour totals
-        match pre-change values.
-      - Export the semester PDF (`WorkerSheetSemester`) and one schedule PDF
-        (`ScheduleGroupPDF`/`ScheduleTeacherPDF`/`TeacherAssignmentPDF`);
-        confirm contents are unchanged.
-      - Switch between two different semesters (navigate to a different
-        `:id`) and confirm each shows only its own data, with no
-        stale/leftover rows from the previously-viewed semester.
-      - Force a schedules query error (e.g. temporarily revoke read access
-        to `schedule_assignments`/`schedule_teachers`, or simulate a network
-        failure) and confirm `<ErrorMessage message={anyError.message} />`
-        renders — not an infinite `<Spinner />` — verifying the post-review
-        fix that moved the `anyError` check ahead of the missing-data guard.
+      both scholar and teacher schedule data): - Scholar schedule tab renders the same rows/cells as before this
+      change. - Teacher schedule tab renders the same rows/cells, including the
+      extracurricular block when applicable. - Create, edit, and delete one scholar schedule assignment; confirm
+      the table refreshes without a manual page reload (behaviorally
+      confirms design.md Decision 4's prefix-matching invalidation holds
+      for the new scoped keys — if it does not, do task 2.4) and conflict
+      detection (`hasWorkerConflict`/`hasGroupConflict`) still blocks an
+      overlapping submission. - Create, edit, and delete one teacher schedule activity; confirm the
+      table refreshes without a manual page reload (same Decision 4 check
+      for `["scheduleTeachers", semesterId]`) and cross-conflict detection
+      against scholar assignments still works. - Navigate to a malformed/non-numeric route (e.g. `/semesters/abc`) or
+      a route with no `:id` at all; confirm the page renders
+      `<ErrorMessage message="El semestre solicitado no es válido." />`
+      immediately — not an infinite `<Spinner />` (design.md's third
+      correction to Decision 3, found during manual smoke testing). - Open "Asignación horaria" (`TeacherAssignment`) for a worker with
+      both scholar assignments and teacher activities; confirm hour totals
+      match pre-change values. - Export the semester PDF (`WorkerSheetSemester`) and one schedule PDF
+      (`ScheduleGroupPDF`/`ScheduleTeacherPDF`/`TeacherAssignmentPDF`);
+      confirm contents are unchanged. - Switch between two different semesters (navigate to a different
+      `:id`) and confirm each shows only its own data, with no
+      stale/leftover rows from the previously-viewed semester. - Force a schedules query error (e.g. temporarily revoke read access
+      to `schedule_assignments`/`schedule_teachers`, or simulate a network
+      failure) and confirm `<ErrorMessage message={anyError.message} />`
+      renders — not an infinite `<Spinner />` — verifying the post-review
+      fix that moved the `anyError` check ahead of the missing-data guard.
 - [x] 4.6 Record pass/fail for each 4.5 item, plus the 4.1–4.4 command
       output, in this file's Verification Results section before considering
       this change complete.
@@ -168,6 +166,7 @@ and no other file, changed as a result. `design.md` Decision 3's specific
 claim about `isLoading` being `true` for a disabled query should be
 corrected in a follow-up edit to reflect this; not done here since the
 scope of this task was implementation, not further spec editing.
+
 - Task 4.5 (manual smoke test) and 4.6 (recording its results) were completed
   after the implementation and review fixes; final results are recorded below.
 - Task 2.4 (conditional mutation-hook fallback): not needed — task 4.5
@@ -210,6 +209,7 @@ pre-existing convention of using `!` for other hook results
 gates have already returned.
 
 Re-ran after this fix:
+
 - `bun run typecheck` → clean, zero errors.
 - `bun run build` → succeeds.
 - `bun run lint` → 43 problems (39 errors, 4 warnings), unchanged from
@@ -250,6 +250,7 @@ The valid-`semesterId` path — the loading/error/missing-data guards, the
 semester-scoped Supabase queries, and every downstream prop — is unchanged.
 
 Re-ran after this fix:
+
 - `bun run typecheck` → clean, zero errors.
 - `bun run build` → succeeds.
 - `bunx @fission-ai/openspec validate optimize-schedule-semester-scoped-queries --type change --strict`

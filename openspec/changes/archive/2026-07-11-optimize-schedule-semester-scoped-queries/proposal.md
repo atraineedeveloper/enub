@@ -1,33 +1,22 @@
 ## Why
 
-`ScheduleDashboard.tsx` loads schedules by calling `useScheduleAssignments()`
-and `useScheduleTeachers()` with no arguments. Both hooks call
-`getScheduleAssignments()` / `getScheduleTeachers()`
-(`src/services/apiScheduleAssignments.ts`, `src/services/apiScheduleTeachers.ts`),
-which run an unfiltered `select()` against `schedule_assignments` /
-`schedule_teachers` — every row in both tables, for every semester, every
-time the page loads. `ScheduleDashboard.tsx` then filters the result down to
-the current semester client-side:
+`ScheduleDashboard.tsx` loads schedules via `useScheduleAssignments()` /
+`useScheduleTeachers()`, which run unfiltered `select()` calls against
+`schedule_assignments` / `schedule_teachers` — every row, every semester,
+every page load — then filter to the current `semester_id` in React
+(`scheduleAssignments!.filter((s) => s.semester_id === +id!)`).
 
-```ts
-const scheduleAssignmentsBySemester = scheduleAssignments!.filter((s) => s.semester_id === +id!);
-const scheduleTeachersBySemester = scheduleTeachers!.filter((s) => s.semester_id === +id!);
-```
+Supabase/PostgREST caps unpaginated `select()` responses at 1000 rows. Once
+either table crosses that limit across all semesters combined, the fetch
+silently truncates and the client-side filter operates on incomplete data —
+schedules, conflict detection, the semester PDF export, and the teacher
+assignment-hours summary can silently go missing for the selected semester,
+with no visible error. This gets more likely as more semesters accumulate,
+not less.
 
-Supabase/PostgREST caps `select()` responses at a default row limit (1000
-rows unless `Range`/pagination is used). Once either table crosses that
-limit, this unfiltered query silently truncates the result set instead of
-erroring, and the client-side filter then operates on an incomplete dataset
-— schedules for the selected semester can be missing from the page (scholar
-schedule table, teacher schedule table, conflict detection, the semester PDF
-export, and the teacher assignment-hours summary) with no visible error.
-Growth in either table (more semesters accumulating over school years) makes
-this failure mode more likely over time, not less.
-
-The fix is to query by the already-known `semester_id` (the route's `id`
-param) at the Supabase level, so the database returns only the rows the page
-needs — correct regardless of how large either table grows, and cheaper on
-every load besides.
+The fix: query by the already-known `semester_id` at the Supabase level, so
+only the needed rows are ever fetched — correct regardless of table size,
+and cheaper on every load besides.
 
 ## What Changes
 
