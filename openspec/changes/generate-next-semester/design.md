@@ -151,14 +151,58 @@ Enforced server-side, in `apiSemesters.ts`'s `createSemester()` — not only
 client-side — since the client's cached `useSemesters()` data can be stale
 (5-minute `staleTime`) and a purely client-side check cannot be authoritative
 against a concurrent creation. Before inserting, `createSemester()` fetches
-current semesters and compares the normalized (`.trim().toUpperCase()`)
-candidate `semester` value against every existing one; an exact match
-throws a clear Spanish error (`"Ya existe un semestre con ese código."`)
-before any insert is attempted. The UI's own computed-next-semester flow
-also can't realistically produce a duplicate in the normal path (it's
-always latest+1, and latest is freshly re-fetched before computing it), so
-this check's practical purpose is defense-in-depth against a stale form
-session or a direct API call, not the everyday path.
+current semesters and checks the candidate against every existing one; an
+exact match throws a clear Spanish error
+(`"Ya existe un semestre con ese código."`) before any insert is attempted.
+The UI's own computed-next-semester flow also can't realistically produce a
+duplicate in the normal path (it's always latest+1, and latest is freshly
+re-fetched before computing it), so this check's practical purpose is
+defense-in-depth against a stale form session or a direct API call, not the
+everyday path.
+
+**Correction (found during code review): the duplicate check compares by
+parsed (canonical) identity, not only raw normalized strings.** The
+original implementation compared `.trim().toUpperCase()` string equality
+only — which would treat `"26A"` and `"2026-A"` as *different* semesters
+even though both parse to the same calendar term (Decision 2's own parsing
+rule already treats them as equivalent everywhere else). Fixed: for each
+existing row, `createSemester()` now parses `s.semester` and compares its
+*formatted canonical code* against the candidate's canonical code when the
+existing value parses successfully; it only falls back to a raw
+normalized-string comparison for an existing row whose value doesn't parse
+at all (legacy/malformed data with no canonical form to compare against).
+This closes the semantic-duplicate gap (`26A` submitted when `2026-A`
+already exists is now correctly rejected as a duplicate) without weakening
+the fallback for genuinely unparseable legacy rows.
+
+**Correction (found during code review): candidate format validation and
+authoritative school_year derivation happen at the service boundary, not
+only in the UI.** Two related gaps in the original implementation:
+- The candidate `semester` was only parsed (and validated) *inside* the
+  `if (latest)` branch — meaning a malformed code like `"garbage"` would
+  skip validation entirely in the bootstrap path (no `latest` to branch
+  into) and reach the insert unchecked. Fixed: `createSemester()` now
+  parses and validates the candidate **first**, before either the
+  duplicate or sequential-order check, and rejects an unparseable code in
+  *every* case, bootstrap included — not just when a latest semester
+  happens to exist.
+- `createSemester()` previously inserted whatever `school_year` string the
+  caller submitted, trusting the UI to have computed it correctly
+  (Decision 3). A direct, stale, or manipulated call could submit a
+  structurally valid, correctly-sequenced `semester` code paired with a
+  wrong `school_year`. Fixed: once the candidate parses, `createSemester()`
+  computes `school_year` itself via `getSchoolYearForSemester(candidateParsed)`
+  and **always inserts that computed value**, ignoring whatever
+  `school_year` string the caller sent (the presence check —
+  `"El ciclo escolar es requerido"` — is kept as basic input validation,
+  but the persisted value is never the caller's raw string). The same
+  authoritative treatment is extended to `semester` itself: the **canonical**
+  formatted code (`formatSemesterCode(candidateParsed)`) is inserted, not
+  the caller's raw string — so a submission like `"26a"` (lowercase) or
+  `"2026-A"` is still stored in the consistent going-forward `YYA` format,
+  not verbatim. This is a small, deliberate extension beyond only
+  `school_year`, applying the same "the service is authoritative for
+  derived/canonical values" principle consistently to both fields.
 
 **6. Should database uniqueness be a follow-up migration or part of this
 change? *(Closed — confirmed by the user)***
@@ -242,6 +286,13 @@ this rule. This change does not build that exception path.
   application-level check. Accepted as low-probability for this
   application's real usage pattern; confirmed by the user as a non-blocking
   follow-up, not silently deferred.
+- **Semantic duplicates across formats (Decision 5, found and fixed during
+  code review)**: `"26A"` and `"2026-A"` are the same calendar term but
+  different strings; the original duplicate check only compared raw
+  normalized strings and would have let a semantic duplicate through. Fixed
+  by comparing parsed canonical identity when the existing value parses
+  (see Decision 5's Correction) — this residual risk is closed, not merely
+  documented.
 - **Strict "must be exact next" enforcement (Decision 6's sequential rule,
   user-confirmed)** forecloses ever creating a skipped historical semester
   (e.g. backfilling a semester that should have existed between two

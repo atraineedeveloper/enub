@@ -33,7 +33,11 @@ The system SHALL compute `school_year` from a `semester` code using the
 stated academic-term rule (`YYA` belongs to `20(YY-1) - 20YY`; `YYB`
 belongs to `20YY - 20(YY+1)`) and SHALL NOT present `school_year` as an
 independently-selectable field in the semester creation form, in either the
-normal or initial-semester path.
+normal or initial-semester path. This derivation SHALL be authoritative at
+the service layer, not only performed in the UI: `createSemester()` SHALL
+compute `school_year` itself from the parsed `semester` code and SHALL
+insert that computed value, regardless of what `school_year` value a
+caller submits alongside it.
 
 #### Scenario: school_year is derived correctly for every academic term
 
@@ -48,6 +52,18 @@ normal or initial-semester path.
   initial (code-only picker) path
 - THEN the submitted `school_year` SHALL always be the value computed from
   the submitted `semester` code, never a value selected independently of it
+
+#### Scenario: A mismatched submitted school_year cannot reach the database
+
+- WHEN a creation request submits a structurally valid, correctly-sequenced
+  `semester` code together with a `school_year` value that does not match
+  the value that code derives (e.g. via a direct API call, a stale form
+  session, or a manipulated payload — not through the normal UI, which
+  never lets an admin choose `school_year` independently)
+- THEN the system SHALL ignore the submitted `school_year` and insert the
+  value computed from the parsed `semester` code instead — the persisted
+  `school_year` SHALL always be internally consistent with the persisted
+  `semester`
 
 ### Requirement: An initial-semester path SHALL exist when no semester exists yet
 
@@ -64,6 +80,32 @@ selected.
 - THEN the system SHALL present a `semester`-code-only selection, and SHALL
   compute and submit the corresponding `school_year` automatically once a
   code is chosen
+
+### Requirement: A candidate semester code SHALL be validated for format before any other check
+
+The system SHALL parse and validate the candidate `semester` code's format
+before performing the duplicate check or the sequential-order check, and
+SHALL reject an unparseable code in every path — including the
+initial-semester (bootstrap) path, where there is no existing "latest"
+semester to compare against. Format validation SHALL NOT be conditional on
+whether an existing semester happens to parse successfully.
+
+#### Scenario: A malformed candidate is rejected in the bootstrap path
+
+- WHEN the `semesters` table is empty (or every existing value is
+  unparseable), and a creation request submits a `semester` value that does
+  not match the `YYA`/`YYB` or `YYYY-A`/`YYYY-B` format
+- THEN the system SHALL reject the request with a clear error and SHALL NOT
+  insert a new row, even though there is no latest semester to compute a
+  successor from
+
+#### Scenario: A malformed candidate is rejected even when a latest semester exists
+
+- WHEN at least one existing semester parses successfully, and a creation
+  request submits a `semester` value that does not match the supported
+  format
+- THEN the system SHALL reject the request for its invalid format — this
+  check SHALL run before, and independently of, the sequential-order check
 
 ### Requirement: Duplicate and out-of-sequence semester codes SHALL be rejected at creation time
 
@@ -83,9 +125,21 @@ exception).
 #### Scenario: A duplicate semester code is rejected
 
 - WHEN a creation request submits a `semester` value that already exists in
-  the `semesters` table (compared case-insensitively after trimming)
+  the `semesters` table, compared by parsed canonical identity when the
+  existing value parses successfully (e.g. `26A` and `2026-A` are the same
+  semester and MUST both be treated as duplicates of each other), falling
+  back to a case-insensitive, trimmed raw-string comparison only for an
+  existing row whose value does not parse
 - THEN the system SHALL reject the request with a clear error and SHALL NOT
   insert a new row
+
+#### Scenario: A semantic duplicate across formats is rejected
+
+- WHEN an existing semester's `semester` value is `2026-A` (legacy format)
+  and a creation request submits `26A` (going-forward format) — the same
+  calendar term written differently
+- THEN the system SHALL reject the request as a duplicate, exactly as if
+  the two values had been written identically
 
 #### Scenario: A skipped-ahead semester code is rejected
 
