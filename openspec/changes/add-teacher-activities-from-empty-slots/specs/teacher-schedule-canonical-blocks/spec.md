@@ -57,14 +57,34 @@ caller submits the request (the teacher-schedule form or a direct call to
   overlapping submission for the same worker — whether the conflicting row
   is another teacher activity or a scholar assignment
 
+#### Scenario: Every form entry point supplies full semester-level data for conflict detection
+
+- WHEN the teacher schedule form is opened from any entry point — the
+  top-level manual Add button, an occupied cell's edit action, or a free
+  cell's Add action
+- THEN the form SHALL receive the complete, semester-level
+  `schedule_teachers` and `schedule_assignments` arrays (not a subset
+  filtered to only the currently-selected teacher), so `hasWorkerConflict`
+  can correctly detect an overlap for whichever worker ends up selected in
+  the form — including a worker the admin selects after opening the form,
+  different from the cell's or the view's originally-selected teacher
+
 ### Requirement: Every free teacher-schedule cell SHALL offer an Add action with cell-derived defaults
 
 The system SHALL render an Add action in every teacher-schedule table cell
-that has no existing activity for the currently-selected teacher,
-replacing the current empty-cell placeholder. Activating it SHALL open the
-teacher schedule form with the current semester, the currently-selected
-teacher, the cell's weekday, and the cell's canonical block preselected,
-leaving activity text for the admin to enter.
+whose canonical block is free for the currently-selected teacher —
+meaning neither a `schedule_teachers` activity nor a `schedule_assignments`
+class overlaps that block for that worker — replacing the current
+empty-cell placeholder. A cell whose block is occupied by either entity
+SHALL NOT render the Add action, using overlap semantics (not only exact
+`start_time` equality) so an invalid or legacy row that spans more than
+one block still blocks Add in every block it actually covers. Activating
+the Add action SHALL open the teacher schedule form with the current
+semester, the currently-selected teacher, the cell's weekday, and the
+cell's canonical block preselected, leaving activity text for the admin to
+enter. This cell-availability check is an additional, UI-only early guard
+and is not a substitute for `hasWorkerConflict`, which remains the
+authoritative check at submission time.
 
 #### Scenario: A free cell's Add action preselects semester, teacher, weekday, and block
 
@@ -87,6 +107,27 @@ leaving activity text for the admin to enter.
 - THEN it SHALL continue to render its existing edit and delete controls
   for each activity exactly as before, with no Add action
 
+#### Scenario: A cell occupied by a scholar assignment does not offer Add
+
+- WHEN the currently-selected teacher has a `schedule_assignments` class
+  whose stored interval overlaps a given cell's canonical block
+- THEN that cell SHALL continue to render the scholar assignment's own
+  information and controls (unchanged, via the existing scholar-schedule
+  capability) but SHALL NOT render the teacher-activity Add action, even
+  though no `schedule_teachers` row occupies that cell
+
+#### Scenario: An overlapping legacy row blocks Add beyond its own exact start_time
+
+- WHEN a `schedule_teachers` or `schedule_assignments` row's stored
+  interval is invalid (does not match a canonical block) and spans more
+  than one canonical block's worth of time (e.g. `07:00:00`–`13:00:00`)
+- THEN every canonical block that row's interval overlaps SHALL NOT offer
+  the Add action for the currently-selected teacher, not only the block
+  matching the row's own literal `start_time` — while the row's own
+  content continues to render only in the cell matching its literal
+  `start_time`, with no continuation rendering in the other blocks it
+  overlaps
+
 #### Scenario: A selected teacher with zero existing records still renders every cell's Add action
 
 - WHEN an admin selects a teacher who has no `schedule_teachers` rows and
@@ -96,13 +137,28 @@ leaving activity text for the admin to enter.
   build up that teacher's activity schedule entirely from empty cells
 - AND no schedule rows SHALL render before any teacher is selected
 
-#### Scenario: The Add action is operable by keyboard
+#### Scenario: The Add action is operable by keyboard and visibly styled as a button
 
-- WHEN an admin navigates to a free cell's Add action using the keyboard
+- WHEN an admin navigates to a free cell's Add action using the keyboard,
+  or simply looks at it
 - THEN it SHALL be a real, focusable `button` element that activates on
-  both `Enter` and `Space`, matching native button semantics, with an
-  accessible label that includes the weekday, the block, and the selected
-  teacher where practical
+  both `Enter` and `Space`, matching native button semantics, with a
+  visible clickable surface (not a bare icon), a hover state, a visible
+  keyboard-focus indicator, an accessible label that includes the weekday,
+  the block, and the selected teacher where practical, and a title/tooltip
+  such as "Agregar actividad"
+
+#### Scenario: Edit and Delete controls are visibly styled, accessible buttons
+
+- WHEN a teacher-schedule cell has one or more existing activities
+- THEN each activity's edit and delete controls SHALL be real, focusable
+  `button` elements with a visible clickable surface, a hover state, a
+  visible keyboard-focus indicator, an accessible label describing the
+  action and the activity, and a title/tooltip ("Editar actividad" /
+  "Eliminar actividad") — with delete visually distinguished by more than
+  color alone (its icon shape and label already differ from edit's)
+- AND activating either SHALL continue to open the same modal, with the
+  same unique modal window names, as before this styling change
 
 #### Scenario: The top-level manual Add button remains available
 

@@ -15,7 +15,29 @@ placeholder, and a selected teacher with zero `schedule_teachers`/
 `schedule_assignments` rows now renders the full grid instead of only the
 table header. Every occupied cell's content, and the read-only scholar-
 assignment half of each teacher-grid cell
-(`HourScheduleSubjectGroup`), is unaffected.
+(`HourScheduleSubjectGroup`), is unaffected. Add, Edit, and Delete
+controls in both tables SHALL share a consistent, visibly-styled,
+accessible button treatment (`ScheduleActionButton`/`ScheduleActionsRow`).
+The teacher table's Monday 07:00–08:50 cell SHALL render either nothing
+(when the selected teacher's computed `totalHours` is not exactly 40) or a
+read-only "Homenaje / Tutoría" reserved-slot indicator (when it is exactly
+40) — a derived institutional reservation, never a `schedule_teachers`
+row — with no Add action available in either case for that specific cell
+when reserved.
+
+#### Scenario: Add, Edit, and Delete controls share a consistent, accessible design across both timetables
+
+- WHEN the scholar-schedule table or the teacher-schedule table renders an
+  Add, Edit, or Delete control
+- THEN it SHALL be a native, focusable `<button type="button">` with a
+  visible bordered surface, hover and active states, a descriptive
+  `aria-label`, and a `title` tooltip ("Agregar horario"/"Editar
+  horario"/"Eliminar horario" for the scholar table; "Agregar
+  actividad"/"Editar actividad"/"Eliminar actividad" for the teacher
+  table), using the shared `ScheduleActionButton`/`ScheduleActionsRow`
+  components rather than a bare icon or `&nbsp;`-separated spacing
+- AND Delete SHALL be visually distinguished by more than color alone
+  (its distinct icon shape and label already differ from Edit's)
 
 #### Scenario: Scholar schedule table renders identical time-slot grid
 
@@ -48,6 +70,20 @@ assignment half of each teacher-grid cell
   `teacher-schedule-canonical-blocks`, while the `ScheduleTeacherPDF`
   export button SHALL remain gated on the existing `recordExist` condition,
   unchanged
+
+#### Scenario: The Monday 07:00–08:50 cell reflects the derived Homenaje / Tutoría reservation, not a stored row
+
+- WHEN the currently-selected teacher's computed `totalHours` is not
+  exactly 40
+- THEN the Monday 07:00–08:50 cell SHALL render no placeholder text (no
+  `--`), and SHALL continue to offer its Add action like any other free
+  cell
+- WHEN the currently-selected teacher's computed `totalHours` is exactly
+  40
+- THEN that same cell SHALL render a read-only "Homenaje / Tutoría"
+  indicator with a visually distinct reserved/occupied appearance, and
+  SHALL NOT render an Add action for that cell — with no
+  `schedule_teachers` row created, updated, or counted as a result
 
 ### Requirement: Teacher schedule (activity) create/edit/delete behavior SHALL be preserved
 
@@ -82,6 +118,22 @@ unchanged.
   the current destructure-and-discard pattern), with `start_time`/
   `end_time` resolved via the selected canonical teacher block rather than
   two independent fields
+
+#### Scenario: Submitting Monday 07:00–08:50 for a 40-hour worker is rejected
+
+- WHEN a user submits the teacher activity form (from any entry path —
+  the top-level manual form, a free cell, or editing an existing activity
+  into this slot) with `weekday` "Lunes" and the 07:00:00–08:50:00
+  canonical block selected
+- THEN the system SHALL compute the *submitted* `worker_id`'s total
+  assigned hours from the full, semester-level `scheduleAssignments`/
+  `scheduleTeachers` arrays — not the teacher originally selected in the
+  table — and, if that total is exactly 40, SHALL block submission with a
+  clear error toast and SHALL NOT call `createScheduleTeacher` or
+  `editScheduleTeacher`
+- AND changing the selected worker inside the form before submitting
+  SHALL be evaluated against the newly-selected worker's own total hours,
+  not the original teacher's
 
 #### Scenario: Opening the edit form visibly preloads a valid activity
 

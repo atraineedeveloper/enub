@@ -439,3 +439,247 @@ together, not silently dropped.
   still insert a non-canonical interval into `schedule_teachers` — same
   residual risk already accepted for `schedule_assignments`, and outside
   what any application-layer change can close.
+
+## Correction (post-implementation, from manual review): every modal entry path must receive full semester-level conflict data
+
+Decision 9 stated that `CreateEditTeacherSchedule.tsx`'s `onSubmit`
+"already builds `[...scheduleTeachers, ...scheduleAssignments]`" without
+making explicit that this is only correct if the `scheduleTeachers`/
+`scheduleAssignments` *props* it receives are themselves the full,
+semester-level arrays — not the selected-teacher-filtered ones
+`ShowTeacherSchedule.tsx` computes for display. The implementation's first
+pass missed this: `HourScheduleSubjectTeacher.tsx`'s two entry paths (the
+occupied-cell edit trigger and the new free-cell Add trigger) rendered
+`CreateEditTeacherSchedule` without passing `scheduleTeachers`/
+`scheduleAssignments` at all, so both props silently fell back to that
+component's own `= []` defaults — every conflict check reachable from a
+table cell (not the top-level manual button, which already passed the
+right props) ran against empty arrays and could never detect a real
+overlap, for any worker.
+
+**Root cause.** `ShowTeacherSchedule.tsx` already receives the full,
+unfiltered `scheduleTeachers`/`scheduleAssignments` as its own component
+props (from `TeacherSchedule.tsx`), but only ever used them to compute
+`filteredSchedulesTeacher`/`filteredSchedulesAssignments` — filtered to
+the selected teacher, for the grid's own display. Nothing carried the
+*unfiltered* originals any further down.
+
+**Fix.** Two new props, `allScheduleTeachers: ScheduleTeacher[]` and
+`allScheduleAssignments: ScheduleAssignment[]`, now carry
+`ShowTeacherSchedule.tsx`'s own unfiltered `scheduleTeachers`/
+`scheduleAssignments` down the same chain `workerId`/`workerLabel`
+already uses: `ShowTeacherSchedule` → `RowTeacherSchedule` (via its
+`shared` object, so every `TimeSlotRow` call site including the
+conditional 17:00–19:00 one gets them) → `HourScheduleSubjectTeacher`,
+which passes them as `scheduleTeachers`/`scheduleAssignments` into
+*both* of its `CreateEditTeacherSchedule` call sites (edit and add).
+These are deliberately named distinctly from the existing, still-filtered
+`schedulesScholar`/`scheduleTeacher` props (used only for cell content) to
+avoid conflating the two: one pair is filtered for *display*, the other is
+unfiltered for *conflict detection*, and only the semester-wide arrays are
+ever passed into `CreateEditTeacherSchedule`. This also means changing the
+preselected teacher inside an open form (before saving) is checked
+correctly, since the full array already contains every worker's rows, not
+just the cell's original teacher's.
+
+## Correction 2 (post-implementation, from manual review): cell availability must consider scholar assignments, and controls needed a visible surface
+
+**Problem 1 — Add offered in cells already occupied by a scholar
+assignment.** `HourScheduleSubjectTeacher.tsx` decided whether to render
+the free-cell Add button using only its own `schedules` prop
+(`schedule_teachers`, exact `start_time` equality). It never saw the
+selected worker's `schedule_assignments` rows at all — those render in
+the same cell via the sibling `HourScheduleSubjectGroup` component, one
+level up in `DayCell`, entirely independently. A cell that visibly showed
+a scholar class could still render the teacher Add button beside it,
+inviting a submission `hasWorkerConflict` would reject anyway, but only
+after the admin filled out the whole form.
+
+**Fix.** `DayCell` (in `RowTeacherSchedule.tsx`) already holds
+`schedulesScholar` — the selected-worker-filtered scholar assignments it
+passes to `HourScheduleSubjectGroup` — and now also forwards that same
+array into `HourScheduleSubjectTeacher` as a new `scholarAssignments`
+prop. No new prop-threading hop was needed beyond `DayCell` itself, since
+that data was already in scope there. `HourScheduleSubjectGroup` remains
+the only renderer of scholar-assignment content and its own edit/delete
+controls — `HourScheduleSubjectTeacher` only reads `scholarAssignments` to
+decide whether *it* should render Add; it renders nothing else from that
+array.
+
+Availability is computed with a small, local, UI-only `overlapsBlock()`
+helper — the same strict-inequality overlap semantics `hasWorkerConflict`/
+`hasGroupConflict` already use (`data.start < row.end && row.start <
+data.end`), not exact `start_time` equality — applied to *both*
+`schedules` (teacher activities) and `scholarAssignments`. This closes a
+second, narrower gap the exact-match approach also had: a legacy/invalid
+row spanning more than one block (e.g. `07:00`–`13:00`) would previously
+only suppress Add in the one cell matching its literal `start_time`,
+leaving every other block it actually overlaps still offering Add. The
+overlap check blocks Add in every block a row genuinely covers, regardless
+of which table it comes from or whether it's itself canonical — while
+still rendering that row's own content only in its own `start_time` cell,
+so no continuation rendering is introduced. This is an additional,
+UI-only early guard; `hasWorkerConflict` inside `CreateEditTeacherSchedule.tsx`
+remains the sole authoritative check at submission time and is unchanged.
+
+**Problem 2 — Add/Edit/Delete looked like loose, low-affordance icons.**
+The free-cell Add trigger (already a real `<button>` from this change's
+first pass) had no visible surface (`background: none; border: none;`),
+and the occupied-cell Edit/Delete triggers were bare `<FaPencilAlt>`/
+`<FaTrash>` icons with inline `style={{ cursor: "pointer", color: ... }}`
+— not wrapped in a `<button>` at all, so neither was focusable or
+keyboard-operable, unlike the Add trigger.
+
+**Fix.** A single shared `ActionButton` styled-component (bordered,
+`2.8rem` square, `var(--border-radius-sm)`, hover/active background
+changes, a `$variation="danger"` prop for Delete using the existing
+`--color-red-*` tokens) now wraps all three icons. Edit and Delete are
+wrapped in real `<button type="button">`s for the first time, each with a
+descriptive `aria-label` (weekday + activity text) and a `title` tooltip
+("Editar actividad" / "Eliminar actividad"), matching the Add button's
+existing `aria-label` plus a new `title="Agregar actividad"`. No new
+keyboard-focus CSS was added: every native `<button>` already receives a
+visible `outline` from `GlobalStyles.ts`'s app-wide `button:focus` rule,
+so wrapping Edit/Delete in real buttons is sufficient to make them
+keyboard-focusable and visibly so. Delete's danger styling is a red
+border/background *in addition to* the already-distinct trash icon shape
+and its own "Eliminar actividad" text — it does not rely on color alone.
+Modal window names, `ConfirmDelete`'s props, and the multi-activity `.map()`
+rendering are all unchanged.
+
+## Correction 3 (post-implementation, follow-up): the Monday 07:00–08:50 "Homenaje / Tutoría" rule needed clarifying, and the action-button design needed to reach the group timetable
+
+**Problem 1 — Monday 07:00–08:50 was hardcoded display content that still
+allowed Add.** `RowTeacherSchedule.tsx` always injected either
+`<b>Homenaje / Tutoria</b>` (missing its accent) or `<b>--</b>` into the
+Monday column of the 07:00–08:50 row, purely as `mondayExtra` content
+rendered *alongside* — not instead of — `HourScheduleSubjectTeacher`'s own
+independent rendering of that same cell. Neither branch is backed by a
+`schedule_teachers` row: `totalHours` (computed in
+`ShowTeacherSchedule.tsx`) is a pure sum over the selected worker's
+existing `schedule_assignments`/`schedule_teachers` rows — base `2`, plus
+`2` per distinct scholar subject, plus `2` per distinct teacher activity —
+and `=== 40` is simply the threshold at which the institution expects a
+teacher's homeroom/tutoring duty to already account for their full load.
+Because `HourScheduleSubjectTeacher` had no idea this text was there, the
+free-cell Add button still rendered underneath it whenever no literal
+`schedule_teachers` row occupied that exact cell — and neither the
+top-level manual form nor the edit form had any awareness of the slot at
+all, so a 40-hour teacher's activity could still be created or moved there
+directly.
+
+**Fix.** `RowTeacherSchedule.tsx` now computes
+`isHomenajeTutoriaReserved = totalHours === 40` once, per selected
+worker (the same value it already had — `totalHours` itself is
+unchanged, preserving existing hour totals). When `false`, the Monday
+07:00–08:50 cell's `mondayExtra` is `null` (no `--` placeholder). When
+`true`, it renders a small `ReservedSlotBadge` — "Homenaje / Tutoría"
+with its correct accent, in a dashed-border, muted-background box
+visually distinct from both a real activity (`ActionButton` controls,
+solid border) and the red invalid-data warning — and a new
+`mondayAddDisabled` flag threads through `TimeSlotRow` → `DayCell` (only
+for weekday index 0, i.e. Monday) as `isReservedSlot` into
+`HourScheduleSubjectTeacher`, which now suppresses that one cell's Add
+button the same way it already suppresses Add for overlap-blocked cells.
+No `schedule_teachers` row is created, updated, or counted for this
+slot — it remains a purely derived, read-only indicator.
+
+That UI suppression only covers the free-cell Add path, so
+`CreateEditTeacherSchedule.tsx`'s `onSubmit` gained the authoritative
+check: immediately after resolving the block (so `data.weekday`/
+`data.start_time` are final), if `data.weekday === "Lunes" &&
+data.start_time === "07:00:00"`, it computes a new
+`calculateWorkerTotalHours(workerId, scheduleAssignments,
+scheduleTeachers)` — replicating `ShowTeacherSchedule.tsx`'s formula
+exactly, parameterized by worker — for `Number(data.worker_id)` (the
+*submitted* worker, not necessarily the teacher originally selected in
+the table) and rejects with a toast if that worker's total is exactly 40.
+Because this runs inside `onSubmit`, it applies uniformly to all three
+entry paths (free-cell Add, occupied-cell edit — including moving an
+existing activity *into* the reserved slot — and the top-level manual
+form) without any per-entry-path duplication.
+
+**Inspection: did the form have enough data to check an arbitrary
+worker's hours?** Yes, already — a direct consequence of Correction 1.
+`CreateEditTeacherSchedule.tsx`'s `scheduleAssignments`/`scheduleTeachers`
+props are, from every entry path, the full semester-level arrays (not
+filtered to any one worker), so they already contain every worker's rows.
+`calculateWorkerTotalHours` simply filters that existing data by
+`data.worker_id` at submission time; no new prop-threading was needed
+beyond what Correction 1 already put in place. This function is defined
+locally in `CreateEditTeacherSchedule.tsx` rather than extracted into a
+shared helper, consistent with this codebase area's established
+`groupData`-duplication-over-consolidation precedent.
+
+**Scope note:** `RowScholarSchedule.tsx` also renders a static
+`Homenaje / Tutoria` label for its own Monday 07:00–08:50 column — but
+that is an unconditional, always-on placeholder from the unrelated
+`scholar-schedule-canonical-blocks` capability (no `totalHours` involved,
+no Add action ever offered there), not the teacher-side rule this
+correction addresses. It is untouched. Likewise, `TeacherAssignment.tsx`'s
+own `totalHours === 40` summary row (`<p>Tutoria</p>`) and the two PDF
+exporters' matching strings are a different rendering context (the
+"Asignación horaria" summary tab and its PDF, not the schedule grid) and
+are out of this correction's scope — left as pre-existing, undisturbed
+text, not silently forgotten.
+
+**Problem 2 — the improved action-button design only reached the teacher
+timetable.** `HourScheduleSubject.tsx` (the scholar/group timetable) still
+rendered Add as a bare, borderless `<button>` and Edit/Delete as
+unwrapped `<FaEdit>`/`<FaTrash>` icons separated by literal `&nbsp;`
+characters — the same shape of issue Correction 2 had already fixed on
+the teacher side.
+
+**Fix.** The `ActionButton`/`ActionsRow` styled-components Correction 2
+introduced were extracted into a new shared module,
+`src/features/schedules/ScheduleActionButton.tsx` (`ScheduleActionButton`,
+`ScheduleActionsRow`), since by this point the exact same CSS would
+otherwise exist twice, verbatim, across the teacher and scholar cell
+renderers — genuine duplication the request's own guidance invited
+resolving with a small, narrowly-scoped extraction. `HourScheduleTeacher.tsx`
+now imports from this shared module instead of defining its own copy
+(pure relocation, no visual or behavioral change). `HourScheduleSubject.tsx`
+adopts the same components: Add keeps its existing descriptive
+`aria-label` and gains `title="Agregar horario"`; Edit and Delete are
+wrapped in real `<button type="button">`s for the first time, each with a
+weekday+subject `aria-label` and a `title` ("Editar horario" / "Eliminar
+horario"); the `&nbsp; &nbsp; &nbsp;` spacing between them is replaced by
+`ScheduleActionsRow`'s `gap`. Modal window names, `ConfirmDelete`'s props,
+free-cell defaults, canonical-block behavior, and all scholar-schedule
+data behavior are unchanged.
+
+## Correction 4 (post-implementation, follow-up): scholar assignments inside the teacher timetable still had loose Edit/Delete icons
+
+Correction 3's design note explicitly called out
+`HourScheduleSubjectGroup.tsx` — the read-only scholar-assignment half of
+each teacher-grid cell — as untouched, since at that point its own
+edit/delete controls were the scholar-schedule capability's pre-existing,
+out-of-scope behavior. That component renders exclusively inside the
+teacher timetable (`RowTeacherSchedule.tsx` → `DayCell`; it is never used
+by `RowScholarSchedule.tsx`), so once both `HourScheduleSubject.tsx` and
+`HourScheduleTeacher.tsx` adopted the shared `ScheduleActionButton`/
+`ScheduleActionsRow` treatment, it became the one remaining schedule
+control still rendering bare `<FaEdit>`/`<FaTrash>` icons with `&nbsp;`
+spacing — visually inconsistent within the very view (the teacher
+timetable) this treatment was meant to standardize. This is already
+covered by the "Add, Edit, and Delete controls share a consistent,
+accessible design across both timetables" scenario added under
+`schedule-typescript-safety`'s "Schedule list/table rendering" requirement
+in Correction 3 — that scenario's "either timetable" language already
+implied `HourScheduleSubjectGroup.tsx`'s controls, no new requirement was
+needed.
+
+**Fix.** `HourScheduleSubjectGroup.tsx` now imports and reuses
+`ScheduleActionButton`/`ScheduleActionsRow` (no new styles introduced —
+the module already existed from Correction 3). Edit and Delete are
+wrapped in real `<button type="button">`s with `aria-label`/`title`
+exactly `"Editar horario"` / `"Eliminar horario"` (the plain, literal
+strings, not the weekday+subject-qualified labels
+`HourScheduleSubject.tsx` uses — this component's own request specified
+the exact text). The existing per-schedule `-${schedule.id}` modal-name
+suffixes are unchanged: they were already necessary (this component maps
+over potentially multiple `schedulesHour` entries per cell) and remain
+so. No Add action is introduced here — the free-cell branch is still
+`return <p></p>;` — since scholar assignments are never created from
+within the teacher timetable. Conflict logic, schedule data, teacher
+activities, and the scholar creation flow are all untouched.
