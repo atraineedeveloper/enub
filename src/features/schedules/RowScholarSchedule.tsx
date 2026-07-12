@@ -26,9 +26,17 @@ const LongRow = styled.div`
 
 interface RowScholarScheduleProps {
   schedules: ScheduleAssignment[];
+  semesterId?: string;
+  groupId: string;
+  groupLabel: string;
 }
 
-function RowScholarSchedule({ schedules }: RowScholarScheduleProps) {
+function RowScholarSchedule({
+  schedules,
+  semesterId,
+  groupId,
+  groupLabel,
+}: RowScholarScheduleProps) {
   return (
     <>
       <TableRow role="row">
@@ -41,6 +49,9 @@ function RowScholarSchedule({ schedules }: RowScholarScheduleProps) {
             schedules={schedules}
             weekday="Martes"
             startTime="07:00:00"
+            semesterId={semesterId}
+            groupId={groupId}
+            groupLabel={groupLabel}
           />
         </div>
         <div>
@@ -48,6 +59,9 @@ function RowScholarSchedule({ schedules }: RowScholarScheduleProps) {
             schedules={schedules}
             weekday="Miercoles"
             startTime="07:00:00"
+            semesterId={semesterId}
+            groupId={groupId}
+            groupLabel={groupLabel}
           />
         </div>
         <div>
@@ -55,6 +69,9 @@ function RowScholarSchedule({ schedules }: RowScholarScheduleProps) {
             schedules={schedules}
             weekday="Jueves"
             startTime="07:00:00"
+            semesterId={semesterId}
+            groupId={groupId}
+            groupLabel={groupLabel}
           />
         </div>
         <div>
@@ -62,6 +79,9 @@ function RowScholarSchedule({ schedules }: RowScholarScheduleProps) {
             schedules={schedules}
             weekday="Viernes"
             startTime="07:00:00"
+            semesterId={semesterId}
+            groupId={groupId}
+            groupLabel={groupLabel}
           />
         </div>
       </TableRow>
@@ -78,6 +98,9 @@ function RowScholarSchedule({ schedules }: RowScholarScheduleProps) {
             schedules={schedules}
             weekday="Lunes"
             startTime="09:20:00"
+            semesterId={semesterId}
+            groupId={groupId}
+            groupLabel={groupLabel}
           />
         </div>
         <div>
@@ -85,6 +108,9 @@ function RowScholarSchedule({ schedules }: RowScholarScheduleProps) {
             schedules={schedules}
             weekday="Martes"
             startTime="09:20:00"
+            semesterId={semesterId}
+            groupId={groupId}
+            groupLabel={groupLabel}
           />
         </div>
         <div>
@@ -92,6 +118,9 @@ function RowScholarSchedule({ schedules }: RowScholarScheduleProps) {
             schedules={schedules}
             weekday="Miercoles"
             startTime="09:20:00"
+            semesterId={semesterId}
+            groupId={groupId}
+            groupLabel={groupLabel}
           />
         </div>
         <div>
@@ -99,6 +128,9 @@ function RowScholarSchedule({ schedules }: RowScholarScheduleProps) {
             schedules={schedules}
             weekday="Jueves"
             startTime="09:20:00"
+            semesterId={semesterId}
+            groupId={groupId}
+            groupLabel={groupLabel}
           />
         </div>
         <div>
@@ -106,6 +138,9 @@ function RowScholarSchedule({ schedules }: RowScholarScheduleProps) {
             schedules={schedules}
             weekday="Viernes"
             startTime="09:20:00"
+            semesterId={semesterId}
+            groupId={groupId}
+            groupLabel={groupLabel}
           />
         </div>
       </TableRow>
@@ -116,6 +151,9 @@ function RowScholarSchedule({ schedules }: RowScholarScheduleProps) {
             schedules={schedules}
             weekday="Lunes"
             startTime="11:10:00"
+            semesterId={semesterId}
+            groupId={groupId}
+            groupLabel={groupLabel}
           />
         </div>
         <div>
@@ -123,6 +161,9 @@ function RowScholarSchedule({ schedules }: RowScholarScheduleProps) {
             schedules={schedules}
             weekday="Martes"
             startTime="11:10:00"
+            semesterId={semesterId}
+            groupId={groupId}
+            groupLabel={groupLabel}
           />
         </div>
         <div>
@@ -130,6 +171,9 @@ function RowScholarSchedule({ schedules }: RowScholarScheduleProps) {
             schedules={schedules}
             weekday="Miercoles"
             startTime="11:10:00"
+            semesterId={semesterId}
+            groupId={groupId}
+            groupLabel={groupLabel}
           />
         </div>
         <div>
@@ -137,6 +181,9 @@ function RowScholarSchedule({ schedules }: RowScholarScheduleProps) {
             schedules={schedules}
             weekday="Jueves"
             startTime="11:10:00"
+            semesterId={semesterId}
+            groupId={groupId}
+            groupLabel={groupLabel}
           />
         </div>
         <div>
@@ -144,6 +191,9 @@ function RowScholarSchedule({ schedules }: RowScholarScheduleProps) {
             schedules={schedules}
             weekday="Viernes"
             startTime="11:10:00"
+            semesterId={semesterId}
+            groupId={groupId}
+            groupLabel={groupLabel}
           />
         </div>
       </TableRow>
@@ -158,6 +208,9 @@ function RowScholarSchedule({ schedules }: RowScholarScheduleProps) {
             schedules={schedules}
             weekday="Lunes"
             startTime="13:10:00"
+            semesterId={semesterId}
+            groupId={groupId}
+            groupLabel={groupLabel}
           />
         </div>
         <div>
@@ -165,6 +218,9 @@ function RowScholarSchedule({ schedules }: RowScholarScheduleProps) {
             schedules={schedules}
             weekday="Martes"
             startTime="13:10:00"
+            semesterId={semesterId}
+            groupId={groupId}
+            groupLabel={groupLabel}
           />
         </div>
         <div>
@@ -172,6 +228,9 @@ function RowScholarSchedule({ schedules }: RowScholarScheduleProps) {
             schedules={schedules}
             weekday="Miercoles"
             startTime="13:10:00"
+            semesterId={semesterId}
+            groupId={groupId}
+            groupLabel={groupLabel}
           />
         </div>
         <div>
@@ -179,6 +238,9 @@ function RowScholarSchedule({ schedules }: RowScholarScheduleProps) {
             schedules={schedules}
             weekday="Jueves"
             startTime="13:10:00"
+            semesterId={semesterId}
+            groupId={groupId}
+            groupLabel={groupLabel}
           />
         </div>
         <div>
@@ -186,6 +248,9 @@ function RowScholarSchedule({ schedules }: RowScholarScheduleProps) {
             schedules={schedules}
             weekday="Viernes"
             startTime="13:10:00"
+            semesterId={semesterId}
+            groupId={groupId}
+            groupLabel={groupLabel}
           />
         </div>
       </TableRow>

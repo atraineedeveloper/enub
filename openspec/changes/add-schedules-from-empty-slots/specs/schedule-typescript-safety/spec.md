@@ -64,6 +64,31 @@ is unchanged.
   pre-existing `delete data.groups` / `delete data.semesters` /
   `delete data.subjects` / `delete data.workers` calls do
 
+#### Scenario: Opening the edit form visibly preloads every stored field
+
+- WHEN an admin opens the edit form for a valid existing scholar schedule
+  assignment (one whose stored `start_time`/`end_time` matches a canonical
+  block)
+- THEN the weekday, group, subject, canonical block, and worker selectors
+  SHALL all show the stored value as visibly selected once the form has
+  finished loading — including the subject, whose options are only
+  available once populated for the assignment's stored group — so the
+  admin can save without having to reselect any of them
+- AND opening the edit form for a second, different assignment (a
+  different group/subject combination) immediately afterward SHALL show
+  that second assignment's own stored values, with no leftover selection
+  from the previously-opened assignment
+
+#### Scenario: Changing the group during an edit clears an incompatible subject
+
+- WHEN an admin, while editing an existing assignment, selects a different
+  group whose valid subjects do not include the currently-selected subject
+- THEN the subject options SHALL be recalculated for the newly-selected
+  group and the subject selection SHALL be cleared, requiring the admin to
+  choose a subject that is valid for the new group before saving
+- AND if the admin instead re-selects the same group the assignment
+  already had, the subject selection SHALL remain unchanged
+
 #### Scenario: Deleting a scholar schedule assignment
 
 - WHEN a user confirms deletion of a scholar schedule assignment row

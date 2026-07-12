@@ -84,6 +84,21 @@ the admin to choose.
   exactly as before, with no Add action and no continuation labels or
   multi-row rendering (assignments are strictly single-block)
 
+#### Scenario: A selected group with zero existing assignments still renders every cell's Add action
+
+- WHEN an admin selects a group that has no `schedule_assignments` rows yet
+- THEN the schedule grid SHALL still render (not just the table header),
+  with every applicable cell showing its Add action, so the admin can build
+  up that group's schedule entirely from empty cells
+- AND no schedule rows SHALL render before any group is selected
+
+#### Scenario: The Add action is operable by keyboard
+
+- WHEN an admin navigates to a free cell's Add action using the keyboard
+- THEN it SHALL be a real, focusable `button` element that activates on
+  both `Enter` and `Space`, matching native button semantics, with its
+  accessible label preserved
+
 #### Scenario: The top-level manual Add button remains available
 
 - WHEN an admin uses the top-level "+ Agregar horario escolar" button

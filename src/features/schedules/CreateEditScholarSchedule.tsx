@@ -4,7 +4,7 @@ import Button from "../../ui/Button";
 import FormRow from "../../ui/FormRow";
 import Select from "../../ui/Select";
 import toast from "react-hot-toast";
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { calculateSemesterGroupForSemester } from "../../helpers/calculateSemesterGroup";
 import type { Subject } from "../subjects/useSubjects";
 import { useEditScheduleAssignment } from "./useEditScheduleAssignments";
@@ -12,16 +12,29 @@ import { useCreateScheduleAssignments } from "./useCreateScheduleAssignments";
 import { SemesterContext } from "../../pages/SemesterContext";
 import { hasWorkerConflict, hasGroupConflict } from "../../helpers/detectScheduleConflict";
 import type { ScheduleAssignment } from "./useScheduleAssignments";
+import {
+  SCHEDULE_BLOCKS,
+  getBlockByStartTime,
+  getBlockByTimes,
+} from "./scheduleBlocks";
+
+interface ScholarScheduleInitialValues {
+  weekday?: string;
+  group_id?: number;
+  start_time?: string;
+}
 
 interface CreateEditScholarScheduleProps {
   semesterId?: string;
   scheduleToEdit?: Partial<ScheduleAssignment>;
+  initialValues?: ScholarScheduleInitialValues;
   onCloseModal?: () => void;
 }
 
 function CreateEditScholarSchedule({
   semesterId,
   scheduleToEdit = {},
+  initialValues,
   onCloseModal,
 }: CreateEditScholarScheduleProps) {
   const { isEditing, editScheduleAssignment } = useEditScheduleAssignment();
@@ -37,12 +50,18 @@ function CreateEditScholarSchedule({
 
   const [filteredSubjects, setFilteredSubjects] = useState<Subject[]>([]);
 
-  const selectingGroup = useCallback(
-    (value: string | number | null | undefined) => {
+  // Pure computation, extracted from the original selectingGroup so the
+  // group <select>'s onChange handler can also use it to synchronously
+  // decide whether the currently-selected subject is still valid for a
+  // newly-chosen group -- setFilteredSubjects() alone can't answer that
+  // synchronously since state updates are async.
+  const computeFilteredSubjects = useCallback(
+    (value: string | number | null | undefined): Subject[] => {
       const groupFound = groups.find((gp) => gp.id === +value!);
+      if (!groupFound) return [];
 
       const semesterFound = calculateSemesterGroupForSemester(
-        groupFound!.year_of_admission,
+        groupFound.year_of_admission,
         semesterCode
       );
 
@@ -55,25 +74,63 @@ function CreateEditScholarSchedule({
         return Number(subject.semester) == semesterFound;
       });
 
-      const subjectsFilterDegree = subjectsFilterSemester.filter((subject) => {
-        return subject.degrees!.id === groupFound!.degrees!.id;
+      return subjectsFilterSemester.filter((subject) => {
+        return subject.degrees!.id === groupFound.degrees!.id;
       });
-
-      setFilteredSubjects(subjectsFilterDegree);
     },
     [groups, subjects, semesterCode]
+  );
+
+  const selectingGroup = useCallback(
+    (value: string | number | null | undefined) => {
+      setFilteredSubjects(computeFilteredSubjects(value));
+    },
+    [computeFilteredSubjects]
   );
 
   useEffect(() => {
     if (isEditSession) {
       selectingGroup(editValues.group_id);
+    } else if (initialValues?.group_id) {
+      selectingGroup(initialValues.group_id);
     }
-  }, [isEditSession, editValues.group_id, selectingGroup]);
+  }, [isEditSession, editValues.group_id, initialValues?.group_id, selectingGroup]);
 
-  const { register, handleSubmit, reset, formState } = useForm<FieldValues>({
-    defaultValues: (isEditSession ? editValues : {}) as FieldValues,
-  });
+  const editedBlock = isEditSession
+    ? getBlockByTimes(editValues.start_time, editValues.end_time)
+    : undefined;
+  const isInvalidLegacyInterval = isEditSession && !editedBlock;
+
+  const { register, handleSubmit, reset, formState, getValues, setValue } =
+    useForm<FieldValues>({
+      defaultValues: (isEditSession
+        ? { ...editValues, start_time: editedBlock?.start_time ?? "" }
+        : (initialValues ?? {})) as FieldValues,
+    });
   const { errors } = formState;
+
+  // Root cause: react-hook-form applies `defaultValues.subject_id` to the
+  // <select> only once, when the ref mounts -- but at that point
+  // filteredSubjects is still [] (selectingGroup's setState above hasn't
+  // flushed yet), so the matching <option> doesn't exist and the browser
+  // can't select it. Once filteredSubjects updates and the correct option
+  // appears, nothing re-applies the value to the now-uncontrolled <select>.
+  // Fix: explicitly re-set it with setValue() the first time the matching
+  // option becomes available. Guarded by a ref so this only ever fires once
+  // per mount -- it must not fight a later, deliberate group change that
+  // happens to bring the original subject back into filteredSubjects.
+  const initialSubjectAppliedRef = useRef(false);
+  useEffect(() => {
+    if (initialSubjectAppliedRef.current) return;
+    if (!isEditSession || editValues.subject_id == null) return;
+    const matches = filteredSubjects.some(
+      (subject) => subject.id === editValues.subject_id
+    );
+    if (matches) {
+      setValue("subject_id", String(editValues.subject_id));
+      initialSubjectAppliedRef.current = true;
+    }
+  }, [filteredSubjects, isEditSession, editValues.subject_id, setValue]);
 
   function onSubmit(data: FieldValues) {
     const resolvedSemesterId = Number(semesterId || editValues.semester_id);
@@ -83,6 +140,13 @@ function CreateEditScholarSchedule({
     }
 
     data.semester_id = resolvedSemesterId;
+
+    const block = getBlockByStartTime(data.start_time as string);
+    if (!block) {
+      toast.error("Bloque horario inválido.");
+      return;
+    }
+    data.end_time = block.end_time;
 
     if (hasWorkerConflict(scheduleAssignments, data, editId)) {
       toast.error("El maestro ya tiene clase asignada ese día en ese horario.");
@@ -143,8 +207,26 @@ function CreateEditScholarSchedule({
           disabled={isEditing}
           {...register("group_id", {
             required: "Este campo es requerido",
+            // Passed through register()'s own `onChange` option, not as a
+            // separate JSX prop -- a later plain `onChange={...}` prop on
+            // the same element would silently replace react-hook-form's
+            // registered handler, so the group value it tracks internally
+            // (and later submits) would never actually update.
+            onChange: (e) => {
+              const newFilteredSubjects = computeFilteredSubjects(
+                e.target.value
+              );
+              setFilteredSubjects(newFilteredSubjects);
+
+              const currentSubjectId = getValues("subject_id");
+              const stillValid = newFilteredSubjects.some(
+                (subject) => String(subject.id) === currentSubjectId
+              );
+              if (!stillValid) {
+                setValue("subject_id", "");
+              }
+            },
           })}
-          onChange={(e) => selectingGroup(e.target.value)}
         >
           <option value="">Seleccione...</option>
           {groups.map((group) => (
@@ -172,7 +254,16 @@ function CreateEditScholarSchedule({
           ))}
         </Select>
       </FormRow>
-      <FormRow label="Hora de inicio" error={errors?.start_time?.message as string | undefined}>
+      {isInvalidLegacyInterval && (
+        <FormRow>
+          <p role="alert">
+            El intervalo actual ({editValues.start_time}–{editValues.end_time})
+            no corresponde a un bloque válido. Seleccione el bloque correcto
+            para continuar.
+          </p>
+        </FormRow>
+      )}
+      <FormRow label="Bloque horario" error={errors?.start_time?.message as string | undefined}>
         <Select
           id="start_time"
           disabled={isEditing}
@@ -181,25 +272,11 @@ function CreateEditScholarSchedule({
           })}
         >
           <option value="">Seleccione...</option>
-          <option value="07:00:00">7:00</option>
-          <option value="09:20:00">9:20</option>
-          <option value="11:10:00">11:10</option>
-          <option value="13:10:00">13:10</option>
-        </Select>
-      </FormRow>
-      <FormRow label="Hora Fin" error={errors?.end_time?.message as string | undefined}>
-        <Select
-          id="end_time"
-          disabled={isEditing}
-          {...register("end_time", {
-            required: "Este campo es requerido",
-          })}
-        >
-          <option value="">Seleccione...</option>
-          <option value="08:50:00">8:50</option>
-          <option value="11:10:00">11:10</option>
-          <option value="13:00:00">13:00</option>
-          <option value="15:00:00">15:00</option>
+          {SCHEDULE_BLOCKS.map((block) => (
+            <option key={block.start_time} value={block.start_time}>
+              {block.label}
+            </option>
+          ))}
         </Select>
       </FormRow>
       <FormRow label="Maestro" error={errors?.worker_id?.message as string | undefined}>

@@ -1,5 +1,6 @@
 import supabase from "./supabase";
 import type { Database } from "../types/supabase";
+import { isCanonicalBlock } from "../features/schedules/scheduleBlocks";
 
 type ScheduleAssignmentInsert =
   Database["public"]["Tables"]["schedule_assignments"]["Insert"];
@@ -47,6 +48,15 @@ export async function createEditScheduleAssignments(
     throw new Error("El trabajador del horario es requerido");
   if (!id && !newScheduleAssignment.semester_id)
     throw new Error("El semestre del horario es requerido");
+  if (
+    typeof newScheduleAssignment.start_time !== "string" ||
+    typeof newScheduleAssignment.end_time !== "string" ||
+    !isCanonicalBlock(
+      newScheduleAssignment.start_time,
+      newScheduleAssignment.end_time
+    )
+  )
+    throw new Error("El horario debe corresponder a un bloque académico válido.");
 
   let query = supabase.from("schedule_assignments");
 

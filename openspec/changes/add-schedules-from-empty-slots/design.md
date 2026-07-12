@@ -374,3 +374,79 @@ Not required. Reasoning:
   interval. Accepted — the same class of residual risk already accepted
   for semester-code duplicate/sequential enforcement in the prior change,
   and outside what any application-layer change can close.
+
+## Correction (post-implementation, from code review)
+
+Two implementation defects were found by review and fixed:
+
+- **Empty-group grid didn't render.** `ShowScholarSchedule.tsx` originally
+  gated `RowScholarSchedule` on `filteredSchedules.length > 0`, so a
+  selected group with zero existing rows showed only the table header —
+  none of its cells' Add actions were reachable, undermining Decision 3's
+  entire premise for a brand-new group. Fixed by gating on `selectedGroupId`
+  instead (rendering with an empty `schedules` array so every cell
+  legitimately renders free), while still gating `ScheduleGroupPDF` on
+  `filteredSchedules.length > 0` and still rendering nothing before any
+  group is selected.
+- **Add action wasn't keyboard-operable.** `HourScheduleSubject.tsx`
+  rendered the free-cell Add trigger as an `<FaPlus role="button"
+  tabIndex={0} />` — `Modal.Open` only injects an `onClick` handler
+  (`src/ui/Modal.tsx`'s `cloneElement(children, { onClick: ... })`), which
+  a bare SVG with ARIA role never receives keyboard activation for (no
+  native `keydown`-to-`click` behavior on a non-button element). Fixed by
+  wrapping the icon in a real `<button type="button">` (styled to stay
+  visually inline in a table cell), which `Modal.Open` clones exactly the
+  same way and which natively activates on both `Enter` and `Space`.
+
+## Correction 2 (post-implementation, from manual review): edit mode didn't visibly select the stored subject
+
+**Root cause.** `useForm({ defaultValues })` applies `defaultValues` to an
+uncontrolled `<select>` exactly once, at the moment its DOM ref mounts.
+`CreateEditScholarSchedule`'s `subject_id` `<select>` is populated from
+`filteredSubjects` state, which starts as `[]` and is only filled in
+asynchronously by the mount-time `useEffect` → `selectingGroup(editValues.group_id)`
+→ `setFilteredSubjects(...)` chain. At the instant react-hook-form's ref
+callback fires and tries to apply `defaultValues.subject_id` to the
+`<select>`, the matching `<option>` does not exist yet, so the browser
+cannot select it and the element is left on `"Seleccione..."`. When
+`filteredSubjects` updates moments later and the correct `<option>`
+appears, nothing re-applies the value — react-hook-form does not re-sync
+an uncontrolled field's DOM value after mount, and, because it reads the
+live DOM `.value` at submit time (not a cached copy), an unmodified
+selection would actually submit an empty `subject_id`, not the original
+one, if the admin didn't manually reselect. `weekday`, `group_id`,
+`start_time` (block), and `worker_id` are unaffected because their option
+lists are static and fully available at mount — only `subject_id`'s
+options depend on an async, group-dependent computation.
+
+**Fix.** `selectingGroup`'s filtering body was extracted into a pure
+`computeFilteredSubjects(groupId)` helper (no behavior change to the
+filtering logic itself — same semester/degree comparisons, same loose
+equality on `semester`). Two effects now use it:
+1. The existing mount-time effect still calls `selectingGroup(...)` to
+   populate `filteredSubjects` for the stored (or preselected) group,
+   unchanged.
+2. A new effect watches `filteredSubjects` and, the first time it contains
+   an option matching `editValues.subject_id` (edit sessions only), calls
+   `setValue("subject_id", String(editValues.subject_id))` — react-hook-form's
+   `setValue` writes directly to the now-mounted `<select>`'s DOM value
+   (the matching `<option>` exists by this point) and updates react-hook-form's
+   internal tracked value together, so both the visible selection and the
+   value read at submit time are correct. A `useRef` guard makes this
+   apply only once per mount, so it cannot later override a deliberate
+   subject change the admin makes after the initial preload.
+
+For the group-change requirement, the group `<select>`'s `onChange` now
+calls `computeFilteredSubjects(newGroupId)` directly (synchronously, no
+state round-trip needed) to recompute the valid subject list, updates
+`filteredSubjects`, and compares the currently-selected `subject_id`
+(via `getValues`) against that new list — clearing it with
+`setValue("subject_id", "")` only when it is not present, leaving it
+untouched when the admin re-selects the same group or a different group
+that happens to still validate the same subject. No new/synthetic subject
+options are created anywhere — both paths filter the same `subjects` array
+already provided by `SemesterContext`.
+
+Creation-from-empty-cell is unaffected: the new preload effect is guarded
+by `isEditSession`, and `initialValues` never includes `subject_id`, so the
+subject selector is left on `"Seleccione..."` exactly as before.
