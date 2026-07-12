@@ -1,11 +1,28 @@
 import { type ComponentType } from "react";
-import { FaEdit, FaTrash } from "react-icons/fa";
+import styled from "styled-components";
+import { FaEdit, FaPlus, FaTrash } from "react-icons/fa";
 import Modal from "../../ui/Modal";
 import ConfirmDelete from "../../ui/ConfirmDelete";
 import { useDeleteScheduleAssignment } from "./useDeleteScheduleAssignment";
 import capitalizeName from "../../helpers/capitalizeFirstLetter";
 import UntypedCreateEditScholarSchedule from "./CreateEditScholarSchedule";
 import type { ScheduleAssignment } from "./useScheduleAssignments";
+import { getBlockByStartTime } from "./scheduleBlocks";
+
+const AddButton = styled.button`
+  background: none;
+  border: none;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+
+  & svg {
+    width: 1.6rem;
+    height: 1.6rem;
+  }
+`;
 
 // CreateEditScholarSchedule.jsx is untyped and out of scope (Phase 3) --
 // its `semesterId` param has no destructured default, so TS infers it as
@@ -16,6 +33,11 @@ import type { ScheduleAssignment } from "./useScheduleAssignments";
 const CreateEditScholarSchedule = UntypedCreateEditScholarSchedule as ComponentType<{
   semesterId?: string;
   scheduleToEdit?: ScheduleAssignment;
+  initialValues?: {
+    weekday?: string;
+    group_id?: number;
+    start_time?: string;
+  };
   onCloseModal?: () => void;
 }>;
 
@@ -23,12 +45,18 @@ interface HourScheduleSubjectProps {
   schedules: ScheduleAssignment[];
   weekday: string;
   startTime: string;
+  semesterId?: string;
+  groupId: string;
+  groupLabel: string;
 }
 
 function HourScheduleSubject({
   schedules,
   weekday,
   startTime,
+  semesterId,
+  groupId,
+  groupLabel,
 }: HourScheduleSubjectProps) {
   const { isDeleting, deleteScheduleAssignment } =
     useDeleteScheduleAssignment();
@@ -69,7 +97,30 @@ function HourScheduleSubject({
       </>
     );
 
-  return <p>--</p>;
+  const blockLabel = getBlockByStartTime(startTime)?.label ?? startTime;
+  const addLabel = groupLabel
+    ? `Agregar horario: ${weekday} ${blockLabel} - ${groupLabel}`
+    : `Agregar horario: ${weekday} ${blockLabel}`;
+
+  return (
+    <Modal>
+      <Modal.Open opens="scholar-schedule-add-form">
+        <AddButton type="button" aria-label={addLabel}>
+          <FaPlus />
+        </AddButton>
+      </Modal.Open>
+      <Modal.Window name="scholar-schedule-add-form">
+        <CreateEditScholarSchedule
+          semesterId={semesterId}
+          initialValues={{
+            weekday,
+            group_id: Number(groupId),
+            start_time: startTime,
+          }}
+        />
+      </Modal.Window>
+    </Modal>
+  );
 }
 
 export default HourScheduleSubject;

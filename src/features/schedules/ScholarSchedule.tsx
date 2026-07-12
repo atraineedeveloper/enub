@@ -45,7 +45,7 @@ function ScholarSchedule({
       <ActionsBar>
         <Modal>
           <Modal.Open opens="scholar-schedule-form">
-            <Button>+ Agregar horario escolar</Button>
+            <Button>Agregar horario manualmente</Button>
           </Modal.Open>
           <Modal.Window name="scholar-schedule-form">
             <CreateEditScholarSchedule semesterId={semesterId} />
@@ -55,6 +55,7 @@ function ScholarSchedule({
       <ShowScholarSchedule
         scheduleAssignments={scheduleAssignments}
         groups={groups}
+        semesterId={semesterId}
       />
     </Row>
   );
