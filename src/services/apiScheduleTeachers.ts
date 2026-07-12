@@ -1,5 +1,6 @@
 import supabase from "./supabase";
 import type { Database } from "../types/supabase";
+import { isCanonicalTeacherBlock } from "../features/schedules/teacherScheduleBlocks";
 
 type ScheduleTeacherInsert =
   Database["public"]["Tables"]["schedule_teachers"]["Insert"];
@@ -26,6 +27,15 @@ export async function createEditScheduleTeachers(
 ) {
   if (!newScheduleTeachers || typeof newScheduleTeachers !== "object")
     throw new Error("Los datos del horario del maestro no son válidos");
+  if (
+    typeof newScheduleTeachers.start_time !== "string" ||
+    typeof newScheduleTeachers.end_time !== "string" ||
+    !isCanonicalTeacherBlock(
+      newScheduleTeachers.start_time,
+      newScheduleTeachers.end_time
+    )
+  )
+    throw new Error("El horario debe corresponder a un bloque académico válido.");
 
   let query = supabase.from("schedule_teachers");
 

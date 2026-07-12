@@ -1,28 +1,16 @@
 import { type ComponentType } from "react";
-import styled from "styled-components";
 import { FaEdit, FaPlus, FaTrash } from "react-icons/fa";
 import Modal from "../../ui/Modal";
 import ConfirmDelete from "../../ui/ConfirmDelete";
 import { useDeleteScheduleAssignment } from "./useDeleteScheduleAssignment";
 import capitalizeName from "../../helpers/capitalizeFirstLetter";
 import UntypedCreateEditScholarSchedule from "./CreateEditScholarSchedule";
+import {
+  ScheduleActionButton as ActionButton,
+  ScheduleActionsRow as ActionsRow,
+} from "./ScheduleActionButton";
 import type { ScheduleAssignment } from "./useScheduleAssignments";
 import { getBlockByStartTime } from "./scheduleBlocks";
-
-const AddButton = styled.button`
-  background: none;
-  border: none;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: inherit;
-
-  & svg {
-    width: 1.6rem;
-    height: 1.6rem;
-  }
-`;
 
 // CreateEditScholarSchedule.jsx is untyped and out of scope (Phase 3) --
 // its `semesterId` param has no destructured default, so TS infers it as
@@ -64,38 +52,54 @@ function HourScheduleSubject({
     return schedule.weekday === weekday && schedule.start_time === startTime;
   });
 
-  if (subjectHour.length > 0)
+  if (subjectHour.length > 0) {
+    const subjectName = subjectHour[0].subjects!.name!;
     return (
       <>
-        <b>{subjectHour[0].subjects!.name!.toUpperCase()}</b>
+        <b>{subjectName.toUpperCase()}</b>
         <br />
         <em>{capitalizeName(subjectHour[0].workers!.name!)}</em>
         <br />
-        <Modal>
-          <Modal.Open opens="scholar-schedule-edit-form">
-            <FaEdit />
-          </Modal.Open>
-          <Modal.Window name="scholar-schedule-edit-form">
-            <CreateEditScholarSchedule
-              scheduleToEdit={subjectHour[0]}
-            />
-          </Modal.Window>
-        </Modal>
-        &nbsp; &nbsp; &nbsp;
-        <Modal>
-          <Modal.Open opens="scholar-schedule-delete-form">
-            <FaTrash />
-          </Modal.Open>
-          <Modal.Window name="scholar-schedule-delete-form">
-            <ConfirmDelete
-              resourceName="horario"
-              disabled={isDeleting}
-              onConfirm={() => deleteScheduleAssignment(subjectHour[0].id)}
-            />
-          </Modal.Window>
-        </Modal>
+        <ActionsRow>
+          <Modal>
+            <Modal.Open opens="scholar-schedule-edit-form">
+              <ActionButton
+                type="button"
+                aria-label={`Editar horario: ${weekday} - ${subjectName}`}
+                title="Editar horario"
+              >
+                <FaEdit />
+              </ActionButton>
+            </Modal.Open>
+            <Modal.Window name="scholar-schedule-edit-form">
+              <CreateEditScholarSchedule
+                scheduleToEdit={subjectHour[0]}
+              />
+            </Modal.Window>
+          </Modal>
+          <Modal>
+            <Modal.Open opens="scholar-schedule-delete-form">
+              <ActionButton
+                type="button"
+                $variation="danger"
+                aria-label={`Eliminar horario: ${weekday} - ${subjectName}`}
+                title="Eliminar horario"
+              >
+                <FaTrash />
+              </ActionButton>
+            </Modal.Open>
+            <Modal.Window name="scholar-schedule-delete-form">
+              <ConfirmDelete
+                resourceName="horario"
+                disabled={isDeleting}
+                onConfirm={() => deleteScheduleAssignment(subjectHour[0].id)}
+              />
+            </Modal.Window>
+          </Modal>
+        </ActionsRow>
       </>
     );
+  }
 
   const blockLabel = getBlockByStartTime(startTime)?.label ?? startTime;
   const addLabel = groupLabel
@@ -105,9 +109,9 @@ function HourScheduleSubject({
   return (
     <Modal>
       <Modal.Open opens="scholar-schedule-add-form">
-        <AddButton type="button" aria-label={addLabel}>
+        <ActionButton type="button" aria-label={addLabel} title="Agregar horario">
           <FaPlus />
-        </AddButton>
+        </ActionButton>
       </Modal.Open>
       <Modal.Window name="scholar-schedule-add-form">
         <CreateEditScholarSchedule

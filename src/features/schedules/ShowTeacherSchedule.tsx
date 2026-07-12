@@ -4,6 +4,7 @@ import { useCallback, useState, useEffect, useMemo } from "react";
 import RowTeacherSchedule from "./RowTeacherSchedule";
 import ScheduleTeacherPDF from "../../pdf/Schedules/ScheduleTeacherPDF";
 import capitalizeName from "../../helpers/capitalizeFirstLetter";
+import { isCanonicalTeacherBlock } from "./teacherScheduleBlocks";
 import type { ScheduleAssignment } from "./useScheduleAssignments";
 import type { ScheduleTeacher } from "./useScheduleTeachers";
 import type { Worker } from "../workers/useWorkers";
@@ -31,6 +32,24 @@ const TableHeader = styled.header`
   font-weight: 600;
   color: var(--color-grey-600);
   padding: 1.6rem 2.4rem;
+`;
+
+const InvalidActivitiesWarning = styled.div`
+  color: var(--color-red-700);
+  background-color: var(--color-red-100);
+  padding: 1.2rem 1.6rem;
+  border-radius: var(--border-radius-sm);
+  margin-bottom: 1.6rem;
+
+  p {
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 2rem;
+  }
 `;
 
 // Decision 5: kept independently typed in place, in every file that already
@@ -97,6 +116,18 @@ function ShowTeacherSchedule({
     filteredSchedulesTeacher.length > 0 ||
     filteredSchedulesAssignments.length > 0;
 
+  const workerId = selectedWorkerId != null ? String(selectedWorkerId) : "";
+  const selectedWorker = workers.find((worker) => worker.id === selectedWorkerId);
+  const workerLabel = selectedWorker ? capitalizeName(selectedWorker.name) : "";
+
+  const invalidActivities = useMemo(
+    () =>
+      filteredSchedulesTeacher.filter(
+        (schedule) => !isCanonicalTeacherBlock(schedule.start_time, schedule.end_time)
+      ),
+    [filteredSchedulesTeacher]
+  );
+
   // Re-aplicar filtros cuando cambian los datos cargados
   useEffect(() => {
     if (selectedWorkerId) selectingWorker(selectedWorkerId);
@@ -158,6 +189,23 @@ function ShowTeacherSchedule({
           </option>
         ))}
       </Select>
+      {invalidActivities.length > 0 && (
+        <InvalidActivitiesWarning role="alert">
+          <p>
+            Las siguientes actividades de este maestro tienen un intervalo
+            que no corresponde a un bloque académico válido. Ábralas para
+            corregirlas manualmente:
+          </p>
+          <ul>
+            {invalidActivities.map((activity) => (
+              <li key={activity.id}>
+                {activity.weekday} — {activity.activity}:{" "}
+                {activity.start_time}–{activity.end_time}
+              </li>
+            ))}
+          </ul>
+        </InvalidActivitiesWarning>
+      )}
       <Table role="table">
         <TableHeader role="row">
           <div></div>
@@ -167,13 +215,17 @@ function ShowTeacherSchedule({
           <div>Jueves</div>
           <div>Viernes</div>
         </TableHeader>
-        {recordExist && (
+        {selectedWorkerId !== null && (
           <RowTeacherSchedule
             totalHours={totalHours}
             schedulesScholar={filteredSchedulesAssignments}
             scheduleTeacher={filteredSchedulesTeacher}
             workers={workers}
             semesterId={semesterId}
+            workerId={workerId}
+            workerLabel={workerLabel}
+            allScheduleTeachers={scheduleTeachers}
+            allScheduleAssignments={scheduleAssignments}
           />
         )}
       </Table>

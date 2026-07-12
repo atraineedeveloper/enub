@@ -37,6 +37,22 @@ const LongRowComplete = styled.div`
   text-align: center;
 `;
 
+// Visual treatment for the derived, institutional "Homenaje / Tutoría"
+// reservation (Monday 07:00-08:50, only for a teacher whose computed
+// totalHours === 40) -- distinct from both a real occupied-cell activity
+// (solid border, ActionButton controls) and the red invalid-data warning,
+// and not color-only: the dashed border itself signals "reserved
+// placeholder, not a real row" independent of the grey palette.
+const ReservedSlotBadge = styled.p`
+  font-weight: 600;
+  color: var(--color-grey-700);
+  background-color: var(--color-grey-100);
+  border: 1px dashed var(--color-grey-300);
+  border-radius: var(--border-radius-sm);
+  padding: 0.4rem 0.6rem;
+  margin: 0;
+`;
+
 const WEEKDAYS = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"];
 
 interface DayCellProps {
@@ -46,6 +62,14 @@ interface DayCellProps {
   startTime: string;
   workers: Worker[];
   semesterId?: string;
+  workerId: string;
+  workerLabel: string;
+  allScheduleTeachers: ScheduleTeacher[];
+  allScheduleAssignments: ScheduleAssignment[];
+  // True only for the Monday 07:00-08:50 cell when this worker's
+  // totalHours === 40 -- a derived institutional reservation, not a real
+  // schedule_teachers row; suppresses that one cell's Add action.
+  isReservedSlot?: boolean;
   children?: ReactNode;
 }
 
@@ -56,6 +80,11 @@ function DayCell({
   startTime,
   workers,
   semesterId,
+  workerId,
+  workerLabel,
+  allScheduleTeachers,
+  allScheduleAssignments,
+  isReservedSlot = false,
   children,
 }: DayCellProps) {
   return (
@@ -68,10 +97,16 @@ function DayCell({
       />
       <HourScheduleSubjectTeacher
         schedules={scheduleTeacher}
+        scholarAssignments={schedulesScholar}
         weekday={weekday}
         startTime={startTime}
         workers={workers}
         semesterId={semesterId}
+        workerId={workerId}
+        workerLabel={workerLabel}
+        allScheduleTeachers={allScheduleTeachers}
+        allScheduleAssignments={allScheduleAssignments}
+        isReservedSlot={isReservedSlot}
       />
     </div>
   );
@@ -82,9 +117,17 @@ interface TimeSlotRowProps {
   scheduleTeacher: ScheduleTeacher[];
   workers: Worker[];
   semesterId?: string;
+  workerId: string;
+  workerLabel: string;
+  allScheduleTeachers: ScheduleTeacher[];
+  allScheduleAssignments: ScheduleAssignment[];
   startTime: string;
   timeLabel: string;
   mondayExtra?: ReactNode;
+  // Only meaningful for the Monday column (weekday index 0) of whichever
+  // TimeSlotRow this is -- callers other than the 07:00-08:50 row simply
+  // don't pass it, defaulting to false.
+  mondayAddDisabled?: boolean;
 }
 
 function TimeSlotRow({
@@ -92,9 +135,14 @@ function TimeSlotRow({
   scheduleTeacher,
   workers,
   semesterId,
+  workerId,
+  workerLabel,
+  allScheduleTeachers,
+  allScheduleAssignments,
   startTime,
   timeLabel,
   mondayExtra = null,
+  mondayAddDisabled = false,
 }: TimeSlotRowProps) {
   return (
     <TableRow role="row">
@@ -108,6 +156,11 @@ function TimeSlotRow({
           startTime={startTime}
           workers={workers}
           semesterId={semesterId}
+          workerId={workerId}
+          workerLabel={workerLabel}
+          allScheduleTeachers={allScheduleTeachers}
+          allScheduleAssignments={allScheduleAssignments}
+          isReservedSlot={i === 0 && mondayAddDisabled}
         >
           {i === 0 ? mondayExtra : null}
         </DayCell>
@@ -131,6 +184,10 @@ interface RowTeacherScheduleProps {
   totalHours: number;
   workers: Worker[];
   semesterId?: string;
+  workerId: string;
+  workerLabel: string;
+  allScheduleTeachers: ScheduleTeacher[];
+  allScheduleAssignments: ScheduleAssignment[];
 }
 
 function RowTeacherSchedule({
@@ -139,16 +196,35 @@ function RowTeacherSchedule({
   totalHours,
   workers,
   semesterId,
+  workerId,
+  workerLabel,
+  allScheduleTeachers,
+  allScheduleAssignments,
 }: RowTeacherScheduleProps) {
   const hasExtraHours =
     schedulesScholar.some((s) => s.start_time === "17:00:00") ||
     scheduleTeacher.some((s) => s.start_time === "17:00:00");
 
-  const mondayFirstBlock = (
-    <p>{totalHours === 40 ? <b>Homenaje / Tutoria</b> : <b>--</b>}</p>
-  );
+  // Derived, institutional reservation -- not a schedule_teachers row, not
+  // counted separately, and never created/updated/deleted in the database.
+  // Triggered purely by this worker's already-computed totalHours; when it
+  // isn't exactly 40, this cell shows nothing at all (no more "--").
+  const isHomenajeTutoriaReserved = totalHours === 40;
 
-  const shared = { schedulesScholar, scheduleTeacher, workers, semesterId };
+  const mondayFirstBlock = isHomenajeTutoriaReserved ? (
+    <ReservedSlotBadge>Homenaje / Tutoría</ReservedSlotBadge>
+  ) : null;
+
+  const shared = {
+    schedulesScholar,
+    scheduleTeacher,
+    workers,
+    semesterId,
+    workerId,
+    workerLabel,
+    allScheduleTeachers,
+    allScheduleAssignments,
+  };
 
   return (
     <>
@@ -157,6 +233,7 @@ function RowTeacherSchedule({
         startTime="07:00:00"
         timeLabel="7:00 - 8:50"
         mondayExtra={mondayFirstBlock}
+        mondayAddDisabled={isHomenajeTutoriaReserved}
       />
       <BreakRow timeLabel="8:50 - 9:20" />
       <TimeSlotRow {...shared} startTime="09:20:00" timeLabel="9:20 - 11:10" />
