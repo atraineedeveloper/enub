@@ -1,10 +1,23 @@
 import { useState, type FormEvent, type ChangeEvent } from "react";
+import { Link } from "react-router-dom";
+import styled from "styled-components";
 import Form from "../../ui/Form";
 import Input from "../../ui/Input";
 import Button from "../../ui/Button";
 import FormRowVertical from "../../ui/FormRowVertical";
 import { useLogin } from "./useLogin";
 import SpinnerMini from "../../ui/SpinnerMini";
+
+const ForgotPasswordLink = styled(Link)`
+  display: inline-block;
+  margin-top: 0.8rem;
+  font-size: 1.4rem;
+  color: var(--color-brand-600);
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
 
 function LoginForm() {
   const [email, setEmail] = useState("");
@@ -71,6 +84,9 @@ function LoginForm() {
             {formError || "El correo o la contraseña son incorrectos."}
           </p>
         )}
+        <ForgotPasswordLink to="/forgot-password">
+          ¿Olvidaste tu contraseña?
+        </ForgotPasswordLink>
       </FormRowVertical>
     </Form>
   );

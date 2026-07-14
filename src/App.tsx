@@ -26,6 +26,7 @@ const Workers = lazy(() => import("./pages/Records/Workers"));
 const WorkerDocuments = lazy(() => import("./pages/Records/WorkerDocuments"));
 const Roles = lazy(() => import("./pages/Records/Roles"));
 const Login = lazy(() => import("./pages/Login"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const MyDocuments = lazy(() => import("./pages/MyDocuments"));
 const PendingAccess = lazy(() => import("./pages/PendingAccess"));
 const SetPassword = lazy(() => import("./pages/SetPassword"));
@@ -93,6 +94,9 @@ function App() {
               </Route>
 
               <Route path="login" element={<Login />} />
+              {/* Not wrapped in ProtectedRoute: a worker requesting recovery
+                  is by definition not authenticated yet. */}
+              <Route path="forgot-password" element={<ForgotPassword />} />
               {/* Not wrapped in ProtectedRoute: this is the landing page for
                   an invitation/recovery link. The page itself checks for a
                   session (via useUser) and shows its own "invalid/expired

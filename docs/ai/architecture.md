@@ -43,9 +43,10 @@ Password setup route (not wrapped in `ProtectedRoute`):
 
 - `/set-password` — landing page for an invite or password-recovery email link. Not gated by `ProtectedRoute` because the page itself is what establishes/reads the session from the incoming link; it shows its own "invalid or expired link" state if no session is present, then lets the user set a password via `supabase.auth.updateUser({ password })`.
 
-Public route:
+Public routes:
 
 - `/login`
+- `/forgot-password` — self-service entry point for a worker to request a password-recovery email themselves (see "Worker password recovery" below). Not gated by `ProtectedRoute`, same as `/login`.
 
 ### Routing behavior
 
@@ -119,6 +120,15 @@ Local custom email templates live in `supabase/templates/` (`invite.html`, `reco
 - Contain no external images, remote assets, or tracking pixels.
 
 **Local vs. remote:** `supabase/config.toml`'s `[auth.email.template.*]` and `[auth] additional_redirect_urls` only take effect for the **local** Supabase stack (`supabase start`). A remote/hosted Supabase project does not read this repo's `config.toml` for its live email templates or redirect allow-list — those must be configured separately, either in the Supabase Dashboard (Authentication → Email Templates, Authentication → URL Configuration) or via the equivalent remote project configuration/CLI commands, as an explicit, human-approved step. Applying local config changes is not sufficient to update a deployed project's behavior.
+
+## Worker password recovery
+
+- `/forgot-password` (`src/pages/ForgotPassword.tsx`, form logic in `src/features/authentication/ForgotPasswordForm.tsx`) lets a worker request a password-recovery email themselves, without any admin action. It calls `supabase.auth.resetPasswordForEmail` directly from the client (`requestPasswordRecovery` in `src/services/apiAuth.ts`) — no Edge Function, no service-role key.
+- `redirectTo` is derived from the browser's own origin at request time (`` `${window.location.origin}/set-password` ``), **not** from `WORKER_INVITE_REDIRECT_URL` — that name is a server-only Edge Function secret and is never exposed to frontend code. Locally this resolves to the Vite dev origin (e.g. `http://localhost:5173/set-password`), already present in `supabase/config.toml`'s `additional_redirect_urls`. Before this flow is used against a deployed environment, a human must add that deployed origin's `/set-password` URL to the hosted Supabase Auth redirect allow-list, and confirm the Edge Functions' `WORKER_INVITE_REDIRECT_URL` targets the same URL so invitation and recovery links stay compatible.
+- The response is identical whether or not the submitted email matches an account (`resetPasswordForEmail` itself does not distinguish this, and the UI must not add such a distinction) — this avoids email enumeration. A genuine failure (e.g. network error, the shared rate limit below) shows a generic, client-safe error state instead, never a raw Supabase error message.
+- This self-service trigger shares the same `auth.rate_limit.email_sent` limit (`supabase/config.toml`, currently 2/hour) as the admin-triggered `create-worker-account` invite and `resend-worker-access-link` resend — a burst of one flow can cause another to be throttled within the same hour. This is accepted as-is for the current iteration rather than raised.
+- `/set-password` itself does not distinguish an invitation session from a recovery session (see "Worker account provisioning: Edge Functions" above) — its copy is written to be accurate for either case, rather than branching on link type.
+- The minimum password length is enforced as 8 characters both client-side (`SetPassword.tsx`) and in the local Supabase Auth config (`minimum_password_length` in `supabase/config.toml`). A hosted/remote Supabase project's equivalent setting is a separate, human-approved deployment prerequisite — this repo's local config change does not propagate to it automatically.
 
 ## Worker documents module
 
