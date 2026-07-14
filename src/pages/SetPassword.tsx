@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import styled from "styled-components";
 import Heading from "../ui/Heading";
 import Form from "../ui/Form";
@@ -36,6 +37,17 @@ const Card = styled.div`
 const Message = styled.p`
   color: var(--color-grey-600);
   font-size: 1.5rem;
+`;
+
+const LoginLink = styled(Link)`
+  display: inline-block;
+  margin-top: 0.4rem;
+  font-size: 1.4rem;
+  color: var(--color-brand-600);
+
+  &:hover {
+    text-decoration: underline;
+  }
 `;
 
 // Landing page for a Supabase invitation/recovery link. This page does not
@@ -86,9 +98,11 @@ function SetPassword() {
         <Card>
           <Heading as="h4">Enlace inválido o expirado</Heading>
           <Message>
-            Este enlace de invitación ya no es válido o expiró. Solicita a un
-            administrador que te envíe una nueva invitación.
+            Este enlace de acceso ya no es válido o expiró. Vuelve a la
+            pantalla de inicio de sesión para solicitar un nuevo enlace de
+            acceso.
           </Message>
+          <LoginLink to="/login">Ir a iniciar sesión</LoginLink>
         </Card>
       </PageLayout>
     );
@@ -97,9 +111,9 @@ function SetPassword() {
   return (
     <PageLayout>
       <Card>
-        <Heading as="h4">Activar cuenta</Heading>
+        <Heading as="h4">Establece tu contraseña</Heading>
         <Message>
-          Establece tu contraseña para terminar de activar tu cuenta.
+          Ingresa tu nueva contraseña para acceder a tu cuenta.
         </Message>
         <Form onSubmit={handleSubmit}>
           <FormRowVertical label="Nueva contraseña">

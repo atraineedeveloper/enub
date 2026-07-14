@@ -68,8 +68,28 @@ The system SHALL enforce an 8-character minimum on the client and in both local 
 - **THEN** the client-side validation rejects it before submission, and the Supabase Auth server configuration would independently reject it as well if the client check were bypassed
 
 ### Requirement: Recovery shares existing email throttling safely
-The system SHALL retain the existing shared `auth.rate_limit.email_sent = 2` limit for this iteration and SHALL treat throttling as a client-safe operational error without revealing account existence or Supabase internals.
+The system SHALL retain the existing shared `auth.rate_limit.email_sent = 2` limit for this iteration. Because GoTrue only ever applies email-send/rate-limit errors when it actually attempted to send an email — which only happens for a registered address — the system SHALL treat those errors as equivalent to a successful submission (the same neutral state), rather than as a distinct error, since a distinct error state would itself reveal that the address exists. This is one instance of the broader fail-closed classification defined below, not a special case handled separately.
 
 #### Scenario: Shared email limit is reached
-- **WHEN** invitation, admin resend, or self-service recovery requests exhaust the shared email-sending allowance
-- **THEN** the recovery page shows only the generic client-safe error state, and documentation identifies that one flow can throttle another
+- **WHEN** invitation, admin resend, or self-service recovery requests exhaust the shared email-sending allowance while a worker submits the recovery form
+- **THEN** the recovery page shows the same neutral success state it shows for any other submission, not a distinct error, and documentation identifies that one flow can throttle another
+
+### Requirement: Recovery error handling fails closed against enumeration
+
+The system SHALL classify recovery-request outcomes using an allow-list of what is safe to show distinctly, not an allow-list of what is safe to silence. Only a transport failure — the browser is offline, a network/DNS/connection error occurs, or the request never reaches the Supabase Auth API — SHALL produce a distinct, generic "try again later" state. Every actual response from the Supabase Auth API (an `AuthApiError`), whether a known error code or one not yet recognized by this codebase, SHALL resolve to the same neutral state as a successful submission. The system SHALL NOT classify by matching error message strings, SHALL NOT perform an account lookup to decide the outcome, and SHALL NOT expose the underlying error message, code, status, or any other internal detail in either state.
+
+#### Scenario: Known Auth API error code folds into the neutral state
+- **WHEN** the recovery request receives an `AuthApiError` response with a known code such as an email-send/rate-limit code
+- **THEN** the recovery page shows the same neutral success state it shows for a real success, not a distinct error
+
+#### Scenario: Unrecognized Auth API error code also folds into the neutral state
+- **WHEN** the recovery request receives an `AuthApiError` response with a code the system does not specifically recognize
+- **THEN** the recovery page still shows the same neutral success state, rather than a distinct error, because an unfamiliar code cannot be confidently ruled out as account-dependent
+
+#### Scenario: Transport failure shown distinctly
+- **WHEN** the recovery request fails before reaching the Supabase Auth API (e.g. the browser is offline, a network/DNS/connection error occurs, or the request times out)
+- **THEN** the recovery page shows a generic, client-safe "try again later" state, distinct from the neutral success state, without exposing the raw error
+
+#### Scenario: Classification does not depend on error message content
+- **WHEN** the system decides whether a given failure is a transport failure or an Auth API response
+- **THEN** it does so using a stable error type/property (not by matching substrings of an error message), and defaults to the neutral success state whenever the failure cannot be confidently classified as a transport failure
