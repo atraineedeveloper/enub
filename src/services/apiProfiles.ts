@@ -75,19 +75,26 @@ export async function linkWorkerAccount({
 // (the actual { error: "..." } this app cares about, e.g. "Este trabajador
 // no tiene correo registrado...") is on error.context, a Response object
 // that has to be parsed separately.
-async function extractFunctionErrorMessage(error: {
-  context?: { json?: () => Promise<{ error?: string }> };
+async function parseFunctionErrorBody(error: {
+  context?: { json?: () => Promise<Record<string, unknown>> };
   message?: string;
-}) {
+} | null): Promise<Record<string, unknown> | null> {
   try {
     if (error?.context && typeof error.context.json === "function") {
-      const body = await error.context.json();
-      if (body?.error) return body.error;
+      return await error.context.json();
     }
   } catch (parseError) {
     console.error(parseError);
   }
+  return null;
+}
 
+async function extractFunctionErrorMessage(error: {
+  context?: { json?: () => Promise<{ error?: string }> };
+  message?: string;
+}) {
+  const body = await parseFunctionErrorBody(error);
+  if (body?.error) return body.error as string;
   return error?.message || "No se pudo crear la cuenta de acceso";
 }
 
@@ -129,4 +136,114 @@ export async function resendWorkerAccessLink({
   }
 
   return data;
+}
+
+// The closed response contract for update-worker-access-email
+// (code-review revision): every branch, including infrastructure/request
+// failures, returns this one shape. workerId is null only when no valid
+// worker id could be parsed from the request. No operationId, no Auth
+// user id, no delivery field, under any outcome.
+export interface WorkerAccessEmailCorrectionResult {
+  workerId: number | null;
+  status: string;
+  reasonCode: string;
+  retryable: boolean;
+  emailSynchronized: boolean;
+  message?: string;
+}
+
+// Request body is { workerId, newEmail } only -- the browser never
+// supplies the linked Auth user id, the current Auth email, the profile
+// id, or service-role credentials (design.md, add-worker-access-email-
+// correction). Unlike createWorkerAccount/resendWorkerAccessLink, most of
+// this endpoint's "expected" outcomes (worker_not_found, invalid_email,
+// correction_already_in_progress, manual_attention_required, ...) are
+// deliberately returned as non-2xx HTTP responses that are still part of
+// the closed, documented contract -- this function must never throw for
+// those; it only throws for a genuinely unexpected, non-contract error
+// shape (e.g. missing server configuration).
+export async function updateWorkerAccessEmail({
+  workerId,
+  newEmail,
+}: {
+  workerId: number;
+  newEmail: string;
+}): Promise<WorkerAccessEmailCorrectionResult> {
+  const { data, error } = await supabase.functions.invoke(
+    "update-worker-access-email",
+    { body: { workerId, newEmail } }
+  );
+
+  if (!error) {
+    return data as WorkerAccessEmailCorrectionResult;
+  }
+
+  const body = await parseFunctionErrorBody(error);
+  if (body && typeof body.status === "string") {
+    return body as unknown as WorkerAccessEmailCorrectionResult;
+  }
+
+  throw new Error(
+    (body?.error as string | undefined) ||
+      error.message ||
+      "No se pudo actualizar el correo de acceso"
+  );
+}
+
+// The closed, discriminated response contract for the browser-facing
+// context lookup (design.md §16, extended by the code-review revision so
+// every branch -- including infrastructure/request failures -- returns
+// this one shape). `status: "ok"` is the only shape with `workerName`/
+// `email`/`revealed`; every other status is an error, distinguished by
+// `status` alone. Never an Auth user id or operation identifier, under
+// either shape.
+export type WorkerAccessEmailContextStatus =
+  | "ok"
+  | "unauthorized"
+  | "forbidden"
+  | "invalid_request"
+  | "worker_not_found"
+  | "worker_not_linked"
+  | "invalid_profile_role"
+  | "linked_auth_user_missing"
+  | "method_not_allowed"
+  | "server_misconfigured"
+  | "internal_error";
+
+export interface WorkerAccessEmailContextResult {
+  status: WorkerAccessEmailContextStatus;
+  workerId: number | null;
+  workerName?: string;
+  email?: string;
+  revealed?: boolean;
+  message?: string;
+}
+
+// This function never throws for the closed contract's own error
+// statuses -- callers branch on `result.status` (finding #5), the same
+// convention updateWorkerAccessEmail already follows. It only throws for
+// a genuinely unparseable transport-level failure with no JSON body at
+// all (e.g. a network error before any response was received).
+export async function getWorkerAccessEmailContext({
+  workerId,
+  reveal,
+}: {
+  workerId: number;
+  reveal?: boolean;
+}): Promise<WorkerAccessEmailContextResult> {
+  const { data, error } = await supabase.functions.invoke(
+    "get-worker-access-email-context",
+    { body: reveal === undefined ? { workerId } : { workerId, reveal } }
+  );
+
+  if (!error) {
+    return data as WorkerAccessEmailContextResult;
+  }
+
+  const body = await parseFunctionErrorBody(error);
+  if (body && typeof body.status === "string") {
+    return body as unknown as WorkerAccessEmailContextResult;
+  }
+
+  throw new Error(error.message || "No se pudo cargar el correo de acceso");
 }

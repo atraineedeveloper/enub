@@ -458,6 +458,23 @@ import_map = "./functions/resend-worker-access-link/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/resend-worker-access-link/index.ts"
+
+[functions.update-worker-access-email]
+enabled = true
+# Must stay true: the platform itself must reject unauthenticated requests
+# before the function body runs, on top of the current_app_role() check
+# inside it (design.md §4, add-worker-access-email-correction).
+verify_jwt = true
+import_map = "./functions/update-worker-access-email/deno.json"
+entrypoint = "./functions/update-worker-access-email/index.ts"
+
+[functions.get-worker-access-email-context]
+enabled = true
+# Must stay true, same reasoning as update-worker-access-email
+# (design.md §16, add-worker-access-email-correction).
+verify_jwt = true
+import_map = "./functions/get-worker-access-email-context/deno.json"
+entrypoint = "./functions/get-worker-access-email-context/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/resend-worker-access-link/*.html" ]

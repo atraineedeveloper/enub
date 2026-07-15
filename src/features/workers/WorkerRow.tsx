@@ -1,12 +1,15 @@
+import { useRef, useState } from "react";
 import styled from "styled-components";
 import Table from "../../ui/Table";
 import Modal from "../../ui/Modal";
 import Menus from "../../ui/Menus";
 import CreateEditWorkerForm from "./CreateEditWorkerForm";
 import LinkWorkerAccountForm from "./LinkWorkerAccountForm";
+import UpdateWorkerAccessEmailDialog from "./UpdateWorkerAccessEmailDialog";
 import { getProfilePicturePublicUrl } from "../../services/apiWorkers";
 import {
   HiDocumentText,
+  HiEnvelope,
   HiLink,
   HiPaperAirplane,
   HiPencil,
@@ -16,6 +19,7 @@ import { useNavigate } from "react-router-dom";
 import { useProfile } from "../authentication/useProfile";
 import { useCreateWorkerAccount } from "../authentication/useCreateWorkerAccount";
 import { useResendWorkerAccessLink } from "../authentication/useResendWorkerAccessLink";
+import { useUpdateWorkerAccessEmail } from "../authentication/useUpdateWorkerAccessEmail";
 import { useLinkedWorkerAccounts } from "./useLinkedWorkerAccounts";
 import type { Worker } from "./useWorkers";
 
@@ -53,12 +57,24 @@ function WorkerRow({ worker }: WorkerRowProps) {
   const { isAdmin } = useProfile();
   const { createAccount } = useCreateWorkerAccount();
   const { resendAccessLink } = useResendWorkerAccessLink();
+  const {
+    isUpdatingAccessEmail,
+    updateAccessEmail,
+    updateAccessEmailResult,
+    resetUpdateAccessEmail,
+  } = useUpdateWorkerAccessEmail();
   const { linkedWorkerIds, isLoading: isLoadingLinkedAccounts } =
     useLinkedWorkerAccounts();
   const { profile_picture, name, type_worker, status, email } = worker;
   const profilePictureUrl = getProfilePicturePublicUrl(profile_picture);
   const isLinked = linkedWorkerIds.has(worker.id);
   const hasEmail = Boolean(email?.trim());
+
+  const [isAccessEmailDialogOpen, setIsAccessEmailDialogOpen] = useState(false);
+  // The toggle button itself -- not the portaled dropdown menu item that
+  // opens the dialog and unmounts immediately after -- is the one always-
+  // mounted, stable control this row can restore focus to on close.
+  const toggleRef = useRef<HTMLButtonElement>(null);
   const initials = name
     ?.split(" ")
     .slice(0, 2)
@@ -79,7 +95,7 @@ function WorkerRow({ worker }: WorkerRowProps) {
         <p>{status === 1 ? "Activo" : "Inactivo"}</p>
         <Menus>
           <Menus.Menu>
-            <Menus.Toggle id={worker.id} />
+            <Menus.Toggle ref={toggleRef} id={worker.id} />
             <Menus.List id={worker.id}>
               <Menus.Button
                 icon={<HiDocumentText />}
@@ -106,6 +122,15 @@ function WorkerRow({ worker }: WorkerRowProps) {
                   Reenviar enlace de acceso
                 </Menus.Button>
               )}
+              {isAdmin && !isLoadingLinkedAccounts && isLinked && (
+                <Menus.Button
+                  icon={<HiEnvelope />}
+                  disabled={isUpdatingAccessEmail}
+                  onClick={() => setIsAccessEmailDialogOpen(true)}
+                >
+                  Actualizar correo de acceso
+                </Menus.Button>
+              )}
               {isAdmin && !isLoadingLinkedAccounts && !isLinked && (
                 <Modal.Open opens="link-worker-account-form">
                   <Menus.Button icon={<HiLink />}>
@@ -124,6 +149,20 @@ function WorkerRow({ worker }: WorkerRowProps) {
         <Modal.Window name="link-worker-account-form">
           <LinkWorkerAccountForm workerId={worker.id} />
         </Modal.Window>
+      )}
+      {isAdmin && (
+        <UpdateWorkerAccessEmailDialog
+          isOpen={isAccessEmailDialogOpen}
+          onRequestClose={() => setIsAccessEmailDialogOpen(false)}
+          triggerRef={toggleRef}
+          workerId={worker.id}
+          workerName={name}
+          workerEmail={email}
+          isUpdatingAccessEmail={isUpdatingAccessEmail}
+          updateAccessEmail={updateAccessEmail}
+          updateAccessEmailResult={updateAccessEmailResult}
+          resetUpdateAccessEmail={resetUpdateAccessEmail}
+        />
       )}
     </Modal>
   );
