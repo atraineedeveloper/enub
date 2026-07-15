@@ -1,5 +1,6 @@
 import {
   createContext,
+  forwardRef,
   useContext,
   useState,
   type MouseEvent,
@@ -69,6 +70,11 @@ const StyledButton = styled.button`
     background-color: var(--color-grey-50);
   }
 
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
   & svg {
     width: 1.6rem;
     height: 1.6rem;
@@ -113,7 +119,15 @@ interface ToggleProps {
   id: MenuId;
 }
 
-function Toggle({ id }: ToggleProps) {
+// Forwards a ref to the underlying DOM button -- this is the one
+// always-mounted element per row (unlike the portaled dropdown list,
+// which unmounts on close), so callers that need to restore focus after
+// closing something this toggle opened (e.g. a dedicated dialog, not the
+// dropdown itself) have a stable, still-mounted target to focus.
+const Toggle = forwardRef<HTMLButtonElement, ToggleProps>(function Toggle(
+  { id },
+  ref,
+) {
   const { openId, close, open, setPosition } = useContext(MenusContext)!;
 
   function handleClick(e: MouseEvent<HTMLButtonElement>) {
@@ -128,11 +142,11 @@ function Toggle({ id }: ToggleProps) {
   }
 
   return (
-    <StyledToggle onClick={handleClick}>
+    <StyledToggle ref={ref} onClick={handleClick}>
       <HiEllipsisVertical />
     </StyledToggle>
   );
-}
+});
 
 interface ListProps {
   id: MenuId;
@@ -160,19 +174,21 @@ interface ButtonProps {
   children: ReactNode;
   icon?: ReactNode;
   onClick?: () => void;
+  disabled?: boolean;
 }
 
-function Button({ children, icon, onClick }: ButtonProps) {
+function Button({ children, icon, onClick, disabled }: ButtonProps) {
   const { close } = useContext(MenusContext)!;
 
   function handleClick() {
+    if (disabled) return;
     onClick?.();
     close();
   }
 
   return (
     <li>
-      <StyledButton onClick={handleClick}>
+      <StyledButton onClick={handleClick} disabled={disabled}>
         {icon}
         <span>{children}</span>
       </StyledButton>

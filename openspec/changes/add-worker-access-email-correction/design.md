@@ -145,17 +145,19 @@ No RPC or grant permits a direct, unguarded `UPDATE`/`INSERT`/`DELETE` against `
 
 ```ts
 {
-  workerId: number;
-  status: CorrectionStatus;        // closed union, 17 values
+  workerId: number | null;          // null only when no valid worker id could be parsed (code-review finding #4)
+  status: CorrectionStatus;        // closed union, 16 business values + 6 infrastructure values = 22 (see below)
   reasonCode: CorrectionReasonCode; // always present, closed union
   retryable: boolean;
   emailSynchronized: boolean;       // true only when THIS response's own fresh observation confirmed it; false otherwise
   message?: string;                 // optional, display-only
 }
 ```
-No `accessLinkDelivery` field, no operation id, no Auth id, under any outcome (Decision 4). Closed `status` union (17 values, one more than the prior revision): `updated`, `already_synchronized`, `correction_already_in_progress`, `manual_attention_required`, `worker_not_found`, `worker_not_linked`, `invalid_profile_role`, `linked_auth_user_missing`, `invalid_email`, `duplicate_worker_email`, `email_owned_by_another_auth_user`, `multiple_canonical_auth_matches`, `auth_update_failed`, `auth_update_uncertain`, `worker_sync_failed`, `worker_sync_uncertain`, and — **new in this revision** — the `manual_attention_required` status now also covers `reasonCode: "operation_identity_mismatch"` as its sixth possible reason (the status itself is not new; the reason code is).
+No `accessLinkDelivery` field, no operation id, no Auth id, under any outcome (Decision 4). Closed `status` union — **16 business values** (corrected from a prior miscount of "17" in an earlier revision of this document; the enumerated list below has always had 16 members): `updated`, `already_synchronized`, `correction_already_in_progress`, `manual_attention_required`, `worker_not_found`, `worker_not_linked`, `invalid_profile_role`, `linked_auth_user_missing`, `invalid_email`, `duplicate_worker_email`, `email_owned_by_another_auth_user`, `multiple_canonical_auth_matches`, `auth_update_failed`, `auth_update_uncertain`, `worker_sync_failed`, `worker_sync_uncertain` — plus, as of that same prior revision, the `manual_attention_required` status also covers `reasonCode: "operation_identity_mismatch"` as an additional possible reason (the status itself was not new there; the reason code was).
 
-`manual_attention_required` covers six distinct `reasonCode`s: `ambiguous_claim_state`, `manual_attention_blocking`, `duplicate_worker_email`, `linkage_changed`, `operation_identity_mismatch`, and (per the transition-uncertainty protocol, Decision 13) an inconclusive uncertainty that could not be resolved by re-observation. The caller-relevant fact is identical across all six ("this needs a human, do not retry"); every `manual_attention_required` response, regardless of `reasonCode`, uses the same generic, safe display text `"Revisión manual requerida"` — this revision generalizes that display rule from just `invalid_profile_role`/`linked_auth_user_missing` (which remain their own distinct top-level statuses, also using this same text) to the `manual_attention_required` status as a whole, for one consistent, simple UI rule rather than one exception-by-exception.
+**Code-review revision (finding #4):** every response, including infrastructure/request-validation failures that previously used an ad hoc `{ error: string }` shape, now uses this same closed contract. Six more `status` values were added for exactly that purpose: `method_not_allowed`, `unauthorized`, `forbidden`, `invalid_request`, `server_misconfigured`, `internal_error` — bringing the total closed `status` union to **22 values**. `workerId` is `null` for any failure that occurs before a valid worker id has been parsed (method rejection, missing bearer token, malformed JSON, an unknown/invalid body) — present (even if the operation ultimately fails for an unrelated reason) for every status decided from that point onward.
+
+`manual_attention_required` covers seven distinct `reasonCode`s (six as of the prior revision, plus `external_auth_email_changed` added by code-review finding #2): `ambiguous_claim_state`, `manual_attention_blocking`, `duplicate_worker_email`, `linkage_changed`, `operation_identity_mismatch`, `external_auth_email_changed`, and (per the transition-uncertainty protocol, Decision 13) an inconclusive uncertainty that could not be resolved by re-observation. The caller-relevant fact is identical across all seven ("this needs a human, do not retry"); every `manual_attention_required` response, regardless of `reasonCode`, uses the same generic, safe display text `"Revisión manual requerida"` — generalized from just `invalid_profile_role`/`linked_auth_user_missing` (which remain their own distinct top-level statuses, also using this same text) to the `manual_attention_required` status as a whole, for one consistent, simple UI rule rather than one exception-by-exception.
 
 ### 12. `operation_id` and the linked Auth user id never reach the browser
 
@@ -235,6 +237,14 @@ A second table, distinct from Decision 13's response-outcome table, walking thro
 
 Authorization (steps analogous to the correction endpoint's `current_app_role()` check) occurs strictly before parsing `workerId`/`reveal`. This endpoint calls the worker/profile-resolution logic directly (via the same server-only patterns as the correction endpoint) — it does not call `get_worker_access_email_correction_context` (that RPC is keyed by `operation_id`, which has no meaning for this endpoint's stateless, non-claiming read).
 
+**Finding, discovered during implementation:** this endpoint needs to read the linked Auth user's *raw current email* for masking/reveal display — a genuinely new need distinct from every other RPC in this change (all of which compare canonical email equality, never expose the raw value for display). No existing RPC covers this direction (`find_auth_users_by_canonical_email` goes canonical-email → ids, not id → raw email). The first implementation pass added a single general-purpose `get_auth_user_email_by_id(uuid)` to fill this gap.
+
+**Code-review finding #9 (superseding the paragraph above):** a general "any UUID → email" lookup, even service-role-only, is broader than any caller in this change legitimately needs, and the review required either narrowing it or justifying why the general form is necessary. No caller needed the general form, so it was replaced entirely by two narrower, purpose-built reads that resolve their own linkage internally and expose no arbitrary-UUID lookup capability:
+- `get_worker_access_email_correction_auth_email(operation_id)` — used internally by `update-worker-access-email` (Decisions 1-14, `supabase/functions/update-worker-access-email/`), keyed by `operation_id`, not a raw Auth id.
+- `get_linked_worker_auth_email_context(worker_id)` — used by this endpoint, keyed by `worker_id`, not a raw Auth id.
+
+See the Migration Plan's final RPC count below for the complete, current internal-RPC surface.
+
 ## Risks / Trade-offs
 
 - **[Risk]** No transactional atomicity between the Auth update and the `workers.email` write. → **Accepted, by design**: every partial state is closed and retryable, and the immutable stored guard plus fresh-read reconciliation make a resumed request always self-heal.
@@ -261,12 +271,24 @@ Authorization (steps analogous to the correction endpoint's `current_app_role()`
 12. Manual local verification.
 13. No remote/hosted step; hosted verification is separate and human-owned.
 
-**Rollback:** all new migrations are additive; dropping them and the two new Edge Functions fully reverts this change, aside from any rows accumulated in `worker_access_email_corrections` (safe to drop with the table).
+**Code-review revision, added during implementation (superseding step 6a of the original plan):** three RPCs were added beyond the original six, per the code-review findings referenced throughout this document:
+- `validate_worker_access_email_correction_identity(operation_id)` — the pre-mutation linkage/identity revalidation gate (finding #1), called immediately before every `updateUserById` attempt.
+- `get_worker_access_email_correction_auth_email(operation_id)` — an operation-bound raw-email read, used for both the reconciliation-start baseline and the fresh, immediately-before-the-write re-read the external-Auth-drift guard needs (finding #2).
+- `get_linked_worker_auth_email_context(worker_id)` — a worker-bound raw-email read for the context endpoint (finding #9), resolving linkage internally rather than accepting a caller-supplied Auth id. This one replaces a first-pass, general-purpose `get_auth_user_email_by_id(uuid)` that accepted an arbitrary Auth id — removed entirely, per finding #9, since no caller legitimately needed that general form.
+
+**The final internal RPC surface is nine functions, not six:** the four original mutation RPCs (`claim_worker_access_email_correction`, `sync_worker_email_after_access_correction`, `mark_worker_access_email_correction_completed`, `mark_worker_access_email_correction_manual_attention`), the one original read-only context RPC (`get_worker_access_email_correction_context`), the one original lookup RPC (`find_auth_users_by_canonical_email`), and the three added above. None of the nine is reachable by `authenticated`/`anon`/`PUBLIC` — every one follows the identical `REVOKE ALL ... GRANT service_role only` model (Decision 4), verified by pgTAP grant assertions for each.
+
+**Rollback:** all new migrations are additive; dropping them and the two new Edge Functions fully reverts this change from a schema/code perspective. This is **not**, however, a consequence-free operation at any point where durable rows exist:
+
+- **Migrations are additive only** — no down-migration is part of this change, and destructive down-migration (dropping the table/functions) is explicitly **not** a normal part of rolling this change back in production.
+- **Rolling back the application code while durable `active` or `manual_attention_required` rows exist stops the code that would ever resolve them**, without removing the rows themselves — those rows represent real, unresolved operational state (a correction genuinely in progress, or one already flagged for human review). A code rollback that also drops the table/functions would silently strand that state: the durable claim disappears, but the underlying Auth/`workers.email` divergence it was tracking does not.
+- **Production rollback must preserve `worker_access_email_corrections` and its nine supporting functions until every non-`completed` row has been reviewed and manually resolved** (e.g. via direct Auth Admin API / SQL intervention, matching whatever the row's `last_reason_code` indicates went wrong) — only after that review is it safe to drop the table and its functions, if this change is being fully reverted rather than rolled forward with a fix.
+- Dropping the table when **only** `completed` rows remain is unconditionally safe (finding #14) — those rows carry no unresolved operational meaning.
 
 ## Product Decisions (resolved)
 
 - Current Auth login email masked by default, explicit administrator reveal.
-- Every `manual_attention_required` response (all six `reasonCode`s) and the two structurally-unreachable statuses (`invalid_profile_role`/`linked_auth_user_missing`) all display the same generic `"Revisión manual requerida"` text, retaining distinct `reasonCode`s for diagnosis.
+- Every `manual_attention_required` response (all seven `reasonCode`s) and the two structurally-unreachable statuses (`invalid_profile_role`/`linked_auth_user_missing`) all display the same generic `"Revisión manual requerida"` text, retaining distinct `reasonCode`s for diagnosis.
 - Audit logging of the acting administrator remains out of scope; `claimed_by` is internal operational state only.
 - No automatic access-link delivery of any kind.
 - No in-app resolution path for `manual_attention_required`.
