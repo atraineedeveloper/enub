@@ -1,44 +1,44 @@
 ## 1. Git tracking
 
-- [ ] 1.1 *(Optional local prep)* Remove the `supabase/seed.sql` line from this clone's `.git/info/exclude` (leave the backup-SQL-file line untouched). This step is not required for acceptance.
-- [ ] 1.2 `git add -f supabase/seed.sql` once the fixture expansion below is complete, and confirm `git ls-files supabase/seed.sql` returns the path. This is the sole acceptance criterion for git tracking.
+- [ ] 1.1 *(Optional local prep)* Remove the `supabase/seed.sql` line from this clone's `.git/info/exclude` (leave the backup-SQL-file line untouched). This step is not required for acceptance. **Not performed this session** — `.git/info/exclude` was deliberately left untouched per this implementation round's explicit instruction ("do not modify or stage `.git/info/exclude`"); the file remains locally ignored.
+- [ ] 1.2 `git add -f supabase/seed.sql` once the fixture expansion below is complete, and confirm `git ls-files supabase/seed.sql` returns the path. This is the sole acceptance criterion for git tracking. **Not performed this session** — per this implementation round's explicit instruction not to run `git add -f` unless required by the workflow; `supabase/seed.sql` remains untracked. This is left for the developer's own review/commit workflow.
 
 ## 2. Existing seed correction
 
-- [ ] 2.1 Update worker 1's `type_worker` value in its existing `INSERT ... ON CONFLICT DO UPDATE` from `'Docente'` to `'Maestro'`.
+- [x] 2.1 Update worker 1's `type_worker` value in its existing `INSERT ... ON CONFLICT DO UPDATE` from `'Docente'` to `'Maestro'`.
 
 ## 3. Reserved fixture ID block (9001–9007)
 
-- [ ] 3.1 Add a prominent comment at the top of the new fixture block explaining the reserved `9001`–`9007` range, that it is a practical (not absolute) safeguard, and that `workers_id_seq` must NOT be advanced to match it.
-- [ ] 3.2 Insert worker 9001 (auth user exists, no profile): valid `.test` email, `status = 1`, `type_worker = 'Maestro'`.
-- [ ] 3.3 Insert worker 9002 (fully linked): valid `.test` email, `status = 1`, `type_worker = 'Administrativo'`.
-- [ ] 3.4 Insert worker 9003 (no email): `email = NULL`, `status = 1`, `type_worker = 'Contratacion'`.
-- [ ] 3.5 Insert worker 9004 (inactive): valid `.test` email, `status = 0`, `type_worker = 'Maestro'`.
-- [ ] 3.6 Insert worker 9005 (deliberate invalid email, named `FIXTURE NEGATIVO — ...`): email value with no `@` (fails `EMAIL_FORMAT_PATTERN`), `status = 1`, `type_worker = 'Administrativo'`, with a comment explaining its purpose.
-- [ ] 3.7 Insert worker 9006 and worker 9007 (deliberate duplicate-email pair, both named `FIXTURE NEGATIVO — ...`): identical `.test` email on both, `status = 1`, distinct `type_worker` values, with a comment explaining their purpose.
-- [ ] 3.8 Confirm the trailing `setval` for `workers_id_seq` still targets `2` (unchanged) and that no `setval` call for any other sequence was added for the 9001–9007 block.
+- [x] 3.1 Add a prominent comment at the top of the new fixture block explaining the reserved `9001`–`9007` range, that it is a practical (not absolute) safeguard, and that `workers_id_seq` must NOT be advanced to match it.
+- [x] 3.2 Insert worker 9001 (auth user exists, no profile): valid `.test` email, `status = 1`, `type_worker = 'Maestro'`.
+- [x] 3.3 Insert worker 9002 (fully linked): valid `.test` email, `status = 1`, `type_worker = 'Administrativo'`.
+- [x] 3.4 Insert worker 9003 (no email): `email = NULL`, `status = 1`, `type_worker = 'Contratacion'`.
+- [x] 3.5 Insert worker 9004 (inactive): valid `.test` email, `status = 0`, `type_worker = 'Maestro'`.
+- [x] 3.6 Insert worker 9005 (deliberate invalid email, named `FIXTURE NEGATIVO — ...`): email value with no `@` (fails `EMAIL_FORMAT_PATTERN`), `status = 1`, `type_worker = 'Administrativo'`, with a comment explaining its purpose.
+- [x] 3.7 Insert worker 9006 and worker 9007 (deliberate duplicate-email pair, both named `FIXTURE NEGATIVO — ...`): identical `.test` email on both, `status = 1`, distinct `type_worker` values, with a comment explaining their purpose.
+- [x] 3.8 Confirm the trailing `setval` for `workers_id_seq` still targets `2` (unchanged) and that no `setval` call for any other sequence was added for the 9001–9007 block.
 
 ## 4. Auth/profile fixtures for 9001 and 9002
 
-- [ ] 4.1 Add `auth.users` + `auth.identities` rows for worker 9001's email, reusing the existing bootstrap-admin pattern (`crypt(..., gen_salt('bf'))`, deterministic UUID, `ON CONFLICT` upserts). No `public.profiles` row for 9001.
-- [ ] 4.2 Add `auth.users` + `auth.identities` rows for worker 9002's email, same pattern, plus a `public.profiles` row with `role = 'worker'` and `worker_id = 9002`.
-- [ ] 4.3 Confirm both new passwords are deterministic, fictitious, and documented in the seed file's header comment alongside the existing admin credential note.
+- [x] 4.1 Add `auth.users` + `auth.identities` rows for worker 9001's email, reusing the existing bootstrap-admin pattern (`crypt(..., gen_salt('bf'))`, deterministic UUID, `ON CONFLICT` upserts). No `public.profiles` row for 9001.
+- [x] 4.2 Add `auth.users` + `auth.identities` rows for worker 9002's email, same pattern, plus a `public.profiles` row with `role = 'worker'` and `worker_id = 9002`.
+- [x] 4.3 Confirm both new passwords are deterministic, fictitious, and documented in the seed file's header comment alongside the existing admin credential note.
 
 ## 5. Automated / local command checks
 
 These run entirely from the command line or via direct SQL and require no browser and no manual Edge Function invocation.
 
-- [ ] 5.1 Confirm `supabase/seed.sql` is tracked: `git ls-files supabase/seed.sql`.
-- [ ] 5.2 Run `bunx supabase db reset` twice in succession; confirm both succeed with no errors.
-- [ ] 5.3 After a clean reset, run a stable-columns query confirming: fixture ids 1, 2, 9001–9007 exist with their designed `email`/`status`/`type_worker` values; worker 9001 has a matching `auth.users`/`auth.identities` row and no `profiles` row; worker 9002 has a matching `auth.users`/`auth.identities` row and a `profiles` row with `role = 'worker'`, `worker_id = 9002`; worker 1 has ≥1 `schedule_assignments` row; worker 2 has zero `schedule_assignments` rows; workers 9006/9007 share one exact email. Do **not** compare `created_at`/`updated_at`/`email_confirmed_at`/`encrypted_password` byte values — only the stable columns/relationships above.
-- [ ] 5.4 Repeat 5.3 after the second reset in 5.2 and confirm identical stable-column results (row counts unchanged, no duplicates) — again excluding timestamps/password-hash bytes from comparison.
-- [ ] 5.5 Verify `workers_id_seq` by direct inspection after a clean reset: `SELECT last_value, is_called FROM public.workers_id_seq;` (or equivalent `pg_sequences` query) reports `last_value = 2`, `is_called = true`. Do not create-and-delete a probe worker through the application for this check.
-- [ ] 5.6 Run `bunx supabase db lint`.
-- [ ] 5.7 Run `bunx supabase test db --local`.
-- [ ] 5.8 Run `bun run typecheck`.
-- [ ] 5.9 Run `bun run lint`.
-- [ ] 5.10 Run `bun run build`.
-- [ ] 5.11 Run `bunx @fission-ai/openspec@1.6.0 validate "expand-worker-development-seed" --strict`.
+- [ ] 5.1 Confirm `supabase/seed.sql` is tracked: `git ls-files supabase/seed.sql`. **Not satisfied** — returns empty; the file remains untracked/ignored, per this implementation round's explicit instruction not to run `git add -f`. Left for the developer's own review/commit workflow.
+- [x] 5.2 Run `bunx supabase db reset` twice in succession; confirm both succeed with no errors. Both runs completed with `Finished supabase db reset` and no errors.
+- [x] 5.3 After a clean reset, run a stable-columns query confirming: fixture ids 1, 2, 9001–9007 exist with their designed `email`/`status`/`type_worker` values; worker 9001 has a matching `auth.users`/`auth.identities` row and no `profiles` row; worker 9002 has a matching `auth.users`/`auth.identities` row and a `profiles` row with `role = 'worker'`, `worker_id = 9002`; worker 1 has ≥1 `schedule_assignments` row; worker 2 has zero `schedule_assignments` rows; workers 9006/9007 share one exact email. Do **not** compare `created_at`/`updated_at`/`email_confirmed_at`/`encrypted_password` byte values — only the stable columns/relationships above. Verified via direct SQL (`docker exec ... psql`) against the local db container: all 9 worker rows matched the designed matrix exactly; 9001 had 0 profile rows; 9002 had `role='worker', worker_id=9002`; worker 1 had 2 `schedule_assignments` rows, worker 2 had 0; 9006/9007 shared `correo.duplicado.local@enub.test`.
+- [x] 5.4 Repeat 5.3 after the second reset in 5.2 and confirm identical stable-column results (row counts unchanged, no duplicates) — again excluding timestamps/password-hash bytes from comparison. Re-verified after the second reset: `workers` total count 9 (no accumulation), same 9 fixture rows with identical stable values, 9001 still 0 profiles, 9002 still linked, `auth.users`/`auth.identities` each showed exactly 1 row per seeded email (admin, 9001, 9002) — no duplicates.
+- [x] 5.5 Verify `workers_id_seq` by direct inspection after a clean reset: `SELECT last_value, is_called FROM public.workers_id_seq;` (or equivalent `pg_sequences` query) reports `last_value = 2`, `is_called = true`. Do not create-and-delete a probe worker through the application for this check. Confirmed via direct inspection after both resets: `last_value = 2`, `is_called = true` both times. No probe worker was created through the application.
+- [x] 5.6 Run `bunx supabase db lint`. Ran; output consists entirely of pre-existing warnings/errors in the `extensions` schema (pgTAP's own internal functions, e.g. `extensions.row_eq`, `extensions._constraint`) — nothing attributable to this change (`seed.sql` defines no functions and cannot be the subject of `db lint`'s function-level checks).
+- [x] 5.7 Run `bunx supabase test db --local`. `Files=15, Tests=136` — `All tests successful`, `Result: PASS`.
+- [x] 5.8 Run `bun run typecheck`. Exit 0, clean.
+- [x] 5.9 Run `bun run lint`. Exit 0, clean.
+- [x] 5.10 Run `bun run build`. Exit 0, PWA precache generated, no errors.
+- [x] 5.11 Run `bunx @fission-ai/openspec@1.6.0 validate "expand-worker-development-seed" --strict`. `Change 'expand-worker-development-seed' is valid`.
 
 ## 6. Manual browser checks
 
