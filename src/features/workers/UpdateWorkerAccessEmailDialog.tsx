@@ -7,6 +7,7 @@ import {
   type MouseEvent,
   type RefObject,
 } from "react";
+import { createPortal } from "react-dom";
 import styled from "styled-components";
 import Button from "../../ui/Button";
 import Input from "../../ui/Input";
@@ -25,18 +26,41 @@ const supportsNativeDialog =
   typeof HTMLDialogElement !== "undefined" &&
   typeof HTMLDialogElement.prototype.showModal === "function";
 
-// Finding #12: box-sizing: border-box on both, so padding is included in
-// the width/max-width budget rather than added on top of it -- without
-// this, "width: 90vw" plus 4rem of horizontal padding can exceed the
-// viewport's own width on narrow screens (checked at 320-375px).
+// Root cause of the viewport-positioning bug (found via a real browser,
+// not source inspection alone): a native <dialog> shown with showModal()
+// is centered by the browser's OWN UA stylesheet rule --
+// `dialog:modal { position: fixed; inset: 0; margin: auto; }` -- and this
+// component never overrode `margin`. src/styles/GlobalStyles.ts's
+// universal reset (`*, *::before, *::after { margin: 0; ... }`) is an
+// AUTHOR-level rule, which beats a UA-level default regardless of
+// selector specificity, silently zeroing that `margin: auto` everywhere
+// in this app. With `inset: 0` fully constrained, intrinsic (fit-content)
+// sizing, and `margin: 0`, the box's own over-constrained resolution
+// anchors it to the top-left of the viewport -- which is visually where
+// the sidebar also lives, giving the appearance of the dialog being "tied
+// to" the sidebar/content column, even though `Sidebar` and `Main` are
+// plain CSS-grid siblings in AppLayout.tsx with no ancestor/descendant
+// relationship to this dialog at all. The fix is to state the centering
+// declarations explicitly here, so this component never depends on a
+// global reset leaving the UA default alone.
+//
+// Rendered through a portal into document.body (both the native and
+// fallback paths) so this dialog's positioning and stacking are never
+// affected by the workers table's `overflow-x: auto`, any ancestor grid
+// sizing, or the menu portal -- matching the same pattern src/ui/Modal.tsx
+// already uses for its own overlay.
 const StyledDialog = styled.dialog`
   box-sizing: border-box;
+  position: fixed;
+  inset: 0;
+  margin: auto;
   border: none;
   border-radius: var(--border-radius-lg);
   box-shadow: var(--shadow-lg);
   padding: 3.2rem 4rem;
-  max-width: min(52rem, calc(100vw - 3.2rem));
-  width: 90vw;
+  width: min(52rem, calc(100vw - 3.2rem));
+  max-height: calc(100dvh - 3.2rem);
+  overflow-y: auto;
 
   @media (max-width: 480px) {
     padding: 2rem 1.6rem;
@@ -48,14 +72,26 @@ const StyledDialog = styled.dialog`
   }
 `;
 
+// Non-modal by design (no backdrop, no aria-modal) -- but still given an
+// intentional, viewport-fixed, centered placement (via the body portal
+// above) rather than being left to render inline whatever ancestor
+// happens to contain it, which could otherwise land it beside/beneath the
+// sidebar exactly like the native path's bug.
 const FallbackPanel = styled.div`
   box-sizing: border-box;
+  position: fixed;
+  top: 1.6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
   border: 1px solid var(--color-grey-300);
   border-radius: var(--border-radius-lg);
   box-shadow: var(--shadow-md);
   padding: 3.2rem 4rem;
-  max-width: min(52rem, calc(100vw - 3.2rem));
-  margin: 1.6rem 0;
+  width: min(52rem, calc(100vw - 3.2rem));
+  max-height: calc(100dvh - 3.2rem);
+  overflow-y: auto;
+  background-color: var(--color-grey-0);
 
   @media (max-width: 480px) {
     padding: 2rem 1.6rem;
@@ -434,7 +470,7 @@ function UpdateWorkerAccessEmailDialog({
   );
 
   if (supportsNativeDialog) {
-    return (
+    return createPortal(
       <StyledDialog
         ref={dialogRef}
         aria-labelledby={titleId}
@@ -442,18 +478,20 @@ function UpdateWorkerAccessEmailDialog({
         onClick={handleBackdropClick}
       >
         {content}
-      </StyledDialog>
+      </StyledDialog>,
+      document.body,
     );
   }
 
-  return (
+  return createPortal(
     <FallbackPanel
       role="group"
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
     >
       {content}
-    </FallbackPanel>
+    </FallbackPanel>,
+    document.body,
   );
 }
 
