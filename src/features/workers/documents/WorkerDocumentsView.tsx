@@ -17,6 +17,7 @@ import type {
   WorkerDocumentCategory,
   WorkerDocumentType,
 } from "./useWorkerDocumentCatalog";
+import { filterVisibleDocumentTypes } from "./workerDocumentTypeVisibility";
 import { useWorkerDocumentReportData } from "./useWorkerDocumentReportData";
 import { useWorkerDocuments } from "./useWorkerDocuments";
 import type { WorkerDocument } from "./useWorkerDocuments";
@@ -440,6 +441,18 @@ function WorkerDocumentsView({ workerId }: WorkerDocumentsViewProps) {
   }
 
   function renderDocumentRows(category: WorkerDocumentCategory) {
+    // Union rule (extracted to workerDocumentTypeVisibility.ts so it has
+    // its own unit tests independent of rendering this whole view): a type
+    // is shown only when it is active, or this specific worker already has
+    // documents under it -- never because any other worker has historical
+    // documents under that type. `documentsByType` is already scoped to
+    // this one worker's own documents, so this check never leaks across
+    // workers.
+    const visibleDocumentTypes = filterVisibleDocumentTypes(
+      category.document_types,
+      documentsByType
+    );
+
     return (
       <Table columns="1.5fr 1fr 2fr 2fr">
         <Table.Header>
@@ -449,7 +462,7 @@ function WorkerDocumentsView({ workerId }: WorkerDocumentsViewProps) {
           <div>Acciones</div>
         </Table.Header>
         <Table.Body
-          data={category.document_types}
+          data={visibleDocumentTypes}
           render={(documentType) => {
             const existingDocuments = documentsByType.get(documentType.id) ?? [];
             const uploaded = existingDocuments.length > 0;
@@ -528,70 +541,80 @@ function WorkerDocumentsView({ workerId }: WorkerDocumentsViewProps) {
                     <Meta>Sin archivo cargado</Meta>
                   )}
                 </DocumentList>
-                <ActionGroup>
-                  <HiddenFileInput
-                    key={`${documentType.id}-${
-                      fileInputVersions[documentType.id] ?? 0
-                    }`}
-                    ref={(element) => {
-                      fileInputRefs.current[documentType.id] = element;
-                    }}
-                    id={fileInputId}
-                    type="file"
-                    accept={ACCEPTED_DOCUMENT_TYPES}
-                    aria-label={`Seleccionar archivo para ${documentType.name}`}
-                    disabled={isWorking}
-                    onChange={(event) =>
-                      handleFileChange(
-                        documentType.id,
-                        event.target.files?.[0] ?? null
-                      )
-                    }
-                  />
-                  <ActionButton
-                    type="button"
-                    variation="secondary"
-                    size="small"
-                    disabled={isWorking}
-                    onClick={() =>
-                      fileInputRefs.current[documentType.id]?.click()
-                    }
-                  >
-                    Seleccionar archivo
-                  </ActionButton>
-                  <UploadHint
-                    title={selectedFile ? selectedFile.name : undefined}
-                  >
-                    {selectedFile
-                      ? selectedFile.name
-                      : "Ningún archivo seleccionado"}
-                  </UploadHint>
-                  <ActionButton
-                    size="small"
-                    type="button"
-                    aria-label={`${actionLabel} para ${documentType.name}`}
-                    disabled={!selectedFile || isWorking}
-                    onClick={() =>
-                      handleUpload(
-                        documentType,
-                        existingDocuments,
-                        category.scope
-                      )
-                    }
-                  >
-                    {isWorking ? (
-                      <HiArrowPath />
-                    ) : documentType.allows_multiple ? (
-                      <HiArrowUpTray />
-                    ) : (
-                      actionLabel
-                    )}
-                    {isWorking && ` ${pendingLabel}`}
-                    {documentType.allows_multiple &&
-                      !isWorking &&
-                      ` ${actionLabel}`}
-                  </ActionButton>
-                </ActionGroup>
+                <div>
+                  {/* An inactive type only ever reaches this row because
+                  the target worker already has documents under it (the
+                  union-rule filter above); it never accepts new uploads or
+                  replacements, so no upload control is offered at all --
+                  only the file list and its existing view/download/delete
+                  actions above remain available. */}
+                  {documentType.is_active && (
+                    <ActionGroup>
+                      <HiddenFileInput
+                        key={`${documentType.id}-${
+                          fileInputVersions[documentType.id] ?? 0
+                        }`}
+                        ref={(element) => {
+                          fileInputRefs.current[documentType.id] = element;
+                        }}
+                        id={fileInputId}
+                        type="file"
+                        accept={ACCEPTED_DOCUMENT_TYPES}
+                        aria-label={`Seleccionar archivo para ${documentType.name}`}
+                        disabled={isWorking}
+                        onChange={(event) =>
+                          handleFileChange(
+                            documentType.id,
+                            event.target.files?.[0] ?? null
+                          )
+                        }
+                      />
+                      <ActionButton
+                        type="button"
+                        variation="secondary"
+                        size="small"
+                        disabled={isWorking}
+                        onClick={() =>
+                          fileInputRefs.current[documentType.id]?.click()
+                        }
+                      >
+                        Seleccionar archivo
+                      </ActionButton>
+                      <UploadHint
+                        title={selectedFile ? selectedFile.name : undefined}
+                      >
+                        {selectedFile
+                          ? selectedFile.name
+                          : "Ningún archivo seleccionado"}
+                      </UploadHint>
+                      <ActionButton
+                        size="small"
+                        type="button"
+                        aria-label={`${actionLabel} para ${documentType.name}`}
+                        disabled={!selectedFile || isWorking}
+                        onClick={() =>
+                          handleUpload(
+                            documentType,
+                            existingDocuments,
+                            category.scope
+                          )
+                        }
+                      >
+                        {isWorking ? (
+                          <HiArrowPath />
+                        ) : documentType.allows_multiple ? (
+                          <HiArrowUpTray />
+                        ) : (
+                          actionLabel
+                        )}
+                        {isWorking && ` ${pendingLabel}`}
+                        {documentType.allows_multiple &&
+                          !isWorking &&
+                          ` ${actionLabel}`}
+                      </ActionButton>
+                    </ActionGroup>
+                  )}
+                </div>
               </Table.Row>
             );
           }}

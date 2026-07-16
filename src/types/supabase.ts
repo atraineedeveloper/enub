@@ -7,6 +7,31 @@ export type Json =
   | Json[]
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       date_of_admissions: {
@@ -435,6 +460,53 @@ export type Database = {
         }
         Relationships: []
       }
+      worker_access_email_corrections: {
+        Row: {
+          claimed_by: string | null
+          created_at: string
+          id: number
+          last_reason_code: string | null
+          linked_auth_user_id: string
+          raw_expected_worker_email: string | null
+          requested_canonical_email: string
+          state: string
+          updated_at: string
+          worker_id: number
+        }
+        Insert: {
+          claimed_by?: string | null
+          created_at?: string
+          id?: never
+          last_reason_code?: string | null
+          linked_auth_user_id: string
+          raw_expected_worker_email?: string | null
+          requested_canonical_email: string
+          state: string
+          updated_at?: string
+          worker_id: number
+        }
+        Update: {
+          claimed_by?: string | null
+          created_at?: string
+          id?: never
+          last_reason_code?: string | null
+          linked_auth_user_id?: string
+          raw_expected_worker_email?: string | null
+          requested_canonical_email?: string
+          state?: string
+          updated_at?: string
+          worker_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worker_access_email_corrections_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       worker_document_categories: {
         Row: {
           created_at: string
@@ -465,6 +537,7 @@ export type Database = {
           category_id: number
           created_at: string
           id: number
+          is_active: boolean
           name: string
           sort_order: number
         }
@@ -473,6 +546,7 @@ export type Database = {
           category_id: number
           created_at?: string
           id?: number
+          is_active?: boolean
           name: string
           sort_order?: number
         }
@@ -481,6 +555,7 @@ export type Database = {
           category_id?: number
           created_at?: string
           id?: number
+          is_active?: boolean
           name?: string
           sort_order?: number
         }
@@ -620,14 +695,86 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_worker_access_email_correction: {
+        Args: { requested_email: string; worker_id: number }
+        Returns: {
+          operation_id: number
+          outcome: string
+          reason_code: string
+        }[]
+      }
       current_app_role: { Args: never; Returns: string }
       current_worker_id: { Args: never; Returns: number }
+      find_auth_users_by_canonical_email: {
+        Args: { raw_email: string }
+        Returns: string[]
+      }
+      get_linked_worker_auth_email_context: {
+        Args: { worker_id: number }
+        Returns: string
+      }
+      get_worker_access_email_correction_auth_email: {
+        Args: { p_operation_id: number }
+        Returns: string
+      }
+      get_worker_access_email_correction_context: {
+        Args: { p_operation_id: number }
+        Returns: {
+          last_reason_code: string
+          linked_auth_user_id: string
+          operation_id: number
+          raw_expected_worker_email: string
+          requested_canonical_email: string
+          state: string
+          worker_id: number
+        }[]
+      }
       grant_staff_role: { Args: { staff_email: string }; Returns: undefined }
       link_worker_account: {
         Args: { worker_email: string; worker_id: number }
         Returns: undefined
       }
+      mark_worker_access_email_correction_completed: {
+        Args: { p_operation_id: number }
+        Returns: boolean
+      }
+      mark_worker_access_email_correction_manual_attention: {
+        Args: { p_operation_id: number; p_reason_code: string }
+        Returns: undefined
+      }
+      replace_worker_document_metadata: {
+        Args: {
+          p_document_type_id: number
+          p_file_name: string
+          p_file_size: number
+          p_mime_type: string
+          p_semester_id: number
+          p_storage_path: string
+          p_worker_id: number
+        }
+        Returns: {
+          new_created_at: string
+          new_document_type_id: number
+          new_file_name: string
+          new_file_size: number
+          new_id: number
+          new_mime_type: string
+          new_semester_id: number
+          new_storage_path: string
+          new_uploaded_by: string
+          new_worker_id: number
+          old_storage_paths: string[]
+        }[]
+      }
+      sync_worker_email_after_access_correction: {
+        Args: { operation_id: number }
+        Returns: string
+      }
       unlink_worker_account: { Args: { worker_id: number }; Returns: undefined }
+      validate_worker_access_email_correction_identity: {
+        Args: { p_operation_id: number }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
@@ -756,6 +903,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

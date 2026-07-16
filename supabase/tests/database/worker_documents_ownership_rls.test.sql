@@ -34,17 +34,18 @@ document_type_lookup AS (
     WHERE worker_document_categories.name = 'Datos personales'
         AND worker_document_types.name = 'CURP'
 ),
--- A multi-file ("Evidencias") type, used for the insert tests below so they
--- don't collide with the single-file CURP fixture row already seeded for
--- worker A -- that collision would trip enforce_single_worker_document_file,
--- an unrelated trigger, not the RLS behavior this file is testing.
+-- A multi-file ("Evidencias bimestrales") type, used for the insert tests
+-- below so they don't collide with the single-file CURP fixture row already
+-- seeded for worker A -- that collision would trip
+-- enforce_single_worker_document_file, an unrelated trigger, not the RLS
+-- behavior this file is testing.
 evidence_type_lookup AS (
     SELECT worker_document_types.id
     FROM public.worker_document_types
     JOIN public.worker_document_categories
         ON worker_document_categories.id = worker_document_types.category_id
     WHERE worker_document_categories.name = 'Docencia'
-        AND worker_document_types.name = 'Evidencias'
+        AND worker_document_types.name = 'Evidencias bimestrales'
 )
 SELECT
     worker_a.id AS worker_a_id,

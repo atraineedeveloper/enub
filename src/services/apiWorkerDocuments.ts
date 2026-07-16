@@ -42,11 +42,67 @@ function getFileExtension(fileName: string = "") {
   return parts.length > 1 ? parts.pop()!.toLowerCase() : "";
 }
 
-function sanitizeStorageFileName(fileName: string = "") {
-  return fileName
-    .trim()
+const STORAGE_BASENAME_FALLBACK = "archivo";
+// A generous but bounded segment length -- long enough that no real
+// document name is ever truncated in practice, short enough to keep the
+// full storage key (workerId/documentTypeId/scope/uuid-basename.ext) well
+// under any object-storage key-length limit.
+const MAX_STORAGE_BASENAME_LENGTH = 100;
+
+// Turns an arbitrary, user-supplied file name into a conservative, portable
+// Storage object-key segment. This is a pure function specifically so it
+// can be unit-tested directly (apiWorkerDocuments.test.ts) without a
+// Supabase client. It is never used for the user-visible file name --
+// `worker_documents.file_name` always stores the original `file.name`
+// unchanged; only the Storage path is built from this sanitized value.
+//
+// A Storage key containing raw accented Unicode (e.g. "í", "ó", "ñ") is
+// rejected by Supabase Storage with a 400 InvalidKey error -- the previous
+// version of this function only handled path separators and whitespace,
+// leaving every accented character untouched. This version:
+// 1. trims surrounding whitespace;
+// 2 (+3). Unicode-normalizes to NFKD and strips the resulting combining
+//    diacritical marks (turning "í" into "i", "ñ" into "n", etc.);
+// 4. lowercases the basename;
+// 5. replaces "/" and "\" path separators;
+// 6 (+7). replaces any run of characters outside the conservative
+//    [a-z0-9-_] set (including the now-bare disallowed remnants of step
+//    5) with a single "-";
+// 8. collapses repeated "-";
+// 9. trims leading/trailing separators;
+// 10. preserves a normalized (lowercased, alnum-only) extension separately
+//     from the basename, so the sanitizer never introduces more than one
+//     final "." in the result;
+// 11. falls back to a fixed basename if sanitization removes everything.
+export function sanitizeStorageFileName(fileName: string = "") {
+  const trimmed = fileName.trim();
+  const lastDotIndex = trimmed.lastIndexOf(".");
+  // A dot only counts as an extension separator when it isn't the first
+  // character (a leading dot alone is a hidden-file marker, not an
+  // extension separator) and isn't the last character (nothing follows
+  // it). This avoids treating ".hiddenfile" as basename "" + extension
+  // "hiddenfile", which would otherwise duplicate into "hiddenfile.hiddenfile".
+  const hasExtension = lastDotIndex > 0 && lastDotIndex < trimmed.length - 1;
+  const rawBasename = hasExtension ? trimmed.slice(0, lastDotIndex) : trimmed;
+  const extension = hasExtension
+    ? trimmed.slice(lastDotIndex + 1).toLowerCase()
+    : "";
+
+  const safeBasename = rawBasename
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
     .replace(/[/\\]/g, "-")
-    .replace(/\s+/g, "-");
+    .replace(/[^a-z0-9\-_]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[-_]+|[-_]+$/g, "")
+    .slice(0, MAX_STORAGE_BASENAME_LENGTH)
+    .replace(/^[-_]+|[-_]+$/g, "");
+
+  const safeExtension = extension.replace(/[^a-z0-9]/g, "");
+  const finalBasename = safeBasename || STORAGE_BASENAME_FALLBACK;
+
+  return safeExtension ? `${finalBasename}.${safeExtension}` : finalBasename;
 }
 
 function normalizeSemesterId(semesterId?: number | string | null) {
@@ -84,7 +140,27 @@ function getWorkerDocumentMimeType(file: File) {
   return MIME_TYPE_BY_EXTENSION[extension] ?? file.type;
 }
 
-function createWorkerDocumentStoragePath({
+const LIFECYCLE_INACTIVE_MESSAGE =
+  "Este tipo de documento ya no acepta nuevas cargas.";
+
+// Maps the stable WDT01 database error code (design.md Decision 13) to the
+// single controlled Spanish message, for every code path that can surface
+// it: the ordinary upload path (the lifecycle trigger firing directly on
+// INSERT), and the replacement path (either the trigger or the RPC's own
+// explicit check). Never exposes the raw trigger name, function name, or
+// SQL error detail to the caller.
+export function mapWorkerDocumentDatabaseError(
+  error: { code?: string | null } | null | undefined,
+  fallbackMessage: string
+) {
+  if (error?.code === "WDT01") {
+    return LIFECYCLE_INACTIVE_MESSAGE;
+  }
+
+  return fallbackMessage;
+}
+
+export function createWorkerDocumentStoragePath({
   workerId,
   documentTypeId,
   semesterId,
@@ -230,7 +306,12 @@ async function insertWorkerDocumentMetadata({
     }
 
     console.error(error);
-    throw new Error("El registro del documento no pudo guardarse");
+    throw new Error(
+      mapWorkerDocumentDatabaseError(
+        error,
+        "El registro del documento no pudo guardarse"
+      )
+    );
   }
 
   return data;
@@ -248,7 +329,43 @@ function groupDocumentTypesByCategory(
   }));
 }
 
-function addReportStatusToCategories(
+// Builds the client-facing replaced-document object directly from
+// replace_worker_document_metadata's own RETURNING row, plus the document
+// type already fetched earlier in the same call -- this is the entire
+// "success result" the RPC's design (finding #4) exists to make possible:
+// no separate post-commit fetch is ever needed to learn what was just
+// inserted, since the RPC's own transaction already returned it.
+export function buildReplacedWorkerDocument(
+  result: {
+    new_id: number;
+    new_worker_id: number;
+    new_document_type_id: number;
+    new_semester_id: number | null;
+    new_file_name: string;
+    new_storage_path: string;
+    new_mime_type: string;
+    new_file_size: number;
+    new_uploaded_by: string | null;
+    new_created_at: string;
+  },
+  documentType: unknown
+) {
+  return {
+    id: result.new_id,
+    worker_id: result.new_worker_id,
+    document_type_id: result.new_document_type_id,
+    semester_id: result.new_semester_id,
+    file_name: result.new_file_name,
+    storage_path: result.new_storage_path,
+    mime_type: result.new_mime_type,
+    file_size: result.new_file_size,
+    uploaded_by: result.new_uploaded_by,
+    created_at: result.new_created_at,
+    worker_document_types: documentType,
+  };
+}
+
+export function addReportStatusToCategories(
   categories: (WorkerDocumentCategoryRow & {
     document_types: WorkerDocumentTypeRow[];
   })[] = [],
@@ -256,19 +373,30 @@ function addReportStatusToCategories(
 ) {
   return categories.map((category) => ({
     ...category,
-    document_types: category.document_types.map((documentType) => {
-      const uploadedDocuments = documents.filter(
-        (document) => document.document_type_id === documentType.id
-      );
+    // Union rule (matching WorkerDocumentsView.tsx): a type appears in this
+    // worker's own report only when it is active, or this same worker has
+    // at least one document under it -- an inactive type with none for
+    // this worker is omitted entirely, never rendered as "Pendiente".
+    document_types: category.document_types
+      .filter((documentType) => {
+        const hasDocumentsForThisWorker = documents.some(
+          (document) => document.document_type_id === documentType.id
+        );
+        return documentType.is_active || hasDocumentsForThisWorker;
+      })
+      .map((documentType) => {
+        const uploadedDocuments = documents.filter(
+          (document) => document.document_type_id === documentType.id
+        );
 
-      return {
-        ...documentType,
-        documents: uploadedDocuments,
-        status: uploadedDocuments.length ? "Cargado" : "Pendiente",
-        uploaded_at: uploadedDocuments[0]?.created_at ?? null,
-        file_name: uploadedDocuments[0]?.file_name ?? null,
-      };
-    }),
+        return {
+          ...documentType,
+          documents: uploadedDocuments,
+          status: uploadedDocuments.length ? "Cargado" : "Pendiente",
+          uploaded_at: uploadedDocuments[0]?.created_at ?? null,
+          file_name: uploadedDocuments[0]?.file_name ?? null,
+        };
+      }),
   }));
 }
 
@@ -355,6 +483,10 @@ export async function uploadWorkerDocument({
 
   const documentType = await getDocumentType(documentTypeId);
 
+  if (!documentType.is_active) {
+    throw new Error("Este tipo de documento ya no acepta nuevas cargas.");
+  }
+
   if (!documentType.allows_multiple) {
     const existingDocuments = await getExistingWorkerDocuments({
       workerId,
@@ -385,6 +517,14 @@ export async function uploadWorkerDocument({
   });
 }
 
+// The old metadata row is replaced by a single database transaction
+// (replace_worker_document_metadata), not by separate client-orchestrated
+// delete/insert calls: the RPC deletes the superseded row and inserts the
+// replacement entirely inside its own transaction, so any failure (an
+// inactive-type rejection, the single-file integrity trigger, an RLS
+// rejection, or any other database error) rolls back automatically and
+// restores the superseded row -- see design.md Decision 5 for why an
+// insert-before-delete client-side ordering was unsafe.
 export async function replaceWorkerDocument({
   workerId,
   documentTypeId,
@@ -398,15 +538,14 @@ export async function replaceWorkerDocument({
 
   const documentType = await getDocumentType(documentTypeId);
 
+  if (!documentType.is_active) {
+    throw new Error("Este tipo de documento ya no acepta nuevas cargas.");
+  }
+
   if (documentType.allows_multiple) {
     throw new Error("Este tipo de documento permite múltiples archivos");
   }
 
-  const existingDocuments = await getExistingWorkerDocuments({
-    workerId,
-    documentTypeId,
-    semesterId,
-  });
   const storagePath = createWorkerDocumentStoragePath({
     workerId,
     documentTypeId,
@@ -416,44 +555,71 @@ export async function replaceWorkerDocument({
 
   await uploadWorkerDocumentFile(storagePath, file);
 
-  if (existingDocuments.length) {
-    const { error: deleteError } = await supabase
-      .from("worker_documents")
-      .delete()
-      .in(
-        "id",
-        existingDocuments.map((document) => document.id)
-      );
+  const { data, error } = await supabase.rpc(
+    "replace_worker_document_metadata",
+    // p_semester_id is a nullable bigint in the database, but the
+    // generated Args type reports it as non-nullable `number` -- a known
+    // gap in Supabase's type generation for function parameters (it does
+    // not reflect PL/pgSQL parameter nullability the way column
+    // nullability is reflected). This cast bridges that gap; the value
+    // sent over the wire is correct either way.
+    {
+      p_worker_id: workerId,
+      p_document_type_id: documentTypeId,
+      p_semester_id: normalizeSemesterId(semesterId),
+      p_file_name: file.name,
+      p_storage_path: storagePath,
+      p_mime_type: getWorkerDocumentMimeType(file),
+      p_file_size: file.size,
+    } as Database["public"]["Functions"]["replace_worker_document_metadata"]["Args"]
+  );
 
-    if (deleteError) {
-      try {
-        await removeWorkerDocumentFiles([storagePath]);
-      } catch (cleanupError) {
-        console.error(cleanupError);
-      }
-
-      console.error(deleteError);
-      throw new Error("El documento anterior no pudo eliminarse");
+  if (error) {
+    // The RPC's own transaction never committed -- the previous metadata
+    // and previous storage object require no cleanup here, only the
+    // just-uploaded new object does.
+    try {
+      await removeWorkerDocumentFiles([storagePath]);
+    } catch (cleanupError) {
+      console.error(cleanupError);
     }
+
+    console.error(error);
+    throw new Error(
+      mapWorkerDocumentDatabaseError(error, "El documento no pudo reemplazarse")
+    );
   }
 
-  const newDocument = await insertWorkerDocumentMetadata({
-    workerId,
-    documentTypeId,
-    semesterId,
-    file,
-    storagePath,
-  });
+  const result = data?.[0];
+
+  if (!result) {
+    throw new Error("El documento no pudo reemplazarse");
+  }
+
+  // The database transaction has already committed at this point -- the
+  // RPC's own RETURNING clause already gave back the complete new row, so
+  // no separate post-commit fetch is performed. A network hiccup from here
+  // on can only ever affect the best-effort old-storage cleanup below,
+  // never make an already-committed, successful replacement masquerade as
+  // a failed one.
+  const newDocument = buildReplacedWorkerDocument(result, documentType);
+
+  // Best-effort, non-fatal: the replacement already succeeded and must not
+  // be rolled back or reported as a failure here. A cleanup failure is
+  // surfaced to the caller as storageCleanupFailed (matching
+  // deleteWorkerDocument's existing convention) rather than only logged,
+  // so the UI can show a distinguishable, non-fatal warning instead of
+  // silently swallowing it.
+  let storageCleanupFailed = false;
 
   try {
-    await removeWorkerDocumentFiles(
-      existingDocuments.map((document) => document.storage_path)
-    );
+    await removeWorkerDocumentFiles(result.old_storage_paths ?? []);
   } catch (cleanupError) {
     console.error(cleanupError);
+    storageCleanupFailed = true;
   }
 
-  return newDocument;
+  return { ...newDocument, storageCleanupFailed };
 }
 
 // Deletes a single worker_documents row and its storage object.
