@@ -173,9 +173,11 @@ Check:
 - Delete.
 - View/download.
 - Single-file document type behavior.
-- Multi-file `Evidencias` behavior.
+- Multi-file `Evidencias bimestrales` behavior.
 - Empty state after deleting the last file.
 - RLS blocks another worker from accessing or mutating documents they do not own.
+- Inactive document types (`is_active = false`) are hidden from upload interfaces, but a worker's own historical documents under an inactive type remain visible/downloadable/deletable; a worker's historical documents under an inactive type never appear for a different worker.
+- A replacement attempt against an inactive type fails safely: no new storage object is left behind, and the previous metadata/storage object are untouched.
 
 ## Manual verification template
 

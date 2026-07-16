@@ -130,8 +130,9 @@ Purpose:
 
 Contract:
 
-- Some types may allow multiple files, such as `Evidencias`.
+- Some types may allow multiple files, such as `Evidencias bimestrales`.
 - UI must preserve multi-file behavior when adding upload/replace/delete actions.
+- `is_active` (`boolean`, `NOT NULL`, default `true`) marks whether a type currently accepts new uploads/replacements. Retiring a type never deletes its historical `worker_documents` rows or storage objects; upload interfaces hide a type only when it is inactive *and* the worker being viewed has no existing documents under it. A `BEFORE INSERT OR UPDATE` trigger enforces this at the database layer regardless of client state.
 
 ### `public.worker_document_categories`
 

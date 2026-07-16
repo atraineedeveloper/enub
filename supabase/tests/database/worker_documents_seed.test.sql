@@ -83,10 +83,10 @@ SELECT ok(
         JOIN public.worker_document_categories
             ON worker_document_categories.id = worker_document_types.category_id
         WHERE worker_document_categories.name = 'Docencia'
-            AND worker_document_types.name = 'Evidencias'
+            AND worker_document_types.name = 'Evidencias bimestrales'
             AND worker_document_types.allows_multiple = true
     ),
-    'Docencia / Evidencias allows multiple files'
+    'Docencia / Evidencias bimestrales allows multiple files'
 );
 
 SELECT ok(

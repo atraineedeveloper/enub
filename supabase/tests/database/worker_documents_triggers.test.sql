@@ -2,7 +2,7 @@ BEGIN;
 
 SET search_path = public, extensions;
 
-SELECT plan(7);
+SELECT plan(11);
 
 CREATE TEMP TABLE worker_documents_trigger_ids AS
 WITH worker_insert AS (
@@ -27,8 +27,12 @@ type_lookup AS (
         ) AS semester_type_id,
         max(worker_document_types.id) FILTER (
             WHERE worker_document_categories.name = 'Docencia'
-                AND worker_document_types.name = 'Evidencias'
-        ) AS evidence_type_id
+                AND worker_document_types.name = 'Evidencias bimestrales'
+        ) AS evidence_type_id,
+        max(worker_document_types.id) FILTER (
+            WHERE worker_document_categories.name = 'Docencia'
+                AND worker_document_types.name = 'Plan de trabajo semestral'
+        ) AS inactive_type_id
     FROM public.worker_document_types
     JOIN public.worker_document_categories
         ON worker_document_categories.id = worker_document_types.category_id
@@ -38,7 +42,8 @@ SELECT
     semester_insert.id AS semester_id,
     type_lookup.permanent_type_id,
     type_lookup.semester_type_id,
-    type_lookup.evidence_type_id
+    type_lookup.evidence_type_id,
+    type_lookup.inactive_type_id
 FROM worker_insert, semester_insert, type_lookup;
 
 SELECT throws_ok(
@@ -178,7 +183,7 @@ SELECT lives_ok(
         100
     FROM worker_documents_trigger_ids;
     $$,
-    'multiple Evidencias documents for same worker/type/scope are allowed'
+    'multiple Evidencias bimestrales documents for same worker/type/scope are allowed'
 );
 
 SELECT lives_ok(
@@ -258,6 +263,98 @@ SELECT throws_ok(
     '23514',
     'new row for relation "worker_documents" violates check constraint "worker_documents_file_size_check"',
     'file_size > 10485760 is rejected'
+);
+
+-- enforce_active_worker_document_type (design.md Decision 3): fires
+-- alphabetically before the two pre-existing triggers on the same
+-- BEFORE INSERT/UPDATE timing (enforce_active_... < enforce_single_... <
+-- enforce_worker_document_scope_...), so it is the one that actually
+-- raises for an inactive or nonexistent type in every case below.
+
+SELECT throws_ok(
+    $$
+    INSERT INTO public.worker_documents (
+        worker_id,
+        document_type_id,
+        semester_id,
+        file_name,
+        storage_path,
+        mime_type,
+        file_size
+    )
+    SELECT
+        worker_id,
+        999999999,
+        semester_id,
+        'nonexistent-type.pdf',
+        'triggers/nonexistent-type.pdf',
+        'application/pdf',
+        100
+    FROM worker_documents_trigger_ids
+    $$,
+    'P0001',
+    NULL,
+    'insert against a nonexistent document_type_id is rejected'
+);
+
+SELECT throws_ok(
+    $$
+    INSERT INTO public.worker_documents (
+        worker_id,
+        document_type_id,
+        semester_id,
+        file_name,
+        storage_path,
+        mime_type,
+        file_size
+    )
+    SELECT
+        worker_id,
+        inactive_type_id,
+        semester_id,
+        'inactive-type.pdf',
+        'triggers/inactive-type.pdf',
+        'application/pdf',
+        100
+    FROM worker_documents_trigger_ids
+    $$,
+    'WDT01',
+    NULL,
+    'insert against an inactive document_type_id is rejected with WDT01'
+);
+
+-- A fresh row against an active type, used by the two UPDATE tests below.
+INSERT INTO public.worker_documents (
+    worker_id, document_type_id, semester_id, file_name, storage_path, mime_type, file_size
+)
+SELECT worker_id, semester_type_id, semester_id, 'planeacion-update-fixture.pdf', 'triggers/planeacion-update-fixture.pdf', 'application/pdf', 100
+FROM worker_documents_trigger_ids;
+
+SELECT throws_ok(
+    $$
+    UPDATE public.worker_documents
+    SET document_type_id = (SELECT inactive_type_id FROM worker_documents_trigger_ids)
+    WHERE storage_path = 'triggers/planeacion-update-fixture.pdf'
+    $$,
+    'WDT01',
+    NULL,
+    'an update that changes document_type_id to an inactive type is rejected with WDT01'
+);
+
+-- Retire the fixture row's own type in place, then confirm an unrelated
+-- UPDATE (document_type_id unchanged) still succeeds -- the specific
+-- narrowing design.md Decision 3 requires.
+UPDATE public.worker_document_types
+SET is_active = false
+WHERE id = (SELECT semester_type_id FROM worker_documents_trigger_ids);
+
+SELECT lives_ok(
+    $$
+    UPDATE public.worker_documents
+    SET file_name = 'planeacion-update-fixture-renamed.pdf'
+    WHERE storage_path = 'triggers/planeacion-update-fixture.pdf'
+    $$,
+    'an update that leaves document_type_id unchanged succeeds even when that type is now inactive'
 );
 
 SELECT * FROM finish();
