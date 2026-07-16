@@ -5,7 +5,11 @@ import { getCurrentProfile } from "../../services/apiProfiles";
 export function useProfile() {
   const { user, isAuthenticated, isLoading: isLoadingUser } = useUser();
 
-  const { data: profile, isLoading: isLoadingProfile } = useQuery({
+  const {
+    data: profile,
+    isLoading: isLoadingProfile,
+    isError: isProfileError,
+  } = useQuery({
     queryKey: ["profile", user?.id],
     queryFn: getCurrentProfile,
     enabled: isAuthenticated,
@@ -16,6 +20,11 @@ export function useProfile() {
 
   return {
     isLoading: isLoadingUser || isLoadingResolvedProfile,
+    // Distinguishes a genuine profiles-query failure (network/RLS/db) from
+    // "authenticated but no profiles row" -- both previously collapsed to
+    // role: null with no way to tell them apart. Needed by
+    // useCurrentIdentity's profile-error state (see design.md).
+    isError: isAuthenticated && isProfileError,
     role,
     workerId: profile?.workerId ?? null,
     isWorker: role === "worker",
