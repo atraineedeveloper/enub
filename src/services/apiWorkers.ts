@@ -204,6 +204,34 @@ export async function getWorkerById(id: number) {
   return data;
 }
 
+export interface WorkerIdentityRow {
+  name: string | null;
+  profile_picture: string | null;
+}
+
+// Scoped to the authenticated-header identity path only -- uses
+// .maybeSingle() (not .single()) so a missing row resolves to `data: null`
+// with no thrown error, distinguishable from a genuine transport/RLS/db
+// failure (which still throws below). getWorkerById() above is left
+// unchanged for its existing callers, which correctly want a throw when a
+// specific worker id doesn't exist.
+export async function getWorkerIdentityById(
+  id: number
+): Promise<WorkerIdentityRow | null> {
+  const { data, error } = await supabase
+    .from("workers")
+    .select("name, profile_picture")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) {
+    console.error(error);
+    throw new Error("El perfil del trabajador no pudo cargarse");
+  }
+
+  return data;
+}
+
 interface CreateEditWorkerOptions {
   profilePictureFile?: File | null;
   removeCurrentProfilePicture?: boolean;
