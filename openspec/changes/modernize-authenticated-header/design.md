@@ -24,24 +24,24 @@ No React auth context exists; identity is resolved through two composed TanStack
 
 `profiles.role` is `null | "staff" | "admin" | "worker"`. The visible role label mapping is final and exact, with no merging of `staff` and `admin`:
 
-| `profiles.role` | Visible label |
-|---|---|
-| `admin` | `Administrador` |
-| `staff` | `Personal administrativo` |
-| `worker` | `Docente` |
-| anything else (unrecognized non-null value) | no label rendered — see `denied` state, §3 |
-| `null` (no `profiles` row) | no label rendered — see `incomplete` state, §3 |
+| `profiles.role`                             | Visible label                                  |
+| ------------------------------------------- | ---------------------------------------------- |
+| `admin`                                     | `Administrador`                                |
+| `staff`                                     | `Personal administrativo`                      |
+| `worker`                                    | `Docente`                                      |
+| anything else (unrecognized non-null value) | no label rendered — see `denied` state, §3     |
+| `null` (no `profiles` row)                  | no label rendered — see `incomplete` state, §3 |
 
 `worker` remains the only internal role identifier used in code, queries, and gating logic; `Docente` is strictly a UI string produced by the label-mapping function and never compared against or branched on.
 
 Exact sources, per field:
 
-| Field | `admin` / `staff` | `worker` |
-|---|---|---|
-| Role label | table above | table above |
-| Display name | **No staff/admin profile/name table exists.** Falls back to the local part of the Auth user's email (before `@`) — always, since there is no other source. This is an explicit, documented, temporary fallback (per proposal's Final Decisions), never the full email or the UUID. | `workers.name` when the worker row was found; otherwise the same email-local-part fallback (§3, §11) |
-| Profile picture | None available today → always initials/icon fallback | `workers.profile_picture` → `getProfilePicturePublicUrl()` (`src/services/apiWorkers.ts:158`) when the worker row was found and the field is set |
-| Initials fallback | Derived from the email-local-part fallback name | Derived from `workers.name`, or the email-local-part fallback when the row is missing |
+| Field             | `admin` / `staff`                                                                                                                                                                                                                                                                  | `worker`                                                                                                                                         |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Role label        | table above                                                                                                                                                                                                                                                                        | table above                                                                                                                                      |
+| Display name      | **No staff/admin profile/name table exists.** Falls back to the local part of the Auth user's email (before `@`) — always, since there is no other source. This is an explicit, documented, temporary fallback (per proposal's Final Decisions), never the full email or the UUID. | `workers.name` when the worker row was found; otherwise the same email-local-part fallback (§3, §11)                                             |
+| Profile picture   | None available today → always initials/icon fallback                                                                                                                                                                                                                               | `workers.profile_picture` → `getProfilePicturePublicUrl()` (`src/services/apiWorkers.ts:158`) when the worker row was found and the field is set |
+| Initials fallback | Derived from the email-local-part fallback name                                                                                                                                                                                                                                    | Derived from `workers.name`, or the email-local-part fallback when the row is missing                                                            |
 
 Role is never read from the URL, the layout component, or a hard-coded prop — `Header` calls `useCurrentIdentity()` itself, exactly like `RoleGate` and `WorkerRow` call `useProfile()` today.
 
@@ -55,16 +55,16 @@ type IdentityState =
   | {
       status: "ready";
       role: "admin" | "staff" | "worker";
-      roleLabel: string;          // exact table in §2
+      roleLabel: string; // exact table in §2
       displayName: string;
-      isNameFallback: boolean;    // true when displayName came from the email local-part
-      avatarUrl: string | null;   // trusted URL only, see §10
+      isNameFallback: boolean; // true when displayName came from the email local-part
+      avatarUrl: string | null; // trusted URL only, see §10
       initials: string;
     }
-  | { status: "incomplete" }      // authenticated, profiles query succeeded, but role is null (no row / hasNoAccess) OR role is "worker" with no valid workerId linkage
-  | { status: "denied" }          // authenticated, profiles row exists, but role is a value other than admin/staff/worker
-  | { status: "profile-error" }   // the profiles query itself failed (network/RLS/db) — distinct from "no row"
-  | { status: "worker-error" };   // role is worker, workerId is valid, but the worker-row query failed at the transport/RLS/db level (not "no row found")
+  | { status: "incomplete" } // authenticated, profiles query succeeded, but role is null (no row / hasNoAccess) OR role is "worker" with no valid workerId linkage
+  | { status: "denied" } // authenticated, profiles row exists, but role is a value other than admin/staff/worker
+  | { status: "profile-error" } // the profiles query itself failed (network/RLS/db) — distinct from "no row"
+  | { status: "worker-error" }; // role is worker, workerId is valid, but the worker-row query failed at the transport/RLS/db level (not "no row found")
 ```
 
 State resolution, in order:
@@ -75,11 +75,11 @@ State resolution, in order:
 4. Profile succeeded, `role` is a non-null value outside `{admin, staff, worker}` → `denied` (defensive; not expected in practice, but the schema does not constrain `role` to an enum today).
 5. `role` is `admin` or `staff` → `ready` immediately (no worker query involved; `displayName`/`initials` always derived from the email-local-part fallback, `isNameFallback: true`, `avatarUrl: null`).
 6. `role === "worker"`:
-   - `workerId` fails the gating check in §4 (missing, zero, negative, `NaN`, infinite, non-integer) → **`incomplete`**, not `ready`. The profile explicitly claims a worker identity but carries no valid worker linkage to resolve it from — there is no safe display name, role badge, or avatar to show, so the header renders the same minimal authenticated header as any other `incomplete` session (ENUB brand, theme toggle, direct logout only). This is deliberately different from a *valid* `workerId` whose lookup finds no row (next bullet), where the linkage itself is sound and only the row is absent.
+   - `workerId` fails the gating check in §4 (missing, zero, negative, `NaN`, infinite, non-integer) → **`incomplete`**, not `ready`. The profile explicitly claims a worker identity but carries no valid worker linkage to resolve it from — there is no safe display name, role badge, or avatar to show, so the header renders the same minimal authenticated header as any other `incomplete` session (ENUB brand, theme toggle, direct logout only). This is deliberately different from a _valid_ `workerId` whose lookup finds no row (next bullet), where the linkage itself is sound and only the row is absent.
    - `workerId` passes gating, worker query in flight → `loading`.
    - Worker query succeeded, row found → `ready` with `workers.name`/`workers.profile_picture` (`isNameFallback: false`).
-   - Worker query succeeded, no row found for a *valid* `workerId` (see §11) → `ready` with the email-local-part fallback identity (`isNameFallback: true`, visible role `Docente`, initials derived from that fallback) — "a missing worker record may use safe fallback identity derived from the authenticated account only if the profile itself is valid," per the revision's instruction. The linkage (`workerId`) was valid; only the row lookup came back empty.
-   - Worker query failed at the transport/RLS/database level for a *valid* `workerId` (see §11) → `worker-error`, **not** folded into the fallback-name path, so a real backend failure is never silently presented as an ordinary missing-name case.
+   - Worker query succeeded, no row found for a _valid_ `workerId` (see §11) → `ready` with the email-local-part fallback identity (`isNameFallback: true`, visible role `Docente`, initials derived from that fallback) — "a missing worker record may use safe fallback identity derived from the authenticated account only if the profile itself is valid," per the revision's instruction. The linkage (`workerId`) was valid; only the row lookup came back empty.
+   - Worker query failed at the transport/RLS/database level for a _valid_ `workerId` (see §11) → `worker-error`, **not** folded into the fallback-name path, so a real backend failure is never silently presented as an ordinary missing-name case.
 
 Rendering contract per state:
 
@@ -116,13 +116,13 @@ function canFetchWorkerIdentity(input: {
 - The profile query is keyed by `["profile", user?.id]` (`useProfile.ts:9`) and the worker query is keyed by `["worker", workerId]`. When the authenticated user id changes (new login), the profile query key changes, so TanStack Query treats it as a distinct query with no stale data to show — the identity hook immediately reflects `loading` (or `profile-error`/`incomplete`/etc.) for the new session rather than continuing to render the previous user's derived fields.
 - `useLogout()`'s existing `onSuccess` handler already calls `queryClient.removeQueries()` (`useLogout.ts:15`) before navigating to `/login` — this clears all cached profile/worker data on a **successful** logout, so a subsequent different-user login starts from a clean cache.
 - On a **failed** logout, `removeQueries()` never runs (it's in `onSuccess` only) and no navigation occurs, so the current user's cached identity correctly remains displayed — this is the desired behavior (§ tests below), not a bug to fix.
-- Because the worker query key is `["worker", workerId]` (keyed by worker id, not by auth user id), if two different authenticated users are ever linked to the same `workerId` in sequence, the cached row is a property of the **worker record**, not of the auth session — showing that worker's current row content for whichever authenticated account is presently linked to it is correct, not stale, as long as the *role and worker-id resolution* for the new session comes from a fresh, user-id-keyed profile query (which it does). The invariant under test is: a new authenticated user id always forces a fresh profile fetch, and only a profile that actually resolves `role === "worker"` with a valid `workerId` for *that* user ever triggers or reuses a worker-keyed query.
+- Because the worker query key is `["worker", workerId]` (keyed by worker id, not by auth user id), if two different authenticated users are ever linked to the same `workerId` in sequence, the cached row is a property of the **worker record**, not of the auth session — showing that worker's current row content for whichever authenticated account is presently linked to it is correct, not stale, as long as the _role and worker-id resolution_ for the new session comes from a fresh, user-id-keyed profile query (which it does). The invariant under test is: a new authenticated user id always forces a fresh profile fetch, and only a profile that actually resolves `role === "worker"` with a valid `workerId` for _that_ user ever triggers or reuses a worker-keyed query.
 
-**Current-user/profile-generation binding invariant.** This is stated explicitly, beyond the cache-key reasoning above, because the identity *resolver* (the plain function that turns query states into an `IdentityState`, independent of how TanStack Query happens to cache things) must never consume worker-query output on trust alone:
+**Current-user/profile-generation binding invariant.** This is stated explicitly, beyond the cache-key reasoning above, because the identity _resolver_ (the plain function that turns query states into an `IdentityState`, independent of how TanStack Query happens to cache things) must never consume worker-query output on trust alone:
 
-> Worker-query output may be treated as authoritative for the current render only when the current render's authenticated user id, its successfully-resolved profile, and its exact valid `workerId` are the *same inputs* that caused that worker-query result to be produced. If the authenticated user id has changed, the profile is still loading, the profile belongs to a different user generation than the worker result, the current profile no longer gates that exact `workerId`, or the worker result on hand is otherwise a stale prior-account snapshot, the resolver rejects it — it does not render it as identity data.
+> Worker-query output may be treated as authoritative for the current render only when the current render's authenticated user id, its successfully-resolved profile, and its exact valid `workerId` are the _same inputs_ that caused that worker-query result to be produced. If the authenticated user id has changed, the profile is still loading, the profile belongs to a different user generation than the worker result, the current profile no longer gates that exact `workerId`, or the worker result on hand is otherwise a stale prior-account snapshot, the resolver rejects it — it does not render it as identity data.
 
-This does **not** require adding the authenticated user id to the worker query's cache key (the existing `["worker", workerId]` key remains correct, per §11's reasoning that worker rows are a property of the worker record). The guard lives in the resolver's own logic, not in the cache key. Concretely, `useCurrentIdentity()` always recomputes `workerId` fresh from the *current* `useProfile()` output on every render and passes that same, single value both into `canFetchWorkerIdentity()` (§4) and into the worker query call — it never reads a memoized/previous-render `workerId`, and it never renders `worker query.data` when the profile that would currently gate that data is still loading, errored, or resolves to a different `workerId`/role than the one the on-hand worker result was produced for.
+This does **not** require adding the authenticated user id to the worker query's cache key (the existing `["worker", workerId]` key remains correct, per §11's reasoning that worker rows are a property of the worker record). The guard lives in the resolver's own logic, not in the cache key. Concretely, `useCurrentIdentity()` always recomputes `workerId` fresh from the _current_ `useProfile()` output on every render and passes that same, single value both into `canFetchWorkerIdentity()` (§4) and into the worker query call — it never reads a memoized/previous-render `workerId`, and it never renders `worker query.data` when the profile that would currently gate that data is still loading, errored, or resolves to a different `workerId`/role than the one the on-hand worker result was produced for.
 
 To make this invariant independently testable without a full TanStack Query integration test, the resolver's core decision is expressed as a pure function over an explicit snapshot shape:
 
@@ -144,7 +144,7 @@ interface WorkerQuerySnapshot {
 
 function resolveIdentityState(
   profile: ProfileSnapshot,
-  worker: WorkerQuerySnapshot | null // null when gating disallows a fetch this render
+  worker: WorkerQuerySnapshot | null, // null when gating disallows a fetch this render
 ): IdentityState {
   // 1. Reject a worker snapshot that doesn't belong to this exact profile generation.
   const workerMatchesCurrentProfile =
@@ -173,20 +173,21 @@ A worker snapshot that fails the `workerMatchesCurrentProfile` check is treated 
 - The logout button inside the popover uses normal button semantics and the same `useLogout()` hook as the minimal-header direct logout control (§7) — there is exactly one logout implementation, invoked from two possible locations depending on identity state.
 - In every non-`ready` state, the popover is not rendered at all — the direct logout control (§3) takes its place.
 
-**Dismissal-specific focus behavior.** Focus handling is not uniform across every way the popover can close — it depends on *why* it closed:
+**Dismissal-specific focus behavior.** Focus handling is not uniform across every way the popover can close — it depends on _why_ it closed:
 
-| Dismissal cause | Popover state | Focus behavior |
-|---|---|---|
-| `Escape` (or any other keyboard-driven dismissal) | closes | focus returns to the trigger button |
-| Mouse outside-click | closes | focus is **not** forcibly moved — wherever the click landed (or didn't land on a focusable element) is left alone |
-| Route navigation while open | closes | focus is **not** returned to the old trigger — the trigger may no longer be the meaningful thing to focus once the route (and often the page's content) has changed |
-| Logout activation | the existing logout flow runs (pending → success navigates to `/login`, or the mutation errors) | no focus-restoration is attempted during the resulting navigation; the logout flow's own behavior (§7) is authoritative and is not layered with popover-close focus logic |
+| Dismissal cause                                   | Popover state                                                                                   | Focus behavior                                                                                                                                                            |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Escape` (or any other keyboard-driven dismissal) | closes                                                                                          | focus returns to the trigger button                                                                                                                                       |
+| Mouse outside-click                               | closes                                                                                          | focus is **not** forcibly moved — wherever the click landed (or didn't land on a focusable element) is left alone                                                         |
+| Route navigation while open                       | closes                                                                                          | focus is **not** returned to the old trigger — the trigger may no longer be the meaningful thing to focus once the route (and often the page's content) has changed       |
+| Logout activation                                 | the existing logout flow runs (pending → success navigates to `/login`, or the mutation errors) | no focus-restoration is attempted during the resulting navigation; the logout flow's own behavior (§7) is authoritative and is not layered with popover-close focus logic |
 
 Only the keyboard-dismissal path performs an explicit focus-return; the other three close the popover as a pure visibility change with no additional focus side effect.
 
 ### 7. Logout reuse
 
 Both the popover's `Cerrar sesión` button and the minimal-header direct logout control call the same `useLogout()` hook (`{ logout, isLoading }`) — no second logout implementation is introduced. Both:
+
 - disable themselves and show a pending affordance while `isLoading` is true, preventing duplicate submissions (same guard `Logout.tsx` already applies via `disabled={isLoading}`);
 - preserve the existing error behavior (the mutation has no `onError` today beyond default React Query handling — unchanged);
 - remain reachable and activatable via keyboard (both are real `<button>` elements).
@@ -221,6 +222,7 @@ Three tiers, with a deterministic collapse order realized across these two break
 This keeps the documented four-step collapse order (subtitle → route context → name/role → avatar trigger persists) fully deterministic using only the two fixed breakpoints above, with no fluid/container-query-based sizing decision left ambiguous.
 
 Additional deterministic rules:
+
 - **Identity text max-width**: the name span has a fixed `max-width` (e.g. `16rem`/160px at the root 10px-per-rem scale) with `overflow: hidden; text-overflow: ellipsis; white-space: nowrap` — never wraps, so header height never grows from a long name. The full name is available via the `title` attribute and unabridged inside the popover.
 - **No horizontal overflow**: all flexible regions use `min-width: 0` so text truncation (not overflow) is always the resolution for long content.
 - **Touch targets**: every interactive header control (sidebar toggle, theme toggle, account/avatar trigger, direct logout control, popover buttons) has a minimum hit area of 44×44 CSS px, achieved via `min-width`/`min-height`/padding rather than shrinking the visual icon — the current `MenuButton` at `3.6rem`/36px (§1) is widened to meet this on all breakpoints, not just mobile.
@@ -236,14 +238,14 @@ Additional deterministic rules:
 - **No broken-image UI**: the `<img>`'s `onError` handler flips the display to the initials fallback before the browser's broken-image icon can render.
 - **Unicode-safe initials**: initials are computed with a Unicode-letter-aware matcher (`\p{L}` under the `u` regex flag) so accented letters (á, é, ñ, ü, …) are preserved and correctly uppercased via `toLocaleUpperCase()`, not stripped by an ASCII-only assumption.
 - **One-word vs multi-word**: a single-word name yields one initial (its first letter); a multi-word name yields two initials, the first letter of the first word and the first letter of the last word (skipping to the first actual letter character in each, so stray leading punctuation doesn't produce a blank initial).
-- **Local-part extraction before initials**: when the identity is in the email-local-part fallback (`isNameFallback: true`), the email's local part is extracted and its separator characters (`.`, `_`, `+`, `-`) are normalized to spaces *before* the string reaches the initials function — the domain is discarded at extraction time, so it is structurally impossible for it to appear in the initials output.
+- **Local-part extraction before initials**: when the identity is in the email-local-part fallback (`isNameFallback: true`), the email's local part is extracted and its separator characters (`.`, `_`, `+`, `-`) are normalized to spaces _before_ the string reaches the initials function — the domain is discarded at extraction time, so it is structurally impossible for it to appear in the initials output.
 - **Decorative when the trigger already names it**: inside `AccountPopover`'s trigger button, the avatar element is `aria-hidden="true"` (no competing `alt`/label), because the surrounding button already carries the full accessible name (§9). A standalone `Avatar` used outside that context (if ever) takes its own `name`/`alt`.
 
 Both the initials function and the picture/initials/icon fallback decision are implemented as pure, side-effect-free helpers so they are directly unit-testable without rendering (§13).
 
 ### 11. Distinguishing missing worker from worker-query failure
 
-`getWorkerById()` (`src/services/apiWorkers.ts:192-199`) uses `.select("*").eq("id", id).single()`. Supabase's `.single()` throws (via a returned `error`) both when zero rows match *and* when a genuine transport/RLS/database error occurs — the existing function collapses both into one thrown `Error`, which is exactly the ambiguity the revision flags. `getWorkerById()` itself is left unchanged, because its other callers (`WorkerDocuments.tsx`, `CreateEditWorkerForm.tsx` editing an existing worker, etc.) correctly want "throw if the specific worker id doesn't exist" behavior — changing its underlying query method would alter behavior for those unrelated call sites, which the revision explicitly warns against.
+`getWorkerById()` (`src/services/apiWorkers.ts:192-199`) uses `.select("*").eq("id", id).single()`. Supabase's `.single()` throws (via a returned `error`) both when zero rows match _and_ when a genuine transport/RLS/database error occurs — the existing function collapses both into one thrown `Error`, which is exactly the ambiguity the revision flags. `getWorkerById()` itself is left unchanged, because its other callers (`WorkerDocuments.tsx`, `CreateEditWorkerForm.tsx` editing an existing worker, etc.) correctly want "throw if the specific worker id doesn't exist" behavior — changing its underlying query method would alter behavior for those unrelated call sites, which the revision explicitly warns against.
 
 Instead, this change adds a small, separate function scoped to the identity path:
 
@@ -266,6 +268,7 @@ export async function getWorkerIdentityById(id: number) {
 ```
 
 `.maybeSingle()` returns `data: null` (no `error`) when no row matches, and still surfaces `error` for real failures — so the identity hook can cleanly branch:
+
 - `data` present → worker row found → `ready` with real name/picture (§3).
 - `data === null`, no thrown error → worker row missing → `ready` with the email-local-part fallback (§3).
 - thrown error → `worker-error` (§3) — never silently treated as the ordinary missing-name fallback path.
@@ -275,6 +278,7 @@ This is the minimal, unrelated-behavior-safe way to satisfy the revision's requi
 ### 12. Dark mode verification
 
 All new elements (`Avatar`, `AccountPopover`, route-context label, the widened touch-target buttons) use only existing CSS custom properties, which already redefine themselves under `.dark-mode` (`GlobalStyles.ts`). Explicit verification is required (captured in tasks.md and the manual matrix) for each of the following in both light and dark mode:
+
 - header surface (`--color-grey-0`),
 - popover background (`--color-grey-0`) and its shadow (`--shadow-md`),
 - border (`--color-grey-100`/`--color-grey-200`),
@@ -338,6 +342,7 @@ None expected. `Header`'s exported prop contract (`onToggleSidebar?`) is unchang
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Give `admin`, `staff`, and `worker` sessions distinct, correctly-labeled identity (name, role, avatar) and page context in the shared header, on desktop and mobile.
 - Define an explicit, exhaustive identity-state model so no render path can show a guessed or stale identity.
 - Gate the worker lookup strictly enough that `admin`/`staff` sessions can never trigger it and invalid worker links fail safe.
@@ -345,6 +350,7 @@ None expected. `Header`'s exported prop contract (`onToggleSidebar?`) is unchang
 - Keep one shared `Header` implementation, role-aware via real auth/profile data, correctly aligned whether or not a sidebar toggle is present.
 
 **Non-Goals:**
+
 - Notifications, global search, messaging, account settings, profile editing, change-password UI, sidebar IA redesign, or any other scope-excluded item from the proposal.
 - A new design system, new component library, or new dependency (including no DOM-testing library).
 - Adding a staff/admin profile table or any new Supabase schema — this change only reads what `profiles` and `workers` already expose, via one additive service function.
@@ -367,12 +373,12 @@ None expected. `Header`'s exported prop contract (`onToggleSidebar?`) is unchang
      { pattern: "/semesters/:id", label: "Horario del semestre" },
      { pattern: "/semesters", label: "Semestres" },
      { pattern: "/dashboard", label: "Inicio" },
-     { pattern: "/degrees", label: "Grados" },
+     { pattern: "/degrees", label: "Licenciaturas" },
      { pattern: "/subjects", label: "Materias" },
      { pattern: "/groups", label: "Grupos" },
      { pattern: "/study-programs", label: "Programas de estudio" },
      { pattern: "/state-roles", label: "Roles estatales" },
-     { pattern: "/roles", label: "Roles" },
+     { pattern: "/roles", label: "Roles" },s
      { pattern: "/others", label: "Otros" },
      { pattern: "/my-documents", label: "Mis documentos" },
      { pattern: "/pending-access", label: "Acceso pendiente" },
@@ -387,8 +393,9 @@ None expected. `Header`'s exported prop contract (`onToggleSidebar?`) is unchang
    ```
 
    The list is authored most-specific-first and checked in order, so `/workers/:id/documents` is tried (and can match) before the more general `/workers/:id`, which is tried before `/workers` — this is what "prefer the most specific matching route" means in practice here, since `matchPath` itself does not rank patterns by specificity. `/semesters/:id` resolves to the exact label `"Horario del semestre"`, distinct from `/semesters` → `"Semestres"`; an unmatched authenticated route (e.g. `PageNotFound`) falls back to `"ENUB"`, never a raw segment.
+
 6. **Three-region flex layout replacing `space-between` + empty-span centering.** Directly removes the alignment coupling between "is a sidebar toggle present" and "does the header look correct" (§8) — a structural fix, not a cosmetic one.
-7. **Email-local-part fallback for display name when no name field exists**, finalized (no longer an open question): admins/staff have no name-bearing table today; a *valid* worker link whose row lookup finds nothing degrades to the same fallback. An *invalid or missing* worker link, by contrast, resolves to `incomplete` (§3) rather than a fallback identity — the profile's claim of a worker role is itself unverifiable in that case, so the header shows the minimal authenticated state instead of inventing an identity for a link that was never established.
+7. **Email-local-part fallback for display name when no name field exists**, finalized (no longer an open question): admins/staff have no name-bearing table today; a _valid_ worker link whose row lookup finds nothing degrades to the same fallback. An _invalid or missing_ worker link, by contrast, resolves to `incomplete` (§3) rather than a fallback identity — the profile's claim of a worker role is itself unverifiable in that case, so the header shows the minimal authenticated state instead of inventing an identity for a link that was never established.
 8. **Generation-guarded resolver over trusting cache-key matching alone (§5).** TanStack Query's `["worker", workerId]` key is sufficient for correctness in the common case, but the resolver explicitly re-validates that any worker-query result it is about to render belongs to the current render's profile-derived `authUserId`/`workerId` before using it, expressed as a small pure function (`resolveIdentityState` over `ProfileSnapshot`/`WorkerQuerySnapshot`) so the invariant is enforced by code structure and independently unit-testable, not merely an emergent property of how the query key happens to be constructed.
 9. **Exactly two fixed, viewport-width breakpoints (`900px` existing, `1100px` new) instead of container queries or a third breakpoint.** Satisfies "use fixed media queries... do not use container queries... one explicit intermediate threshold" precisely, while still realizing the four-step collapse order (subtitle → route context → name/role → avatar persists) via a mix of `display: none` steps and, at the intermediate tier, `flex-shrink`/ellipsis truncation on the route-context label rather than a third hard breakpoint.
 10. **Dismissal-specific focus rules (§6) instead of a single "always return focus" rule.** Returning focus to a trigger that navigated away with the page (route change) or that the user never keyboard-focused in the first place (outside click) would fight the browser's/user's own focus expectations; only the keyboard-dismissal path (Escape) gets an explicit focus-return, matching standard disclosure-widget conventions.

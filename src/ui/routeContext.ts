@@ -11,7 +11,7 @@ const ROUTE_CONTEXT_PATTERNS: { pattern: string; label: string }[] = [
   { pattern: "/semesters/:id", label: "Horario del semestre" },
   { pattern: "/semesters", label: "Semestres" },
   { pattern: "/dashboard", label: "Inicio" },
-  { pattern: "/degrees", label: "Grados" },
+  { pattern: "/degrees", label: "Licenciaturas" },
   { pattern: "/subjects", label: "Materias" },
   { pattern: "/groups", label: "Grupos" },
   { pattern: "/study-programs", label: "Programas de estudio" },
