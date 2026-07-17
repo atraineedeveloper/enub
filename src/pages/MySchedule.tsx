@@ -1,12 +1,15 @@
-import MyScheduleView from "../features/schedules/MyScheduleView";
+import Heading from "../ui/Heading";
 
-// Gating (loading -> staff/admin redirect -> invalid-link redirect) lives
-// above this page, at the route-branch level (App.tsx's WorkerRouteGate
-// layout route) -- nothing worker-facing renders before that resolves.
-// MyScheduleView resolves its own authUserId/workerId internally, from
-// the authenticated session/profile path, never from a prop here.
+// Temporarily an empty placeholder (product decision, not a defect):
+// "Mi horario" stays visible in the worker nav and the /my-schedule route
+// stays reachable, but this page deliberately does not render
+// MyScheduleView, so none of its schedule queries (semesters,
+// schedule_assignments, schedule_teachers) ever fire and no unnecessary
+// data is loaded. MyScheduleView and the rest of the feature's code are
+// untouched -- restoring the real page is just swapping this file's body
+// back to `<MyScheduleView />`.
 function MySchedule() {
-  return <MyScheduleView />;
+  return <Heading as="h1">Mi horario</Heading>;
 }
 
 export default MySchedule;
