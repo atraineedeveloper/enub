@@ -19,6 +19,8 @@ const ROUTE_CONTEXT_PATTERNS: { pattern: string; label: string }[] = [
   { pattern: "/roles", label: "Roles" },
   { pattern: "/others", label: "Otros" },
   { pattern: "/my-documents", label: "Mis documentos" },
+  { pattern: "/my-schedule", label: "Mi horario" },
+  { pattern: "/my-profile", label: "Mi información" },
   { pattern: "/pending-access", label: "Acceso pendiente" },
 ];
 

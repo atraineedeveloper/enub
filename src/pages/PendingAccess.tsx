@@ -1,7 +1,9 @@
 import styled from "styled-components";
 import Heading from "../ui/Heading";
 
-// Rendered inside WorkerAppLayout's Main, which already provides the header
+// Rendered inside PendingAccessLayout's Main (not WorkerAppLayout -- this
+// route is WorkerRouteGate's own denial target, so it is never nested
+// inside the gate/layout it fails), which still provides the shared header
 // and its Logout action -- this only needs its own centered message card.
 const Card = styled.div`
   width: min(90vw, 48rem);

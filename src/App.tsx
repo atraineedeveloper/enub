@@ -8,6 +8,7 @@ import { DarkModeProvider } from "./context/DarkModeContext";
 import GlobalStyles from "./styles/GlobalStyles";
 import ProtectedRoute from "./ui/ProtectedRoute";
 import RoleGate from "./ui/RoleGate";
+import { buildWorkerRouteBranch, buildPendingAccessBranch } from "./ui/workerRouteBranch";
 import SpinnerFullPage from "./ui/SpinnerFullPage";
 
 const PageNotFound = lazy(() => import("./pages/PageNotFound"));
@@ -28,6 +29,8 @@ const Roles = lazy(() => import("./pages/Records/Roles"));
 const Login = lazy(() => import("./pages/Login"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const MyDocuments = lazy(() => import("./pages/MyDocuments"));
+const MySchedule = lazy(() => import("./pages/MySchedule"));
+const MyProfile = lazy(() => import("./pages/MyProfile"));
 const PendingAccess = lazy(() => import("./pages/PendingAccess"));
 const SetPassword = lazy(() => import("./pages/SetPassword"));
 
@@ -82,16 +85,28 @@ function App() {
                 <Route path="*" element={<PageNotFound />} />
               </Route>
 
-              <Route
-                element={
-                  <ProtectedRoute>
-                    <WorkerAppLayout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route path="my-documents" element={<MyDocuments />} />
-                <Route path="pending-access" element={<PendingAccess />} />
-              </Route>
+              {/* Authorization (role/profile-linkage) is resolved by
+                  WorkerRouteGate BEFORE WorkerAppLayout -- and therefore
+                  Header/WorkerNav/any page content -- ever mounts, so an
+                  admin/staff/unauthorized session never renders so much as
+                  a flash of worker navigation (audit finding: route-branch
+                  gating). pending-access is deliberately a sibling of this
+                  whole group, still behind ProtectedRoute only -- it is the
+                  gate's own denial target, so it can never be nested inside
+                  the thing that denies access to it. Both branches are
+                  built by buildWorkerRouteBranch/buildPendingAccessBranch
+                  (workerRouteBranch.tsx) -- the SAME function
+                  workerRouteBranchRender.test.tsx renders directly, so the
+                  test exercises this exact construction, not a hand-copied
+                  approximation of it. */}
+              {buildWorkerRouteBranch({
+                workerAppLayout: <WorkerAppLayout />,
+                myDocuments: <MyDocuments />,
+                mySchedule: <MySchedule />,
+                myProfile: <MyProfile />,
+              })}
+
+              {buildPendingAccessBranch(<PendingAccess />)}
 
               <Route path="login" element={<Login />} />
               {/* Not wrapped in ProtectedRoute: a worker requesting recovery
