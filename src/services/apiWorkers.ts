@@ -232,6 +232,49 @@ export async function getWorkerIdentityById(
   return data;
 }
 
+export interface MyWorkerProfile {
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  type_worker: string | null;
+  status: number | null;
+  specialty: string | null;
+  function_performed: string | null;
+  profile_picture: string | null;
+}
+
+// Backs the read-only "Mi información" self-service page. The explicit
+// column list is a request/UI minimization -- it keeps the network payload
+// and the frontend's data model limited to exactly what that page renders
+// (RFC, address, observations, id, and created_at are never requested
+// here) -- it is NOT a database-level column confidentiality boundary.
+// `workers` row-level security ("Workers can read own worker row")
+// authorizes the *row*, not individual columns: a worker's own
+// authenticated client remains capable of requesting every column of
+// their own row directly, regardless of this projection. True column-level
+// confidentiality (a restricted view or a SECURITY INVOKER function with a
+// database-enforced allow-list) is tracked as a separate follow-up, not
+// delivered by this function. Same .maybeSingle() missing-row-vs-error
+// handling as getWorkerIdentityById() above.
+export async function getMyWorkerProfile(
+  id: number
+): Promise<MyWorkerProfile | null> {
+  const { data, error } = await supabase
+    .from("workers")
+    .select(
+      "name, email, phone, type_worker, status, specialty, function_performed, profile_picture"
+    )
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) {
+    console.error(error);
+    throw new Error("La información no pudo cargarse");
+  }
+
+  return data;
+}
+
 interface CreateEditWorkerOptions {
   profilePictureFile?: File | null;
   removeCurrentProfilePicture?: boolean;

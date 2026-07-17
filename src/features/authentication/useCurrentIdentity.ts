@@ -7,6 +7,7 @@ import {
   type WorkerIdentityRow,
 } from "../../services/apiWorkers";
 import { getInitials, nameFromEmail } from "../../ui/avatarIdentity";
+import { isValidWorkerId } from "./workerLinkValidation";
 
 export type Role = "admin" | "staff" | "worker";
 
@@ -54,10 +55,7 @@ export function canFetchWorkerIdentity(input: {
   if (input.role !== "worker") return false;
   if (typeof input.authUserId !== "string") return false;
   if (input.authUserId.trim().length === 0) return false;
-  if (typeof input.workerId !== "number") return false;
-  if (!Number.isFinite(input.workerId)) return false;
-  if (!Number.isInteger(input.workerId)) return false;
-  if (input.workerId <= 0) return false;
+  if (!isValidWorkerId(input.workerId)) return false;
   return true;
 }
 

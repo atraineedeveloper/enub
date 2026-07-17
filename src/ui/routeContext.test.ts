@@ -41,6 +41,14 @@ describe("resolveRouteContextLabel (most-specific-match route resolver)", () => 
     expect(resolveRouteContextLabel("/my-documents")).toBe("Mis documentos");
   });
 
+  test("/my-schedule -> Mi horario", () => {
+    expect(resolveRouteContextLabel("/my-schedule")).toBe("Mi horario");
+  });
+
+  test("/my-profile -> Mi información", () => {
+    expect(resolveRouteContextLabel("/my-profile")).toBe("Mi información");
+  });
+
   test("an unknown authenticated route falls back to ENUB, never a raw segment", () => {
     expect(resolveRouteContextLabel("/some-unmapped-route")).toBe("ENUB");
   });

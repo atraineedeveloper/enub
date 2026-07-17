@@ -2,12 +2,13 @@ import { Outlet } from "react-router-dom";
 import { Suspense } from "react";
 import styled from "styled-components";
 import Header from "./Header";
+import WorkerNav from "./WorkerNav";
 import Spinner from "./Spinner";
 import ErrorBoundary from "./ErrorBoundary";
 
 const StyledWorkerAppLayout = styled.div`
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   min-height: 100vh;
 `;
 
@@ -22,11 +23,15 @@ const Main = styled.main`
 `;
 
 // Worker-facing counterpart to AppLayout.tsx: same Header (with its own
-// Logout action), no Sidebar/MainNav -- workers never see staff navigation.
+// account popover), no admin Sidebar/MainNav -- workers never see staff
+// navigation. WorkerNav is a separate, worker-only navigation row (Mis
+// documentos / Mi horario / Mi información), not a reuse or extension of
+// the admin Sidebar/MainNav.
 function WorkerAppLayout() {
   return (
     <StyledWorkerAppLayout>
       <Header />
+      <WorkerNav />
       <Main>
         <Suspense fallback={<Spinner />}>
           <ErrorBoundary>
