@@ -49,13 +49,13 @@ describe("resolveRouteContextLabel (most-specific-match route resolver)", () => 
     expect(resolveRouteContextLabel("/my-profile")).toBe("Mi información");
   });
 
-  test("an unknown authenticated route falls back to ENUB, never a raw segment", () => {
-    expect(resolveRouteContextLabel("/some-unmapped-route")).toBe("ENUB");
+  test("an unknown authenticated route falls back to ENU, never a raw segment", () => {
+    expect(resolveRouteContextLabel("/some-unmapped-route")).toBe("ENU");
   });
 
   test("the fallback never leaks the raw pathname", () => {
     const result = resolveRouteContextLabel("/totally/unknown/nested/path");
-    expect(result).toBe("ENUB");
+    expect(result).toBe("ENU");
     expect(result).not.toContain("unknown");
   });
 });

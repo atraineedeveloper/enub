@@ -260,11 +260,11 @@ otp_expiry = 3600
 # only, matching the worker-self-service-documents spec's plain-text/simple
 # email requirement.
 [auth.email.template.invite]
-subject = "Activa tu cuenta de Enub"
+subject = "Activa tu cuenta de ENU"
 content_path = "./supabase/templates/invite.html"
 
 [auth.email.template.recovery]
-subject = "Restablece tu acceso a Enub"
+subject = "Restablece tu acceso a ENU"
 content_path = "./supabase/templates/recovery.html"
 
 # Uncomment to customize notification email template

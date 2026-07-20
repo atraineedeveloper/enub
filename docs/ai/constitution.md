@@ -1,6 +1,6 @@
-# Enub Project Constitution
+# ENU Project Constitution
 
-This document defines the non-negotiable engineering rules for Enub. Agents and humans must follow these rules when planning, implementing, reviewing, and documenting changes.
+This document defines the non-negotiable engineering rules for ENU. Agents and humans must follow these rules when planning, implementing, reviewing, and documenting changes.
 
 ## 1. Specs before implementation
 

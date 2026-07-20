@@ -24,7 +24,7 @@ const ROUTE_CONTEXT_PATTERNS: { pattern: string; label: string }[] = [
   { pattern: "/pending-access", label: "Acceso pendiente" },
 ];
 
-export const ROUTE_CONTEXT_FALLBACK_LABEL = "ENUB";
+export const ROUTE_CONTEXT_FALLBACK_LABEL = "ENU";
 
 // Never displays a raw URL segment: an unmatched authenticated route
 // resolves to the fixed fallback label above.

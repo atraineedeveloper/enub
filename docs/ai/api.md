@@ -1,6 +1,6 @@
 # API and Data Contracts
 
-This document describes Enub's application-facing API/data contracts. Enub is a React/Vite frontend backed by Supabase, so most data access happens through Supabase client calls in `src/services/api*.js`, plus a small number of Supabase Edge Functions for privileged flows.
+This document describes ENU's application-facing API/data contracts. ENU is a React/Vite frontend backed by Supabase, so most data access happens through Supabase client calls in `src/services/api*.js`, plus a small number of Supabase Edge Functions for privileged flows.
 
 ## Data-access rule
 

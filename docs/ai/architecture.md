@@ -1,4 +1,4 @@
-# Enub Architecture
+# ENU Architecture
 
 ## Stack
 
