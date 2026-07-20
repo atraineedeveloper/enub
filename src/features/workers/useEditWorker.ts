@@ -1,6 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createEditWorkers } from "../../services/apiWorkers";
 import { toast } from "react-hot-toast";
+import {
+  handleWorkerEditError,
+  handleWorkerEditSuccess,
+} from "./workerEditFeedback";
 
 interface EditWorkerOptions {
   profilePictureFile?: File | null;
@@ -16,10 +20,6 @@ interface EditWorkerVariables {
   options?: EditWorkerOptions;
 }
 
-// createEditWorkers is untyped JS (out of scope); TS infers its `options`
-// param narrowly from the destructured defaults (e.g. `profilePictureFile =
-// null` implies `null`, not `File | null`). This cast describes the real,
-// accepted shape without converting apiWorkers.js.
 const createOrEditWorker = createEditWorkers as (
   newWorker: Record<string, unknown>,
   id: number | undefined,
@@ -33,10 +33,11 @@ export function useEditWorker() {
     mutationFn: ({ newWorker, id, options }: EditWorkerVariables) =>
       createOrEditWorker(newWorker, id, options),
     onSuccess: () => {
-      toast.success("El registro se actualizó con éxito");
-      queryClient.invalidateQueries({ queryKey: ["workers"] });
+      handleWorkerEditSuccess(toast.success, () => {
+        void queryClient.invalidateQueries({ queryKey: ["workers"] });
+      });
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) => handleWorkerEditError(err, toast.error),
   });
 
   return { isEditing, editWorker };

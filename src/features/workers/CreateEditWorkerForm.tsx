@@ -19,6 +19,7 @@ import {
 import { getProfilePicturePublicUrl } from "../../services/apiWorkers";
 import { useEffect, useRef, useState } from "react";
 import type { WorkerWithDetails } from "./useWorkers";
+import { selectChangedWorkerRelations } from "./workerEditRelations";
 
 const PhotoCard = styled.div`
   display: flex;
@@ -245,7 +246,7 @@ function CreateEditWorkerForm({
             date_of_admissions: [{ type: "", date_of_admission: "" }],
           }) as FieldValues,
     });
-  const { errors } = formState;
+  const { errors, dirtyFields } = formState;
   const { fields: plazaFields, append, remove } = useFieldArray({
     control,
     name: "sustenance_plazas",
@@ -307,14 +308,11 @@ function CreateEditWorkerForm({
       const selectedProfilePicture = data.profile_picture_file?.[0];
       const removeCurrentProfilePicture = Boolean(data.remove_profile_picture);
 
-      const dateOfAdmissions = (data.date_of_admissions ?? []).filter(
-        (d: { type?: string; date_of_admission?: string }) =>
-          d.type || d.date_of_admission
-      );
+      const { sustenancePlazas, dateOfAdmissions } =
+        selectChangedWorkerRelations(dirtyFields, data);
       delete data.date_of_admissions;
       delete data.schedule_assignments;
       delete data.schedule_teachers;
-      const sustenancePlazas = data.sustenance_plazas ?? [];
       delete data.sustenance_plazas;
       delete data.profile_picture_file;
       delete data.remove_profile_picture;
