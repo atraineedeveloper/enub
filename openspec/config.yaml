@@ -1,20 +1,42 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Enub is a school-management PWA built with React 18, Vite, TypeScript,
+  Supabase, TanStack Query, React Router, Styled Components and Bun.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+  Architecture:
+  - Pages: src/pages
+  - Domain UI and hooks: src/features/<domain>
+  - Supabase access: src/services/api*
+  - Shared UI: src/ui
+  - Shared hooks: src/hooks
+  - Global context: src/context
+  - Routes: src/App.jsx
+  - Database migrations and tests: supabase/
+
+  Development priorities:
+  - Prefer small, reversible changes.
+  - Reuse existing patterns before introducing abstractions or dependencies.
+  - Protect authentication, authorization, worker-document access and Supabase data.
+  - Use Bun for local commands.
+  - Never commit secrets or modify remote Supabase without explicit approval.
+
+rules:
+  proposal:
+    - Keep the proposal concise; target 250 words or fewer for normal changes.
+    - State the user-visible outcome, scope, non-goals and risk level.
+    - Identify affected routes, Supabase objects or public data contracts.
+    - For small low-risk changes, combine discovery into the proposal instead of creating extra research documents.
+  specs:
+    - Write only requirements changed by this work.
+    - Express acceptance criteria as concrete scenarios that can be verified.
+    - Include permission and failure scenarios when authentication, roles, documents or Supabase data are affected.
+  design:
+    - Create a substantive design only for database migrations, security or authorization changes, new dependencies, cross-feature refactors, public contract changes or work spanning multiple architectural layers.
+    - For low-risk single-area changes, keep design decisions brief and avoid repeating the proposal.
+  tasks:
+    - Keep tasks implementation-sized and ordered by dependency.
+    - Include only verification relevant to the affected area.
+    - Always run typecheck and lint; run build for UI, routing or bundling changes.
+    - Run relevant unit tests and Supabase local checks when those areas change.
+    - Include manual route verification only when behavior cannot be covered automatically.
