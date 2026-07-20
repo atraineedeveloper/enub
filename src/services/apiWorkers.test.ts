@@ -64,24 +64,30 @@ describe("getWorkerIdentityById (missing row vs. query failure)", () => {
   });
 });
 
-describe("getMyWorkerProfile (exact eight-field projection)", () => {
-  test("selects exactly the eight allow-listed fields, in the documented order", async () => {
+describe("getMyWorkerProfile (explicit projection, nested relations, no select(*))", () => {
+  test("selects exactly the documented flat columns plus the two narrow embedded relations", async () => {
     nextResponse = { data: null, error: null };
     await getMyWorkerProfile(7);
 
     expect(lastSelectArg).toBe(
-      "name, email, phone, type_worker, status, specialty, function_performed, profile_picture"
+      "name, RFC, email, phone, street, neighborhood, post_code, city, state, " +
+        "type_worker, specialty, function_performed, status, profile_picture, " +
+        "sustenance_plazas(sustenance, payment_key, plaza), " +
+        "date_of_admissions(type, date_of_admission)"
     );
   });
 
-  test("never requests id, RFC, address fields, observations, or created_at", async () => {
+  test("never requests id, worker_id, observations, created_at, or a raw select(*) anywhere in the string", async () => {
     nextResponse = { data: null, error: null };
     await getMyWorkerProfile(7);
 
-    const excluded = ["RFC", "city", "neighborhood", "post_code", "state", "street", "observations", "created_at", "*"];
+    const excluded = ["observations", "created_at", "worker_id", "*"];
     for (const field of excluded) {
       expect(lastSelectArg).not.toContain(field);
     }
+    // "id" alone would also match inside "worker_id"/other substrings, so
+    // check it as a field boundary instead of a plain substring.
+    expect(lastSelectArg).not.toMatch(/(^|[,\s(])id(,|\s|$)/);
   });
 
   test("never uses select(\"*\")", async () => {
@@ -90,22 +96,44 @@ describe("getMyWorkerProfile (exact eight-field projection)", () => {
     expect(lastSelectArg).not.toBe("*");
   });
 
-  test("filters by the exact id column and the given value", async () => {
+  test("each embedded relation requests only its own narrow, explicit columns", async () => {
+    nextResponse = { data: null, error: null };
+    await getMyWorkerProfile(7);
+
+    expect(lastSelectArg).toContain(
+      "sustenance_plazas(sustenance, payment_key, plaza)"
+    );
+    expect(lastSelectArg).toContain(
+      "date_of_admissions(type, date_of_admission)"
+    );
+    expect(lastSelectArg).not.toContain("sustenance_plazas(*)");
+    expect(lastSelectArg).not.toContain("date_of_admissions(*)");
+  });
+
+  test("filters by the exact id column and the given value -- a row-selection filter, not an authorization mechanism", async () => {
     nextResponse = { data: null, error: null };
     await getMyWorkerProfile(42);
     expect(lastEqArgs).toEqual(["id", 42]);
   });
 
-  test("a matching row returns exactly its eight fields", async () => {
+  test("a matching row returns exactly the requested fields, including nested relation arrays", async () => {
     const row = {
       name: "Ana Pérez",
+      RFC: "PEAA800101ABC",
       email: "ana@example.test",
       phone: "555-0000",
+      street: "Av. Reforma 123",
+      neighborhood: "Centro",
+      post_code: "86000",
+      city: "Villahermosa",
+      state: "Tabasco",
       type_worker: "Docente",
-      status: 1,
       specialty: "Matemáticas",
       function_performed: "Titular",
+      status: 1,
       profile_picture: null,
+      sustenance_plazas: [{ sustenance: "Estatal", payment_key: "01", plaza: "Base" }],
+      date_of_admissions: [{ type: "Ingreso", date_of_admission: "2020-01-01" }],
     };
     nextResponse = { data: row, error: null };
 
