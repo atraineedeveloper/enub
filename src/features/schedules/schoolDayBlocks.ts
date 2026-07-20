@@ -1,3 +1,4 @@
+import { SCHEDULE_BLOCKS } from "./scheduleBlocks";
 import { TEACHER_SCHEDULE_BLOCKS } from "./teacherScheduleBlocks";
 import type { WorkerScheduleEntry } from "./workerScheduleEntry";
 
@@ -60,30 +61,64 @@ export function formatSchoolDayBlockLabel(startTime: string, endTime: string): s
   return `${formatPart(startTime)} - ${formatPart(endTime)}`;
 }
 
+// The extracurricular block's start time -- matches the admin's own
+// hard-coded check (RowTeacherSchedule.tsx's `hasExtraHours`) exactly, so
+// both surfaces agree on the same condition without importing from each
+// other.
+const EXTRACURRICULAR_BLOCK_START_TIME = "17:00:00";
+
 /**
- * The full desktop-grid row sequence: every canonical teachable block
- * (TEACHER_SCHEDULE_BLOCKS) interleaved with both fixed recess periods,
- * in chronological order. Computed once at module load (string comparison
- * of zero-padded "HH:mm:ss" values is a safe chronological sort here),
- * not re-sorted per render.
+ * The desktop-grid row sequence: the canonical teachable blocks
+ * interleaved with both fixed recess periods, in chronological order. The
+ * 17:00-19:00 block is included only when at least one entry actually
+ * starts there -- matching the admin's own conditional row exactly
+ * (RowTeacherSchedule.tsx's `hasExtraHours`: `schedulesScholar.some(...) ||
+ * scheduleTeacher.some(...)`, checked by `start_time` alone, not full
+ * canonical-block matching). No entry is ever discarded by this: when the
+ * block is included, a matching entry places in it normally; when it
+ * isn't, there was never an entry to place there in the first place.
  */
-export const WORKER_SCHEDULE_DAY_BLOCKS: SchoolDayBlock[] = [
-  ...TEACHER_SCHEDULE_BLOCKS.map(
-    (block): SchoolDayBlock => ({
-      kind: "schedule",
-      startTime: block.start_time,
-      endTime: block.end_time,
-    })
-  ),
-  ...RECESS_TIMES.map(
-    (recess): SchoolDayBlock => ({
-      kind: "recess",
-      startTime: recess.startTime,
-      endTime: recess.endTime,
-      label: RECESS_LABEL,
-    })
-  ),
-].sort((a, b) => (a.startTime < b.startTime ? -1 : a.startTime > b.startTime ? 1 : 0));
+export function getWorkerScheduleDayBlocks(
+  entries: Pick<WorkerScheduleEntry, "startTime">[]
+): SchoolDayBlock[] {
+  const hasExtracurricularEntry = entries.some(
+    (entry) => entry.startTime === EXTRACURRICULAR_BLOCK_START_TIME
+  );
+  const scheduleBlocks = hasExtracurricularEntry
+    ? TEACHER_SCHEDULE_BLOCKS
+    : SCHEDULE_BLOCKS;
+
+  return [
+    ...scheduleBlocks.map(
+      (block): SchoolDayBlock => ({
+        kind: "schedule",
+        startTime: block.start_time,
+        endTime: block.end_time,
+      })
+    ),
+    ...RECESS_TIMES.map(
+      (recess): SchoolDayBlock => ({
+        kind: "recess",
+        startTime: recess.startTime,
+        endTime: recess.endTime,
+        label: RECESS_LABEL,
+      })
+    ),
+  ].sort((a, b) => (a.startTime < b.startTime ? -1 : a.startTime > b.startTime ? 1 : 0));
+}
+
+/**
+ * Whether the extracurricular (17:00-19:00) block is present in a computed
+ * block list -- used by the grid to decide whether to also render the
+ * "HORARIO EXTRACURRICULAR" divider row above it, matching the admin's own
+ * pairing of the two (RowTeacherSchedule.tsx never shows one without the
+ * other).
+ */
+export function hasExtracurricularBlock(blocks: SchoolDayBlock[]): boolean {
+  return blocks.some(
+    (block) => block.kind === "schedule" && block.startTime === EXTRACURRICULAR_BLOCK_START_TIME
+  );
+}
 
 // --- Mobile agenda merge --------------------------------------------
 

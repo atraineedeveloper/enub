@@ -17,7 +17,6 @@ import { resolveMyScheduleViewState } from "./myScheduleViewState";
 import WorkerScheduleGrid from "./WorkerScheduleGrid";
 import WorkerScheduleAgenda from "./WorkerScheduleAgenda";
 import WorkerScheduleUnspecified from "./WorkerScheduleUnspecified";
-import WorkerScheduleLegend from "./WorkerScheduleLegend";
 
 const SemesterHeader = styled.div`
   display: flex;
@@ -146,7 +145,6 @@ function MyScheduleView() {
       />
 
       <DesktopOnly>
-        <WorkerScheduleLegend />
         <WorkerScheduleGrid entries={partition.desktopPlaceable} />
         <WorkerScheduleUnspecified entries={desktopUnspecified} />
       </DesktopOnly>

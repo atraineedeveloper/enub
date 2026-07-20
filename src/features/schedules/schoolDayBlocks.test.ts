@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
   RECESS_LABEL,
-  WORKER_SCHEDULE_DAY_BLOCKS,
   formatSchoolDayBlockLabel,
+  getWorkerScheduleDayBlocks,
+  hasExtracurricularBlock,
   mergeRecessIntoDayEntries,
+  type SchoolDayBlock,
 } from "./schoolDayBlocks";
 import {
   partitionWorkerSchedule,
@@ -27,16 +29,40 @@ describe("formatSchoolDayBlockLabel", () => {
   });
 });
 
-describe("WORKER_SCHEDULE_DAY_BLOCKS (desktop row sequence)", () => {
-  test("contains exactly 7 rows: 5 teachable blocks + 2 recess periods", () => {
-    expect(WORKER_SCHEDULE_DAY_BLOCKS).toHaveLength(7);
-    expect(WORKER_SCHEDULE_DAY_BLOCKS.filter((b) => b.kind === "recess")).toHaveLength(2);
-    expect(WORKER_SCHEDULE_DAY_BLOCKS.filter((b) => b.kind === "schedule")).toHaveLength(5);
+describe("getWorkerScheduleDayBlocks (desktop row sequence)", () => {
+  test("with no 17:00-started entry: 6 rows -- 4 teachable blocks + 2 recess periods, no extracurricular block", () => {
+    const blocks = getWorkerScheduleDayBlocks([]);
+    expect(blocks).toHaveLength(6);
+    expect(blocks.filter((b) => b.kind === "recess")).toHaveLength(2);
+    expect(blocks.filter((b) => b.kind === "schedule")).toHaveLength(4);
+    expect(blocks.some((b) => b.kind === "schedule" && b.startTime === "17:00:00")).toBe(false);
   });
 
-  test("exact chronological row order", () => {
+  test("exact chronological row order without an extracurricular entry", () => {
     expect(
-      WORKER_SCHEDULE_DAY_BLOCKS.map((b) => [b.kind, b.startTime, b.endTime])
+      getWorkerScheduleDayBlocks([]).map((b) => [b.kind, b.startTime, b.endTime])
+    ).toEqual([
+      ["schedule", "07:00:00", "08:50:00"],
+      ["recess", "08:50:00", "09:20:00"],
+      ["schedule", "09:20:00", "11:10:00"],
+      ["schedule", "11:10:00", "13:00:00"],
+      ["recess", "13:00:00", "13:10:00"],
+      ["schedule", "13:10:00", "15:00:00"],
+    ]);
+  });
+
+  test("with a 17:00-started entry: 7 rows -- 5 teachable blocks (including 17:00-19:00) + 2 recess periods", () => {
+    const blocks = getWorkerScheduleDayBlocks([{ startTime: "17:00:00" }]);
+    expect(blocks).toHaveLength(7);
+    expect(blocks.filter((b) => b.kind === "schedule")).toHaveLength(5);
+    expect(
+      blocks.some((b) => b.kind === "schedule" && b.startTime === "17:00:00" && b.endTime === "19:00:00")
+    ).toBe(true);
+  });
+
+  test("exact chronological row order with an extracurricular entry", () => {
+    expect(
+      getWorkerScheduleDayBlocks([{ startTime: "17:00:00" }]).map((b) => [b.kind, b.startTime, b.endTime])
     ).toEqual([
       ["schedule", "07:00:00", "08:50:00"],
       ["recess", "08:50:00", "09:20:00"],
@@ -48,8 +74,13 @@ describe("WORKER_SCHEDULE_DAY_BLOCKS (desktop row sequence)", () => {
     ]);
   });
 
-  test("exact recess periods", () => {
-    const recesses = WORKER_SCHEDULE_DAY_BLOCKS.filter((b) => b.kind === "recess");
+  test("an entry with any other start time never triggers the extracurricular block", () => {
+    const blocks = getWorkerScheduleDayBlocks([{ startTime: "07:00:00" }, { startTime: null }]);
+    expect(blocks).toHaveLength(6);
+  });
+
+  test("exact recess periods, present regardless of the extracurricular condition", () => {
+    const recesses = getWorkerScheduleDayBlocks([]).filter((b) => b.kind === "recess");
     expect(recesses).toEqual([
       { kind: "recess", startTime: "08:50:00", endTime: "09:20:00", label: "RECESO" },
       { kind: "recess", startTime: "13:00:00", endTime: "13:10:00", label: "RECESO" },
@@ -57,7 +88,7 @@ describe("WORKER_SCHEDULE_DAY_BLOCKS (desktop row sequence)", () => {
   });
 
   test("exact label is RECESO on both recess blocks", () => {
-    const recesses = WORKER_SCHEDULE_DAY_BLOCKS.filter((b) => b.kind === "recess");
+    const recesses = getWorkerScheduleDayBlocks([]).filter((b) => b.kind === "recess");
     for (const recess of recesses) {
       expect(recess.kind === "recess" && recess.label).toBe("RECESO");
     }
@@ -65,7 +96,7 @@ describe("WORKER_SCHEDULE_DAY_BLOCKS (desktop row sequence)", () => {
   });
 
   test("recess blocks are structurally distinct from WorkerScheduleEntry -- no id/subject/activity/weekday fields", () => {
-    const recesses = WORKER_SCHEDULE_DAY_BLOCKS.filter((b) => b.kind === "recess");
+    const recesses = getWorkerScheduleDayBlocks([]).filter((b) => b.kind === "recess");
     for (const recess of recesses) {
       expect(recess).not.toHaveProperty("id");
       expect(recess).not.toHaveProperty("subject");
@@ -74,6 +105,23 @@ describe("WORKER_SCHEDULE_DAY_BLOCKS (desktop row sequence)", () => {
       expect(recess.kind).not.toBe("class");
       expect(recess.kind).not.toBe("activity");
     }
+  });
+});
+
+describe("hasExtracurricularBlock", () => {
+  test("false when the block list has no 17:00-19:00 schedule block", () => {
+    expect(hasExtracurricularBlock(getWorkerScheduleDayBlocks([]))).toBe(false);
+  });
+
+  test("true when the block list includes the 17:00-19:00 schedule block", () => {
+    expect(hasExtracurricularBlock(getWorkerScheduleDayBlocks([{ startTime: "17:00:00" }]))).toBe(true);
+  });
+
+  test("false for a hand-built list containing only a recess block at that exact time range (kind must be schedule, not recess)", () => {
+    const blocks: SchoolDayBlock[] = [
+      { kind: "recess", startTime: "17:00:00", endTime: "19:00:00", label: "RECESO" },
+    ];
+    expect(hasExtracurricularBlock(blocks)).toBe(false);
   });
 });
 
@@ -114,14 +162,14 @@ describe("recess periods are excluded from schedule partitioning", () => {
 describe("recess periods do not affect empty-state detection", () => {
   const semester: Semester = { id: 1, semester: "1A", school_year: "2025-2026" } as Semester;
 
-  test("zero authorized rows still resolves to empty-schedule, independent of the 7-row desktop sequence existing", () => {
-    // WORKER_SCHEDULE_DAY_BLOCKS always has 7 rows (5 schedule + 2
-    // recess) regardless of whether the worker has any real data --
-    // resolveMyScheduleViewState never imports schoolDayBlocks.ts at all,
-    // so this proves empty-schedule detection depends only on the
-    // authorized schedule_assignments/schedule_teachers rows, never on
-    // the fixed recess/row-sequence presentation data.
-    expect(WORKER_SCHEDULE_DAY_BLOCKS).toHaveLength(7);
+  test("zero authorized rows still resolves to empty-schedule, independent of the desktop row sequence existing", () => {
+    // getWorkerScheduleDayBlocks always returns at least the 4 teachable
+    // blocks + 2 recess periods regardless of whether the worker has any
+    // real data -- resolveMyScheduleViewState never imports
+    // schoolDayBlocks.ts at all, so this proves empty-schedule detection
+    // depends only on the authorized schedule_assignments/schedule_teachers
+    // rows, never on the fixed recess/row-sequence presentation data.
+    expect(getWorkerScheduleDayBlocks([])).toHaveLength(6);
 
     const state = resolveMyScheduleViewState({
       isLoadingSemesters: false,

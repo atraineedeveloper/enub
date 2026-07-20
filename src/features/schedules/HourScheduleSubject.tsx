@@ -9,6 +9,7 @@ import {
   ScheduleActionButton as ActionButton,
   ScheduleActionsRow as ActionsRow,
 } from "./ScheduleActionButton";
+import { ScheduleEntryContent } from "./scheduleCellContent";
 import type { ScheduleAssignment } from "./useScheduleAssignments";
 import { getBlockByStartTime } from "./scheduleBlocks";
 
@@ -55,11 +56,11 @@ function HourScheduleSubject({
   if (subjectHour.length > 0) {
     const subjectName = subjectHour[0].subjects!.name!;
     return (
-      <>
-        <b>{subjectName.toUpperCase()}</b>
-        <br />
-        <em>{capitalizeName(subjectHour[0].workers!.name!)}</em>
-        <br />
+      <ScheduleEntryContent
+        kind="class"
+        primaryText={subjectName}
+        secondaryText={capitalizeName(subjectHour[0].workers!.name!)}
+      >
         <ActionsRow>
           <Modal>
             <Modal.Open opens="scholar-schedule-edit-form">
@@ -97,7 +98,7 @@ function HourScheduleSubject({
             </Modal.Window>
           </Modal>
         </ActionsRow>
-      </>
+      </ScheduleEntryContent>
     );
   }
 

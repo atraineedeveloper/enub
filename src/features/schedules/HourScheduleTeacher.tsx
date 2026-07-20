@@ -8,6 +8,7 @@ import {
   ScheduleActionButton as ActionButton,
   ScheduleActionsRow as ActionsRow,
 } from "./ScheduleActionButton";
+import { ScheduleEntryContent } from "./scheduleCellContent";
 import type { ScheduleTeacher } from "./useScheduleTeachers";
 import type { ScheduleAssignment } from "./useScheduleAssignments";
 import type { Worker } from "../workers/useWorkers";
@@ -91,9 +92,11 @@ function HourScheduleSubjectTeacher({
     return (
       <>
         {activitiesHour.map((activity) => (
-          <div key={activity.id}>
-            <b>{activity.activity}</b>
-            <br />
+          <ScheduleEntryContent
+            key={activity.id}
+            kind="activity"
+            primaryText={activity.activity!}
+          >
             <ActionsRow>
               <Modal>
                 <Modal.Open opens={`activity-schedule-edit-form-${activity.id}`}>
@@ -140,7 +143,7 @@ function HourScheduleSubjectTeacher({
                 </Modal.Window>
               </Modal>
             </ActionsRow>
-          </div>
+          </ScheduleEntryContent>
         ))}
       </>
     );
