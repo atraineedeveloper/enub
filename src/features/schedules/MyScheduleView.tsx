@@ -9,6 +9,7 @@ import {
   resolveDefaultSemesterId,
   sortSemestersForSelector,
 } from "../semesters/semesterOrdering";
+import { formatSemesterPeriodWithCode } from "../semesters/semesterDisplayLabel";
 import { useMyScheduleAssignments } from "./useMyScheduleAssignments";
 import { useMyScheduleTeacherActivities } from "./useMyScheduleTeacherActivities";
 import { entriesOutsideDesktopGrid, partitionWorkerSchedule } from "./workerScheduleEntry";
@@ -177,8 +178,8 @@ function SemesterSelect({ semesters, selectedSemesterId, onChange }: SemesterSel
       >
         {ordered.map((semester) => (
           <option key={semester.id} value={semester.id}>
-            {semester.semester ?? `Semestre ${semester.id}`}
-            {semester.school_year ? ` · ${semester.school_year}` : ""}
+            {formatSemesterPeriodWithCode(semester.semester) ||
+              `Semestre ${semester.id}`}
           </option>
         ))}
       </Select>
