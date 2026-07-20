@@ -695,6 +695,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _replace_schedule_ownership_select_policy: {
+        Args: {
+          admin_staff_policy_name: string
+          target_table: string
+          worker_policy_name: string
+        }
+        Returns: undefined
+      }
       claim_worker_access_email_correction: {
         Args: { requested_email: string; worker_id: number }
         Returns: {
@@ -771,6 +779,39 @@ export type Database = {
         Returns: string
       }
       unlink_worker_account: { Args: { worker_id: number }; Returns: undefined }
+      update_worker_with_relations: {
+        Args: {
+          p_date_of_admissions?: Json
+          p_sustenance_plazas?: Json
+          p_worker: Json
+          p_worker_id: number
+        }
+        Returns: {
+          city: string | null
+          created_at: string
+          email: string | null
+          function_performed: string | null
+          id: number
+          name: string | null
+          neighborhood: string | null
+          observations: string | null
+          phone: string | null
+          post_code: string | null
+          profile_picture: string | null
+          RFC: string | null
+          specialty: string | null
+          state: string | null
+          status: number | null
+          street: string | null
+          type_worker: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "workers"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       validate_worker_access_email_correction_identity: {
         Args: { p_operation_id: number }
         Returns: string

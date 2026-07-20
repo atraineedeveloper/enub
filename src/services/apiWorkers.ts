@@ -1,5 +1,6 @@
 import supabase from "./supabase";
-import type { Database } from "../types/supabase";
+import type { Database, Json } from "../types/supabase";
+import { createWorkerUpdateError } from "./workerUpdateErrors";
 
 type WorkerUpdate = Database["public"]["Tables"]["workers"]["Update"];
 
@@ -290,8 +291,8 @@ export async function createEditWorkers(
     profilePictureFile = null,
     removeCurrentProfilePicture = false,
     currentProfilePicture = null,
-    sustenancePlazas = [],
-    dateOfAdmissions = [],
+    sustenancePlazas,
+    dateOfAdmissions,
   }: CreateEditWorkerOptions = {}
 ) {
   if (!newWorker || typeof newWorker !== "object")
@@ -300,11 +301,13 @@ export async function createEditWorkers(
     throw new Error("El nombre del trabajador es requerido");
   if (!(newWorker.RFC as string | undefined)?.trim())
     throw new Error("El RFC del trabajador es requerido");
-  const normalizedSustenancePlazas =
-    normalizeSustenancePlazas(sustenancePlazas);
-  validateSustenancePlazas(normalizedSustenancePlazas);
+  const normalizedSustenancePlazas = normalizeSustenancePlazas(
+    sustenancePlazas ?? []
+  );
+  if (sustenancePlazas !== undefined) {
+    validateSustenancePlazas(normalizedSustenancePlazas);
+  }
 
-  let query = supabase.from("workers");
   let uploadedProfilePicture: string | null = null;
   const workerToSave: Record<string, unknown> = { ...newWorker };
 
@@ -315,13 +318,26 @@ export async function createEditWorkers(
     workerToSave.profile_picture = uploadedProfilePicture;
   }
 
-  // A) CREATE
-  if (!id) query = query.insert([workerToSave as WorkerUpdate]) as never;
+  const query = id
+    ? supabase
+        .rpc("update_worker_with_relations", {
+          p_worker_id: id,
+          p_worker: workerToSave as Json,
+          p_sustenance_plazas:
+            sustenancePlazas === undefined ? undefined : normalizedSustenancePlazas,
+          p_date_of_admissions:
+            dateOfAdmissions === undefined
+              ? undefined
+              : (dateOfAdmissions as Json),
+        })
+        .single()
+    : supabase
+        .from("workers")
+        .insert([workerToSave as WorkerUpdate])
+        .select()
+        .single();
 
-  // B) EDIT
-  if (id) query = query.update({ ...workerToSave } as WorkerUpdate).eq("id", id) as never;
-
-  const { data, error } = await query.select().single();
+  const { data, error } = await query;
 
   if (error) {
     if (uploadedProfilePicture) {
@@ -332,12 +348,16 @@ export async function createEditWorkers(
       }
     }
 
+    if (id) throw createWorkerUpdateError(error);
+
     console.error(error);
     throw new Error("El registro no pudo ser actualizado");
   }
 
-  await replaceWorkerSustenancePlazas(data.id, normalizedSustenancePlazas);
-  await replaceWorkerDateOfAdmissions(data.id, dateOfAdmissions);
+  if (!id) {
+    await replaceWorkerSustenancePlazas(data.id, normalizedSustenancePlazas);
+    await replaceWorkerDateOfAdmissions(data.id, dateOfAdmissions ?? []);
+  }
 
   const shouldDeleteCurrentProfilePicture =
     currentProfilePicture &&
