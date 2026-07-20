@@ -11,13 +11,21 @@ import type { MyWorkerProfile } from "../../services/apiWorkers";
 
 const sampleProfile: MyWorkerProfile = {
   name: "Ana Pérez",
+  RFC: "PEAA800101ABC",
   email: "ana@example.test",
   phone: "555-0000",
+  street: "Av. Reforma 123",
+  neighborhood: "Centro",
+  post_code: "86000",
+  city: "Villahermosa",
+  state: "Tabasco",
   type_worker: "Docente",
-  status: 1,
   specialty: "Matemáticas",
   function_performed: "Titular",
+  status: 1,
   profile_picture: null,
+  sustenance_plazas: [],
+  date_of_admissions: [],
 };
 
 describe("canFetchMyWorkerProfile (gating)", () => {
@@ -162,19 +170,30 @@ describe("resolveMyWorkerProfileSnapshot (stale-generation rejection)", () => {
   });
 });
 
-describe("exact eight-field projection is unchanged by this query layer", () => {
-  test("MyWorkerProfile carries exactly the eight allow-listed fields", () => {
+describe("the full field projection is unchanged by this query layer", () => {
+  test("MyWorkerProfile carries exactly the allow-listed fields -- no id, worker_id, created_at, or observations", () => {
     expect(Object.keys(sampleProfile).sort()).toEqual(
       [
+        "RFC",
+        "city",
+        "date_of_admissions",
         "email",
         "function_performed",
         "name",
+        "neighborhood",
         "phone",
+        "post_code",
         "profile_picture",
         "specialty",
+        "state",
         "status",
+        "street",
+        "sustenance_plazas",
         "type_worker",
       ].sort()
     );
+    expect(Object.keys(sampleProfile)).not.toContain("observations");
+    expect(Object.keys(sampleProfile)).not.toContain("id");
+    expect(Object.keys(sampleProfile)).not.toContain("created_at");
   });
 });

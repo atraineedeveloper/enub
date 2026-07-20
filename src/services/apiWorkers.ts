@@ -233,37 +233,75 @@ export async function getWorkerIdentityById(
   return data;
 }
 
+export interface MySustenancePlaza {
+  sustenance: string | null;
+  payment_key: string | null;
+  plaza: string | null;
+}
+
+export interface MyDateOfAdmission {
+  type: string | null;
+  date_of_admission: string | null;
+}
+
 export interface MyWorkerProfile {
   name: string | null;
+  RFC: string | null;
   email: string | null;
   phone: string | null;
+  street: string | null;
+  neighborhood: string | null;
+  post_code: string | null;
+  city: string | null;
+  state: string | null;
   type_worker: string | null;
-  status: number | null;
   specialty: string | null;
   function_performed: string | null;
+  status: number | null;
   profile_picture: string | null;
+  sustenance_plazas: MySustenancePlaza[];
+  date_of_admissions: MyDateOfAdmission[];
 }
 
 // Backs the read-only "Mi información" self-service page. The explicit
-// column list is a request/UI minimization -- it keeps the network payload
+// column list (and the explicit, narrow column list on each embedded
+// relation) is a request/UI minimization -- it keeps the network payload
 // and the frontend's data model limited to exactly what that page renders
-// (RFC, address, observations, id, and created_at are never requested
-// here) -- it is NOT a database-level column confidentiality boundary.
-// `workers` row-level security ("Workers can read own worker row")
-// authorizes the *row*, not individual columns: a worker's own
+// (observations, id, worker_id, created_at, and every other technical
+// metadata column are deliberately never requested here, on `workers` or
+// on either relation) -- it is NOT a database-level column confidentiality
+// boundary. `workers` row-level security ("Workers can read own worker
+// row") authorizes the *row*, not individual columns: a worker's own
 // authenticated client remains capable of requesting every column of
 // their own row directly, regardless of this projection. True column-level
 // confidentiality (a restricted view or a SECURITY INVOKER function with a
 // database-enforced allow-list) is tracked as a separate follow-up, not
-// delivered by this function. Same .maybeSingle() missing-row-vs-error
-// handling as getWorkerIdentityById() above.
+// delivered by this function.
+//
+// sustenance_plazas/date_of_admissions are embedded via PostgREST's nested
+// resource syntax, never fetched with a second/third query and never
+// filtered by an explicit `worker_id` on the client's part: authorization
+// for both relations is enforced independently by their own RLS SELECT
+// policies (worker_id = current_worker_id(), see
+// 20260721000000_worker_relation_ownership_select_policies.sql) -- the
+// same principle already established for the schedule/profile queries
+// (the client never supplies a worker id as an authorization input). No
+// RPC is used here: both relations are already a straight, RLS-protected
+// read of rows related by foreign key, so a SECURITY INVOKER function
+// would rely on the exact same row policies for no added guarantee.
+//
+// Same .maybeSingle() missing-row-vs-error handling as
+// getWorkerIdentityById() above.
 export async function getMyWorkerProfile(
   id: number
 ): Promise<MyWorkerProfile | null> {
   const { data, error } = await supabase
     .from("workers")
     .select(
-      "name, email, phone, type_worker, status, specialty, function_performed, profile_picture"
+      "name, RFC, email, phone, street, neighborhood, post_code, city, state, " +
+        "type_worker, specialty, function_performed, status, profile_picture, " +
+        "sustenance_plazas(sustenance, payment_key, plaza), " +
+        "date_of_admissions(type, date_of_admission)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -273,7 +311,7 @@ export async function getMyWorkerProfile(
     throw new Error("La información no pudo cargarse");
   }
 
-  return data;
+  return data as MyWorkerProfile | null;
 }
 
 interface CreateEditWorkerOptions {
