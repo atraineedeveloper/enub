@@ -11,8 +11,8 @@ export default defineConfig({
       includeAssets: ["favicon.png", "enub.jpg", "setab.jpeg"],
       manifest: {
         lang: "es-MX",
-        name: "Enub - Sistema de Gestión Escolar",
-        short_name: "Enub",
+        name: "ENU - Sistema de Gestión Escolar",
+        short_name: "ENU",
         description: "Sistema de gestión escolar y administrativa",
         theme_color: "#ffffff",
         background_color: "#ffffff",

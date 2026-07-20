@@ -149,7 +149,7 @@ function Header({ onToggleSidebar }: HeaderProps) {
           </MenuButton>
         )}
         <BrandGroup>
-          <Logo>ENUB</Logo>
+          <Logo>ENU</Logo>
           <Subtitle>Sistema de gestión escolar</Subtitle>
         </BrandGroup>
       </LeftArea>

@@ -1,10 +1,10 @@
-# Enub - Sistema de Gestión Escolar
+# ENU - Sistema de Gestión Escolar
 
-![Enub Banner](public/enub.jpg)
+![Banner de ENU](public/enub.jpg)
 
 ## 📋 Descripción General
 
-**Enub** es una plataforma integral de gestión escolar diseñada para optimizar la administración de horarios, registros académicos y recursos humanos en instituciones educativas. Construida con una arquitectura moderna y escalable, la aplicación ofrece una experiencia de usuario fluida, reactiva y accesible desde cualquier dispositivo gracias a su implementación como **Progressive Web App (PWA)**.
+**ENU** es una plataforma integral de gestión escolar diseñada para optimizar la administración de horarios, registros académicos y recursos humanos en instituciones educativas. Construida con una arquitectura moderna y escalable, la aplicación ofrece una experiencia de usuario fluida, reactiva y accesible desde cualquier dispositivo gracias a su implementación como **Progressive Web App (PWA)**.
 
 El sistema permite a los administradores gestionar de manera eficiente semestres, asignaturas, grupos, personal docente y roles, proporcionando un panel de control centralizado con métricas clave en tiempo real.
 
@@ -101,4 +101,4 @@ Las contribuciones son bienvenidas. Por favor, abre un issue para discutir cambi
 
 ---
 
-Desarrollado con ❤️ por el equipo de Enub.
+Desarrollado con ❤️ por el equipo de ENU.

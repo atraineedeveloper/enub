@@ -37,7 +37,7 @@ VALUES (
     "now"(),
     "now"(),
     '{"provider": "email", "providers": ["email"]}'::jsonb,
-    '{"name": "Usuario Local Enub"}'::jsonb,
+    '{"name": "Usuario Local ENU"}'::jsonb,
     "now"(),
     "now"(),
     '',
