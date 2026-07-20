@@ -9,6 +9,7 @@ import {
   resolveDefaultSemesterId,
   sortSemestersForSelector,
 } from "../semesters/semesterOrdering";
+import { formatSemesterPeriodWithCode } from "../semesters/semesterDisplayLabel";
 import { useMyScheduleAssignments } from "./useMyScheduleAssignments";
 import { useMyScheduleTeacherActivities } from "./useMyScheduleTeacherActivities";
 import { entriesOutsideDesktopGrid, partitionWorkerSchedule } from "./workerScheduleEntry";
@@ -16,7 +17,6 @@ import { resolveMyScheduleViewState } from "./myScheduleViewState";
 import WorkerScheduleGrid from "./WorkerScheduleGrid";
 import WorkerScheduleAgenda from "./WorkerScheduleAgenda";
 import WorkerScheduleUnspecified from "./WorkerScheduleUnspecified";
-import WorkerScheduleLegend from "./WorkerScheduleLegend";
 
 const SemesterHeader = styled.div`
   display: flex;
@@ -145,7 +145,6 @@ function MyScheduleView() {
       />
 
       <DesktopOnly>
-        <WorkerScheduleLegend />
         <WorkerScheduleGrid entries={partition.desktopPlaceable} />
         <WorkerScheduleUnspecified entries={desktopUnspecified} />
       </DesktopOnly>
@@ -177,8 +176,8 @@ function SemesterSelect({ semesters, selectedSemesterId, onChange }: SemesterSel
       >
         {ordered.map((semester) => (
           <option key={semester.id} value={semester.id}>
-            {semester.semester ?? `Semestre ${semester.id}`}
-            {semester.school_year ? ` · ${semester.school_year}` : ""}
+            {formatSemesterPeriodWithCode(semester.semester) ||
+              `Semestre ${semester.id}`}
           </option>
         ))}
       </Select>

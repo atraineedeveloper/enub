@@ -2,47 +2,22 @@ import type { ReactNode } from "react";
 import styled from "styled-components";
 import HourScheduleSubjectGroup from "./HourScheduleSubjectGroup";
 import HourScheduleSubjectTeacher from "./HourScheduleTeacher";
+import {
+  ScheduleBlockRow,
+  ScheduleDividerRow,
+  ScheduleRecessRow,
+  type ScheduleWeekday,
+} from "./scheduleTableLayout";
 import type { ScheduleAssignment } from "./useScheduleAssignments";
 import type { ScheduleTeacher } from "./useScheduleTeachers";
 import type { Worker } from "../workers/useWorkers";
 
-const TableRow = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
-  column-gap: 2.4rem;
-  align-items: center;
-  padding: 1.4rem 2.4rem;
-  text-align: center;
-
-  &:not(:last-child) {
-    border-bottom: 1px solid var(--color-grey-100);
-  }
-`;
-
-const LongRow = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 6fr;
-  column-gap: 2.4rem;
-  align-items: center;
-  padding: 1.4rem 2.4rem;
-  text-align: center;
-`;
-
-const LongRowComplete = styled.div`
-  display: grid;
-  grid-template-columns: 7fr;
-  column-gap: 2.4rem;
-  align-items: center;
-  padding: 1.4rem 2.4rem;
-  text-align: center;
-`;
-
 // Visual treatment for the derived, institutional "Homenaje / Tutoría"
 // reservation (Monday 07:00-08:50, only for a teacher whose computed
 // totalHours === 40) -- distinct from both a real occupied-cell activity
-// (solid border, ActionButton controls) and the red invalid-data warning,
-// and not color-only: the dashed border itself signals "reserved
-// placeholder, not a real row" independent of the grey palette.
+// (ScheduleEntryContent) and the red invalid-data warning, and not
+// color-only: the dashed border itself signals "reserved placeholder, not
+// a real row" independent of the grey palette.
 const ReservedSlotBadge = styled.p`
   font-weight: 600;
   color: var(--color-grey-700);
@@ -53,9 +28,7 @@ const ReservedSlotBadge = styled.p`
   margin: 0;
 `;
 
-const WEEKDAYS = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"];
-
-interface DayCellProps {
+interface DayCellContentProps {
   schedulesScholar: ScheduleAssignment[];
   scheduleTeacher: ScheduleTeacher[];
   weekday: string;
@@ -73,7 +46,12 @@ interface DayCellProps {
   children?: ReactNode;
 }
 
-function DayCell({
+// A cell's actual content -- no wrapping element of its own (ScheduleCell,
+// the shared <td>, already provides that). Unchanged composition from
+// before this migration: whatever `children` the row passes (the
+// Monday-only reserved-slot badge), then the scholar-assignment content,
+// then the teacher-activity content, in that order.
+function DayCellContent({
   schedulesScholar,
   scheduleTeacher,
   weekday,
@@ -86,9 +64,9 @@ function DayCell({
   allScheduleAssignments,
   isReservedSlot = false,
   children,
-}: DayCellProps) {
+}: DayCellContentProps) {
   return (
-    <div>
+    <>
       {children}
       <HourScheduleSubjectGroup
         schedules={schedulesScholar}
@@ -108,7 +86,7 @@ function DayCell({
         allScheduleAssignments={allScheduleAssignments}
         isReservedSlot={isReservedSlot}
       />
-    </div>
+    </>
   );
 }
 
@@ -145,14 +123,13 @@ function TimeSlotRow({
   mondayAddDisabled = false,
 }: TimeSlotRowProps) {
   return (
-    <TableRow role="row">
-      <p>{timeLabel}</p>
-      {WEEKDAYS.map((weekday, i) => (
-        <DayCell
-          key={weekday}
+    <ScheduleBlockRow
+      timeLabel={timeLabel}
+      renderCell={(day: ScheduleWeekday, index: number) => (
+        <DayCellContent
           schedulesScholar={schedulesScholar}
           scheduleTeacher={scheduleTeacher}
-          weekday={weekday}
+          weekday={day.value}
           startTime={startTime}
           workers={workers}
           semesterId={semesterId}
@@ -160,21 +137,12 @@ function TimeSlotRow({
           workerLabel={workerLabel}
           allScheduleTeachers={allScheduleTeachers}
           allScheduleAssignments={allScheduleAssignments}
-          isReservedSlot={i === 0 && mondayAddDisabled}
+          isReservedSlot={index === 0 && mondayAddDisabled}
         >
-          {i === 0 ? mondayExtra : null}
-        </DayCell>
-      ))}
-    </TableRow>
-  );
-}
-
-function BreakRow({ timeLabel }: { timeLabel: string }) {
-  return (
-    <LongRow role="row">
-      <p>{timeLabel}</p>
-      <p>RECESO</p>
-    </LongRow>
+          {index === 0 ? mondayExtra : null}
+        </DayCellContent>
+      )}
+    />
   );
 }
 
@@ -201,6 +169,11 @@ function RowTeacherSchedule({
   allScheduleTeachers,
   allScheduleAssignments,
 }: RowTeacherScheduleProps) {
+  // The same condition the worker's read-only grid uses
+  // (schoolDayBlocks.ts's getWorkerScheduleDayBlocks) to decide whether to
+  // show the 17:00-19:00 row and its "HORARIO EXTRACURRICULAR" divider --
+  // both surfaces check for a start_time of exactly 17:00:00, independent
+  // of each other's data source.
   const hasExtraHours =
     schedulesScholar.some((s) => s.start_time === "17:00:00") ||
     scheduleTeacher.some((s) => s.start_time === "17:00:00");
@@ -235,21 +208,15 @@ function RowTeacherSchedule({
         mondayExtra={mondayFirstBlock}
         mondayAddDisabled={isHomenajeTutoriaReserved}
       />
-      <BreakRow timeLabel="8:50 - 9:20" />
+      <ScheduleRecessRow timeLabel="8:50 - 9:20" />
       <TimeSlotRow {...shared} startTime="09:20:00" timeLabel="9:20 - 11:10" />
       <TimeSlotRow {...shared} startTime="11:10:00" timeLabel="11:10 - 13:00" />
-      <BreakRow timeLabel="13:00 - 13:10" />
+      <ScheduleRecessRow timeLabel="13:00 - 13:10" />
       <TimeSlotRow {...shared} startTime="13:10:00" timeLabel="13:10 - 15:00" />
       {hasExtraHours && (
         <>
-          <LongRowComplete role="row">
-            <p>HORARIO EXTRACURRICULAR</p>
-          </LongRowComplete>
-          <TimeSlotRow
-            {...shared}
-            startTime="17:00:00"
-            timeLabel="17:00 - 19:00"
-          />
+          <ScheduleDividerRow label="HORARIO EXTRACURRICULAR" />
+          <TimeSlotRow {...shared} startTime="17:00:00" timeLabel="17:00 - 19:00" />
         </>
       )}
     </>

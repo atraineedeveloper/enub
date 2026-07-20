@@ -10,6 +10,7 @@ import {
   ScheduleActionButton as ActionButton,
   ScheduleActionsRow as ActionsRow,
 } from "./ScheduleActionButton";
+import { ScheduleEntryContent } from "./scheduleCellContent";
 import type { ScheduleAssignment } from "./useScheduleAssignments";
 
 // CreateEditScholarSchedule.jsx is untyped and out of scope (Phase 3) -- see
@@ -43,54 +44,59 @@ function HourScheduleSubjectGroup({
   if (schedulesHour.length > 0)
     return (
       <>
-        {schedulesHour.map((schedule) => (
-          <div key={schedule.id}>
-            <b>{schedule?.subjects!.name!.toUpperCase()}</b>
-            <br />
-            <em>
-              {calculateSemesterGroupForSemester(schedule?.groups?.year_of_admission, semesterCode)}° &quot;
-              {schedule?.groups?.letter}&quot; - {schedule?.groups?.degrees?.code}
-            </em>
-            <br />
-            <ActionsRow>
-              <Modal>
-                <Modal.Open opens={`scholar-schedule-edit-form-${schedule.id}`}>
-                  <ActionButton
-                    type="button"
-                    aria-label="Editar horario"
-                    title="Editar horario"
-                  >
-                    <FaEdit />
-                  </ActionButton>
-                </Modal.Open>
-                <Modal.Window name={`scholar-schedule-edit-form-${schedule.id}`}>
-                  <CreateEditScholarSchedule
-                    scheduleToEdit={schedule}
-                  />
-                </Modal.Window>
-              </Modal>
-              <Modal>
-                <Modal.Open opens={`scholar-schedule-delete-form-${schedule.id}`}>
-                  <ActionButton
-                    type="button"
-                    $variation="danger"
-                    aria-label="Eliminar horario"
-                    title="Eliminar horario"
-                  >
-                    <FaTrash />
-                  </ActionButton>
-                </Modal.Open>
-                <Modal.Window name={`scholar-schedule-delete-form-${schedule.id}`}>
-                  <ConfirmDelete
-                    resourceName="horario"
-                    disabled={isDeleting}
-                    onConfirm={() => deleteScheduleAssignment(schedule.id)}
-                  />
-                </Modal.Window>
-              </Modal>
-            </ActionsRow>
-          </div>
-        ))}
+        {schedulesHour.map((schedule) => {
+          const groupLabel = `${calculateSemesterGroupForSemester(
+            schedule?.groups?.year_of_admission,
+            semesterCode
+          )}° "${schedule?.groups?.letter}" - ${schedule?.groups?.degrees?.code}`;
+
+          return (
+            <ScheduleEntryContent
+              key={schedule.id}
+              kind="class"
+              primaryText={schedule?.subjects!.name!}
+              secondaryText={groupLabel}
+            >
+              <ActionsRow>
+                <Modal>
+                  <Modal.Open opens={`scholar-schedule-edit-form-${schedule.id}`}>
+                    <ActionButton
+                      type="button"
+                      aria-label="Editar horario"
+                      title="Editar horario"
+                    >
+                      <FaEdit />
+                    </ActionButton>
+                  </Modal.Open>
+                  <Modal.Window name={`scholar-schedule-edit-form-${schedule.id}`}>
+                    <CreateEditScholarSchedule
+                      scheduleToEdit={schedule}
+                    />
+                  </Modal.Window>
+                </Modal>
+                <Modal>
+                  <Modal.Open opens={`scholar-schedule-delete-form-${schedule.id}`}>
+                    <ActionButton
+                      type="button"
+                      $variation="danger"
+                      aria-label="Eliminar horario"
+                      title="Eliminar horario"
+                    >
+                      <FaTrash />
+                    </ActionButton>
+                  </Modal.Open>
+                  <Modal.Window name={`scholar-schedule-delete-form-${schedule.id}`}>
+                    <ConfirmDelete
+                      resourceName="horario"
+                      disabled={isDeleting}
+                      onConfirm={() => deleteScheduleAssignment(schedule.id)}
+                    />
+                  </Modal.Window>
+                </Modal>
+              </ActionsRow>
+            </ScheduleEntryContent>
+          );
+        })}
       </>
     );
 

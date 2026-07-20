@@ -1,7 +1,7 @@
 export const WEEKDAYS = [
   { value: "Lunes", label: "Lunes" },
   { value: "Martes", label: "Martes" },
-  { value: "Miercoles", label: "Miercoles" },
+  { value: "Miercoles", label: "Miércoles" },
   { value: "Jueves", label: "Jueves" },
   { value: "Viernes", label: "Viernes" },
 ] as const;

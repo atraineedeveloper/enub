@@ -5,33 +5,10 @@ import { calculateSemesterGroupForSemester } from "../../helpers/calculateSemest
 import { useContext, useMemo, useState } from "react";
 import ScheduleGroupPDF from "../../pdf/Schedules/ScheduleGroupPDF";
 import { SemesterContext } from "../../pages/SemesterContext";
+import { ScheduleTable, ScheduleTableHeader } from "./scheduleTableLayout";
 import type { ScheduleAssignment } from "./useScheduleAssignments";
 import type { Group } from "../groups/useGroups";
 import { isCanonicalBlock } from "./scheduleBlocks";
-
-const Table = styled.div`
-  border: 1px solid var(--color-grey-200);
-
-  font-size: 1.4rem;
-  background-color: var(--color-grey-0);
-  border-radius: 7px;
-  overflow: hidden;
-`;
-
-const TableHeader = styled.header`
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
-  column-gap: 2.4rem;
-  align-items: center;
-
-  background-color: var(--color-grey-50);
-  border-bottom: 1px solid var(--color-grey-100);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  font-weight: 600;
-  color: var(--color-grey-600);
-  padding: 1.6rem 2.4rem;
-`;
 
 const InvalidSchedulesWarning = styled.div`
   color: var(--color-red-700);
@@ -119,24 +96,19 @@ function ShowScholarSchedule({
           </ul>
         </InvalidSchedulesWarning>
       )}
-      <Table role="table">
-        <TableHeader role="row">
-          <div></div>
-          <div>Lunes</div>
-          <div>Martes</div>
-          <div>Miércoles</div>
-          <div>Jueves</div>
-          <div>Viernes</div>
-        </TableHeader>
-        {selectedGroupId && (
-          <RowScholarSchedule
-            schedules={filteredSchedules}
-            semesterId={semesterId}
-            groupId={selectedGroupId}
-            groupLabel={selectedGroupLabel}
-          />
-        )}
-      </Table>
+      <ScheduleTable caption={`Horario semanal${selectedGroupLabel ? ` del grupo ${selectedGroupLabel}` : ""}`}>
+        <ScheduleTableHeader />
+        <tbody>
+          {selectedGroupId && (
+            <RowScholarSchedule
+              schedules={filteredSchedules}
+              semesterId={semesterId}
+              groupId={selectedGroupId}
+              groupLabel={selectedGroupLabel}
+            />
+          )}
+        </tbody>
+      </ScheduleTable>
       {filteredSchedules.length > 0 && (
         <ScheduleGroupPDF schedules={filteredSchedules} />
       )}
