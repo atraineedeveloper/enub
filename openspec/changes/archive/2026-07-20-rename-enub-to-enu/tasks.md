@@ -10,4 +10,4 @@
 - [x] Update focused tests whose expected visible copy changes.
 - [x] Run a final case-sensitive search and document intentional exclusions.
 - [x] Run `bun run typecheck`, `bun run lint`, relevant tests and `bun run build`.
-- [ ] Manually verify the authenticated header, PWA metadata, one authentication email and one representative PDF.
+- [x] Manually verify the authenticated header, PWA metadata, one authentication email and one representative PDF.
