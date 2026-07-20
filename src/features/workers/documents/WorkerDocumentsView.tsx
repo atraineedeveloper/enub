@@ -24,7 +24,7 @@ import type { WorkerDocument } from "./useWorkerDocuments";
 import { useWorkerDocumentsBySemester } from "./useWorkerDocumentsBySemester";
 import { generateWorkerDocumentReportPdf } from "./generateWorkerDocumentReportPdf";
 import { useSemesters } from "../../semesters/useSemesters";
-import type { Semester } from "../../semesters/useSemesters";
+import { formatSemesterPeriodWithCode } from "../../semesters/semesterDisplayLabel";
 import { useWorker } from "../useWorker";
 import Button from "../../../ui/Button";
 import ConfirmDelete from "../../../ui/ConfirmDelete";
@@ -260,11 +260,6 @@ function getDocumentsByType(documents: WorkerDocument[] = []) {
     acc.set(document.document_type_id, documentsForType);
     return acc;
   }, new Map<number, WorkerDocument[]>());
-}
-
-function getSemesterLabel(semester?: Semester | null) {
-  if (!semester) return "";
-  return [semester.semester, semester.school_year].filter(Boolean).join(" - ");
 }
 
 interface WorkerDocumentsViewProps {
@@ -676,9 +671,7 @@ function WorkerDocumentsView({ workerId }: WorkerDocumentsViewProps) {
 
           <SemesterControls>
             <SelectorGroup>
-              <label htmlFor="semester">
-                Semestre para documentos académicos
-              </label>
+              <label htmlFor="semester">Periodo académico</label>
               <Select
                 id="semester"
                 value={selectedSemesterId}
@@ -686,10 +679,14 @@ function WorkerDocumentsView({ workerId }: WorkerDocumentsViewProps) {
               >
                 {(semesters ?? []).map((semester) => (
                   <option key={semester.id} value={semester.id}>
-                    {getSemesterLabel(semester)}
+                    {formatSemesterPeriodWithCode(semester.semester)}
                   </option>
                 ))}
               </Select>
+              <SectionHint>
+                Selecciona el periodo en el que se generaron estos
+                documentos.
+              </SectionHint>
             </SelectorGroup>
             <Button
               type="button"
@@ -703,7 +700,7 @@ function WorkerDocumentsView({ workerId }: WorkerDocumentsViewProps) {
 
           <SemesterLabel>
             {selectedSemester
-              ? getSemesterLabel(selectedSemester)
+              ? formatSemesterPeriodWithCode(selectedSemester.semester)
               : "Selecciona un semestre"}
           </SemesterLabel>
 

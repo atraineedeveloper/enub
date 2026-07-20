@@ -5,6 +5,7 @@ import type {
   WorkerDocumentReportData,
 } from "./useWorkerDocumentReportData";
 import type { Semester } from "../../semesters/useSemesters";
+import { formatSemesterPeriodWithCode } from "../../semesters/semesterDisplayLabel";
 
 // jspdf-autotable's bundled types only export a standalone `autoTable(doc,
 // options)` function -- this version doesn't augment jsPDF's own type with an
@@ -28,7 +29,7 @@ function formatDate(value?: string | null) {
 
 function getSemesterLabel(semester?: Semester | null) {
   if (!semester) return "No seleccionado";
-  return [semester.semester, semester.school_year].filter(Boolean).join(" - ");
+  return formatSemesterPeriodWithCode(semester.semester);
 }
 
 function sanitizeFileName(value = "") {
@@ -105,7 +106,7 @@ export function generateWorkerDocumentReportPdf(
   doc.text(`Trabajador: ${workerName}`, 32, 62);
   doc.text(`Tipo: ${worker.type_worker ?? "No especificado"}`, 32, 78);
   doc.text(`RFC: ${worker.RFC ?? "No especificado"}`, 32, 94);
-  doc.text(`Semestre: ${semesterLabel}`, 340, 62);
+  doc.text(`Periodo académico: ${semesterLabel}`, 340, 62);
   doc.text(`Generado: ${generatedAt}`, 340, 78);
 
   doc.autoTable({
