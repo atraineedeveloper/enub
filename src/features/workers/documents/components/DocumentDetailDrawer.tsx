@@ -89,7 +89,20 @@ const Title = styled.h2`
   overflow-wrap: anywhere;
 `;
 
-const Description = styled.p`
+// The catalog's editorial description (worker_document_types.description)
+// -- distinct from UploadRule below (the single/multiple-file functional
+// hint): one is editorial content about what the requirement IS, the
+// other is a rule about how uploading it WORKS. Rendered only when
+// present -- never a placeholder, never a generic fallback for null/empty.
+const TypeDescription = styled.p`
+  color: var(--color-grey-500);
+  font-size: 1.3rem;
+  margin: 0;
+`;
+
+// The functional single-vs-multiple-file hint -- kept as its own element,
+// separate from TypeDescription above.
+const UploadRule = styled.p`
   color: var(--color-grey-500);
   font-size: 1.3rem;
   margin: 0;
@@ -480,6 +493,7 @@ function DocumentDetailDrawerView({
   onCancel,
 }: DocumentDetailDrawerViewProps) {
   const hasExistingDocument = documents.length > 0;
+  const description = documentType.description?.trim();
 
   return (
     <>
@@ -494,11 +508,12 @@ function DocumentDetailDrawerView({
         <Header>
           <HeaderText>
             <Title id={titleId}>{documentType.name}</Title>
-            <Description>
+            {description && <TypeDescription>{description}</TypeDescription>}
+            <UploadRule>
               {allowsMultiple
                 ? "Puedes adjuntar varios archivos."
                 : "Se admite un archivo."}
-            </Description>
+            </UploadRule>
             <FileCountLine aria-live="polite">
               {getRequirementFileCountLabel(documents.length)} cargado
               {documents.length === 1 ? "" : "s"}

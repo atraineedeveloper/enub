@@ -152,6 +152,76 @@ describe("DocumentDetailDrawer -- comportamiento single/multiple", () => {
   });
 });
 
+describe("DocumentDetailDrawer -- descripción editorial del catálogo", () => {
+  test("una descripción presente se muestra debajo del título, junto (no en vez de) la regla single/multiple", () => {
+    const html = renderDrawerView({
+      documentType: documentType({
+        name: "Control de asesorías",
+        description: "Bitácoras",
+        allows_multiple: false,
+      }),
+      allowsMultiple: false,
+    });
+
+    expect(html).toContain("Bitácoras");
+    // Both concepts coexist -- the editorial description never replaces
+    // the functional single/multiple hint.
+    expect(html).toContain("Se admite un archivo.");
+    expect(html.indexOf("Bitácoras")).toBeLessThan(html.indexOf("Se admite un archivo."));
+  });
+
+  test("description = null no renderiza ningún espacio reservado ni frase genérica -- solo queda la regla single/multiple", () => {
+    const html = renderDrawerView({
+      documentType: documentType({ description: null, allows_multiple: true }),
+      allowsMultiple: true,
+    });
+
+    expect(html).not.toContain("null");
+    expect(html).not.toContain("undefined");
+    expect(html).not.toContain("Sin descripción");
+    expect(html).toContain("Puedes adjuntar varios archivos.");
+  });
+
+  test("description = undefined tampoco renderiza nada", () => {
+    const withUndefined = renderDrawerView({
+      documentType: documentType({ description: undefined }),
+    });
+    const withNull = renderDrawerView({
+      documentType: documentType({ description: null }),
+    });
+    expect(withUndefined).toBe(withNull);
+  });
+
+  test("description = '' (cadena vacía) no renderiza nada -- mismo trato que null", () => {
+    const withEmpty = renderDrawerView({
+      documentType: documentType({ description: "" }),
+    });
+    const withNull = renderDrawerView({
+      documentType: documentType({ description: null }),
+    });
+    expect(withEmpty).toBe(withNull);
+  });
+
+  test("description = '   ' (solo espacios) no renderiza nada -- se trata como vacía tras trim()", () => {
+    const withWhitespace = renderDrawerView({
+      documentType: documentType({ description: "   " }),
+    });
+    const withNull = renderDrawerView({
+      documentType: documentType({ description: null }),
+    });
+    expect(withWhitespace).toBe(withNull);
+  });
+
+  test("una descripción válida con espacios exteriores se muestra recortada, sin los espacios accidentales", () => {
+    const html = renderDrawerView({
+      documentType: documentType({ description: "  Bitácoras  " }),
+    });
+    expect(html).toContain(">Bitácoras<");
+    expect(html).not.toContain(" Bitácoras ");
+    expect(html).not.toContain("  Bitácoras");
+  });
+});
+
 describe("DocumentDetailDrawer -- tipo inactivo", () => {
   test("sin controles de carga, con la nota de inactividad", () => {
     const html = renderDrawerView({

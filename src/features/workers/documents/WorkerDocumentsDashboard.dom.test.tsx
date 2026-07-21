@@ -219,6 +219,7 @@ function renderDashboard(overrides: Record<string, unknown> = {}) {
         semesters={semesters}
         selectedSemesterId="1"
         onSemesterChange={() => {}}
+        isUpdatingSemesterData={false}
         isLoadingReport={false}
         onDownloadReport={() => {}}
         onView={() => {}}
@@ -577,6 +578,66 @@ describe("Cambio de semestre", () => {
     fireSelectValue(select, "2");
 
     expect(received.value).toBe("2");
+  });
+
+  test("con una selección pendiente en el drawer, cambiar de periodo pide confirmación en vez de cambiar de inmediato (mismo funnel requestDrawerTransition)", () => {
+    const received: { value: string | null } = { value: null };
+    renderDashboard({
+      onSemesterChange: (value: string) => {
+        received.value = value;
+      },
+    });
+
+    const docenciaTab = Array.from(document.querySelectorAll('[role="tab"]')).find(
+      (el) => el.textContent === "Docencia"
+    )!;
+    fireClick(docenciaTab as HTMLElement);
+
+    fireClick(getRowButton("Planeación"));
+    const dialog = getDialog();
+    const input = dialog.querySelector<HTMLInputElement>('input[type="file"]')!;
+    selectFiles(input, [makeFile("planeacion.pdf")]);
+
+    const select = document.querySelector<HTMLSelectElement>("#semester")!;
+    fireSelectValue(select, "2");
+
+    // The semester never actually changed yet -- the discard confirmation
+    // is showing instead, exactly as it does for X/Escape/overlay/category
+    // change (decideDrawerTransition, documentRequirementSummary.ts).
+    expect(received.value).toBeNull();
+    expect(document.body.textContent).toContain("Archivos sin subir");
+
+    const discardButton = Array.from(document.querySelectorAll("button")).find(
+      (btn) => btn.textContent === "Salir sin subir"
+    )!;
+    fireClick(discardButton);
+
+    expect(received.value).toBe("2");
+  });
+});
+
+describe("El filtro de estado persiste al cambiar de periodo", () => {
+  test("cambiar de periodo no reinicia el filtro 'Con archivos' (solo la búsqueda se limpia al cambiar de categoría, nunca el filtro por semestre)", () => {
+    renderDashboard();
+
+    const docenciaTab = Array.from(document.querySelectorAll('[role="tab"]')).find(
+      (el) => el.textContent === "Docencia"
+    )!;
+    fireClick(docenciaTab as HTMLElement);
+
+    const withFilesChip = Array.from(document.querySelectorAll("button")).find(
+      (btn) => btn.textContent === "Con archivos"
+    )!;
+    fireClick(withFilesChip);
+    expect(withFilesChip.getAttribute("aria-pressed")).toBe("true");
+
+    const select = document.querySelector<HTMLSelectElement>("#semester")!;
+    fireSelectValue(select, "2");
+
+    const withFilesChipAfter = Array.from(document.querySelectorAll("button")).find(
+      (btn) => btn.textContent === "Con archivos"
+    )!;
+    expect(withFilesChipAfter.getAttribute("aria-pressed")).toBe("true");
   });
 });
 

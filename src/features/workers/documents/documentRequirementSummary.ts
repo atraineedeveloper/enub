@@ -123,10 +123,6 @@ export interface DocumentProgressSummary {
   totalActive: number;
   withFiles: number;
   pending: number;
-  // null specifically means "no active requirements exist" -- the only
-  // case division-by-zero would otherwise occur. Callers show a distinct,
-  // human message for null rather than a 0% or NaN% bar.
-  percentage: number | null;
 }
 
 // The global summary combines every ACTIVE requirement across every
@@ -138,6 +134,12 @@ export interface DocumentProgressSummary {
 // `totalActive` and `withFiles`/`pending` here -- they are neither
 // "pending" (nothing new can ever be uploaded against them) nor part of
 // what "coverage" means going forward.
+//
+// Deliberately no percentage/completion rate here (design decision, not an
+// oversight): requirements don't necessarily carry equal weight, and there
+// is no formal rule for what "compliant" means as a single number -- a
+// computed percentage would communicate a precision the system doesn't
+// actually have. Only these three objective counts are surfaced.
 export function computeDocumentProgressSummary(
   categories: Pick<WorkerDocumentCategory, "document_types">[],
   documentsByType: Map<number, WorkerDocument[]>
@@ -160,8 +162,6 @@ export function computeDocumentProgressSummary(
     totalActive,
     withFiles,
     pending: totalActive - withFiles,
-    percentage:
-      totalActive === 0 ? null : Math.round((withFiles / totalActive) * 100),
   };
 }
 
@@ -216,4 +216,48 @@ export function decideDrawerTransition(
   if (guard === "block") return "ignore";
   if (guard === "allow") return "run";
   return "confirm";
+}
+
+export interface CanOpenDocumentRequirementParams {
+  isUpdatingSemesterData: boolean;
+}
+
+// The internal guard behind opening a requirement's drawer -- named and
+// unit-tested on its own, independent of the disabled attribute on the
+// row's own buttons (DocumentRequirementRow/List). The disabled attribute
+// is the visible, user-facing control; this is the logical gate
+// `openRequirement` itself consults, so "no drawer opens during
+// isUpdatingSemesterData" holds even if a call reaches it through some
+// path other than a native click on an enabled button (a disabled HTML
+// control cannot be relied on as the ONLY thing standing between a
+// placeholder-data dataset and an opened drawer).
+export function canOpenDocumentRequirement({
+  isUpdatingSemesterData,
+}: CanOpenDocumentRequirementParams): boolean {
+  return !isUpdatingSemesterData;
+}
+
+// The single source of truth for "which category is actually shown" --
+// derived at render time from the raw selectedCategoryId state, never
+// written back into it. Keeps the selection if it still names a category
+// in the current (possibly newly-referenced, e.g. after a semester
+// refetch) catalog array; falls back to the first category only when
+// there genuinely is nothing valid to keep (no selection yet, or the
+// previously selected category no longer exists in the visible catalog).
+// Never resets just because the catalog array's reference changed, a
+// semester changed, or a refetch started/finished -- callers must NOT
+// pair this with a useEffect that calls setSelectedCategoryId on every
+// catalog change; that would reintroduce exactly the bug this function
+// exists to prevent.
+export function resolveActiveCategoryId<T extends Pick<WorkerDocumentCategory, "id">>(
+  categories: T[],
+  selectedCategoryId: number | null
+): number | null {
+  if (
+    selectedCategoryId !== null &&
+    categories.some((category) => category.id === selectedCategoryId)
+  ) {
+    return selectedCategoryId;
+  }
+  return categories[0]?.id ?? null;
 }

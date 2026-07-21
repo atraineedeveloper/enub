@@ -24,16 +24,22 @@ interface DocumentRequirementListProps {
   documentsByType: Map<number, WorkerDocument[]>;
   emptyMessage: string;
   onOpenRequirement: (documentTypeId: number) => void;
+  disabled?: boolean;
 }
 
 // Already-filtered (visibility, status filter, search) document types in --
 // this component only renders rows or the empty state, no filtering logic
-// of its own.
+// of its own. `disabled` (set while the dashboard is showing a previous
+// period's placeholder data, see WorkerDocumentsDashboard's
+// isUpdatingSemesterData) keeps every row visible as context but makes
+// none of them interactive -- rows must never disappear behind a
+// full-page spinner for this state.
 function DocumentRequirementList({
   documentTypes,
   documentsByType,
   emptyMessage,
   onOpenRequirement,
+  disabled = false,
 }: DocumentRequirementListProps) {
   if (!documentTypes.length) {
     return <EmptyState>{emptyMessage}</EmptyState>;
@@ -47,6 +53,7 @@ function DocumentRequirementList({
           documentType={documentType}
           documents={documentsByType.get(documentType.id) ?? []}
           onOpen={onOpenRequirement}
+          disabled={disabled}
         />
       ))}
     </List>

@@ -10,10 +10,12 @@ SELECT is(
     'exactly 5 worker document categories exist'
 );
 
+-- 30 = 29 seeded + Tutoría / Plan de Trabajo, added by
+-- 20260721030000_update_advising_tutoring_document_requirements.sql.
 SELECT is(
     (SELECT count(*) FROM public.worker_document_types),
-    29::bigint,
-    'exactly 29 worker document types exist'
+    30::bigint,
+    'exactly 30 worker document types exist'
 );
 
 SELECT is(

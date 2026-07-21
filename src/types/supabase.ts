@@ -536,6 +536,7 @@ export type Database = {
           allows_multiple: boolean
           category_id: number
           created_at: string
+          description: string | null
           id: number
           is_active: boolean
           name: string
@@ -545,6 +546,7 @@ export type Database = {
           allows_multiple?: boolean
           category_id: number
           created_at?: string
+          description?: string | null
           id?: number
           is_active?: boolean
           name: string
@@ -554,6 +556,7 @@ export type Database = {
           allows_multiple?: boolean
           category_id?: number
           created_at?: string
+          description?: string | null
           id?: number
           is_active?: boolean
           name?: string

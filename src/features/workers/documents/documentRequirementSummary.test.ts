@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   applyCategoryChange,
+  canOpenDocumentRequirement,
   computeDocumentProgressSummary,
   decideDrawerTransition,
   filterRequirementsByStatus,
@@ -10,6 +11,7 @@ import {
   getLatestUploadDate,
   getRequirementActionLabel,
   getRequirementFileCountLabel,
+  resolveActiveCategoryId,
   sortWorkerDocumentsByRecency,
 } from "./documentRequirementSummary";
 import type { WorkerDocument } from "./useWorkerDocuments";
@@ -214,7 +216,7 @@ describe("computeDocumentProgressSummary", () => {
     ]);
 
     const summary = computeDocumentProgressSummary(categories, documentsByType);
-    expect(summary).toEqual({ totalActive: 1, withFiles: 1, pending: 0, percentage: 100 });
+    expect(summary).toEqual({ totalActive: 1, withFiles: 1, pending: 0 });
   });
 
   test("inactive types are excluded from the denominator entirely -- not counted as pending, not counted as covered", () => {
@@ -238,7 +240,7 @@ describe("computeDocumentProgressSummary", () => {
     const documentsByType = new Map([[1, [makeDocument({ id: 1 })]]]);
 
     const summary = computeDocumentProgressSummary(categories, documentsByType);
-    expect(summary).toEqual({ totalActive: 0, withFiles: 0, pending: 0, percentage: null });
+    expect(summary).toEqual({ totalActive: 0, withFiles: 0, pending: 0 });
   });
 
   test("combines every category (permanente + semestrales) into one summary", () => {
@@ -254,24 +256,10 @@ describe("computeDocumentProgressSummary", () => {
     expect(summary.pending).toBe(2);
   });
 
-  test("zero active requirements -> percentage is null, never a division by zero (NaN/Infinity)", () => {
+  test("zero active requirements -> all counts are zero, no percentage field at all", () => {
     const summary = computeDocumentProgressSummary([], new Map());
-    expect(summary).toEqual({ totalActive: 0, withFiles: 0, pending: 0, percentage: null });
-    expect(Number.isNaN(summary.percentage)).toBe(false);
-  });
-
-  test("percentage rounds to the nearest whole number", () => {
-    const categories = [
-      category([
-        makeDocumentType({ id: 1 }),
-        makeDocumentType({ id: 2 }),
-        makeDocumentType({ id: 3 }),
-      ]),
-    ];
-    const documentsByType = new Map([[1, [makeDocument()]]]);
-
-    const summary = computeDocumentProgressSummary(categories, documentsByType);
-    expect(summary.percentage).toBe(33);
+    expect(summary).toEqual({ totalActive: 0, withFiles: 0, pending: 0 });
+    expect(summary).not.toHaveProperty("percentage");
   });
 });
 
@@ -323,5 +311,47 @@ describe("decideDrawerTransition", () => {
 
   test("an open drawer with nothing pending runs the action immediately", () => {
     expect(decideDrawerTransition(true, "allow")).toBe("run");
+  });
+});
+
+describe("resolveActiveCategoryId", () => {
+  const categories = [{ id: 10 }, { id: 20 }, { id: 30 }];
+
+  test("keeps the selection when it still names a category in the list", () => {
+    expect(resolveActiveCategoryId(categories, 20)).toBe(20);
+  });
+
+  test("falls back to the first category when selectedCategoryId is null", () => {
+    expect(resolveActiveCategoryId(categories, null)).toBe(10);
+  });
+
+  test("falls back to the first category when the selected id no longer exists in the catalog", () => {
+    expect(resolveActiveCategoryId(categories, 999)).toBe(10);
+  });
+
+  test("a NEW array reference containing the same ids keeps the same selection -- never resets just because the reference changed", () => {
+    const sameIdsNewArray = categories.map((category) => ({ ...category }));
+    expect(resolveActiveCategoryId(sameIdsNewArray, 20)).toBe(20);
+  });
+
+  test("an empty catalog resolves to null", () => {
+    expect(resolveActiveCategoryId([], 20)).toBeNull();
+    expect(resolveActiveCategoryId([], null)).toBeNull();
+  });
+});
+
+describe("canOpenDocumentRequirement", () => {
+  test("returns false while a semester change's data is still resolving (placeholderData) -- the logical guard itself, not just a disabled DOM attribute", () => {
+    // Called directly, the same way it would be reached by any caller of
+    // openRequirement regardless of how that call arrived (a real click on
+    // an enabled button is only ONE such path) -- this is what makes "no
+    // drawer opens during isUpdatingSemesterData" hold even for a call
+    // that reaches openRequirement programmatically, not through a native
+    // click a disabled attribute could have suppressed.
+    expect(canOpenDocumentRequirement({ isUpdatingSemesterData: true })).toBe(false);
+  });
+
+  test("returns true once the semester's data is settled", () => {
+    expect(canOpenDocumentRequirement({ isUpdatingSemesterData: false })).toBe(true);
   });
 });

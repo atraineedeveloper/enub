@@ -53,6 +53,7 @@ function WorkerDocumentsView({ workerId }: WorkerDocumentsViewProps) {
   const {
     workerDocuments: semesterWorkerDocuments,
     isLoading: isLoadingSemesterDocuments,
+    isPlaceholderData: isSemesterDataPlaceholder,
     error: semesterDocumentsError,
   } = useWorkerDocumentsBySemester(workerId, selectedSemesterId);
   const {
@@ -132,6 +133,11 @@ function WorkerDocumentsView({ workerId }: WorkerDocumentsViewProps) {
     }
   }
 
+  // True only for the genuine first load (no cached data for ANY period
+  // yet) -- once placeholderData: keepPreviousData is in play (see
+  // useWorkerDocumentsBySemester), isLoadingSemesterDocuments never goes
+  // true again for a period change, so this never re-triggers the
+  // full-page Spinner for a refetch that already has usable data.
   const isLoading =
     isLoadingWorker ||
     isLoadingCatalog ||
@@ -149,6 +155,19 @@ function WorkerDocumentsView({ workerId }: WorkerDocumentsViewProps) {
   if (error) return <ErrorMessage message={error.message} />;
   if (!worker) return <ErrorMessage message="El trabajador no existe." />;
 
+  // isPlaceholderData is true exactly while `semesterWorkerDocuments`
+  // still belongs to the PREVIOUS semesterId (keepPreviousData substitutes
+  // it until the new period's real data arrives) -- the dashboard must
+  // treat itself as read-only for that entire window, since any action
+  // taken against `documentsByType` right now would act on the wrong
+  // period's documents. Deliberately NOT also derived from isFetching:
+  // isFetching also goes true for same-period background refetches (e.g.
+  // the cache invalidation that follows a successful upload), which must
+  // NOT freeze the UI -- isPlaceholderData is the precise signal for "the
+  // displayed dataset belongs to a different query key than the one
+  // currently selected," which is the actual risk this guards against.
+  const isUpdatingSemesterData = Boolean(selectedSemesterId) && isSemesterDataPlaceholder;
+
   return (
     <WorkerDocumentsDashboard
       worker={worker}
@@ -158,6 +177,7 @@ function WorkerDocumentsView({ workerId }: WorkerDocumentsViewProps) {
       semesters={semesters ?? []}
       selectedSemesterId={selectedSemesterId}
       onSemesterChange={setSelectedSemesterId}
+      isUpdatingSemesterData={isUpdatingSemesterData}
       isLoadingReport={isLoadingReportData}
       onDownloadReport={handleDownloadReport}
       onView={handleOpenDocument}

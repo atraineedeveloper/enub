@@ -62,6 +62,7 @@ function baseProps(overrides: Record<string, unknown> = {}) {
     semesters,
     selectedSemesterId: "1",
     onSemesterChange: () => {},
+    isUpdatingSemesterData: false,
     isLoadingReport: false,
     onDownloadReport: () => {},
     onView: () => {},
@@ -135,6 +136,60 @@ describe("WorkerDocumentsDashboard -- summary", () => {
     expect(html).toContain("3 requisitos");
     expect(html).toContain("1 con archivos");
     expect(html).toContain("2 pendientes");
+  });
+});
+
+describe("WorkerDocumentsDashboard -- summary: pluralización", () => {
+  function renderWithActiveTypes(count: number, withFilesCount: number) {
+    const documentTypes = Array.from({ length: count }, (_, index) =>
+      type({ id: index + 1 })
+    );
+    const documentCatalog: WorkerDocumentCategory[] = [
+      {
+        id: 1,
+        name: "Datos personales",
+        scope: "permanent",
+        sort_order: 10,
+        document_types: documentTypes,
+      } as WorkerDocumentCategory,
+    ];
+    const documentsByType = new Map(
+      documentTypes.slice(0, withFilesCount).map((documentType) => [
+        documentType.id,
+        [document({ id: documentType.id, document_type_id: documentType.id })],
+      ])
+    );
+    return renderToStaticMarkup(
+      <WorkerDocumentsDashboard {...baseProps({ documentCatalog, documentsByType })} />
+    );
+  }
+
+  test("1 requisito, 1 con archivos, 0 pendientes -- singular exacto en cada segmento", () => {
+    const html = renderWithActiveTypes(1, 1);
+    expect(html).toContain("1 requisito ·");
+    expect(html).not.toContain("1 requisitos");
+    expect(html).toContain("0 pendientes");
+  });
+
+  test("1 requisito pendiente -- 'pendiente' en singular, nunca 'pendientes'", () => {
+    const html = renderWithActiveTypes(1, 0);
+    expect(html).toContain("1 pendiente");
+    expect(html).not.toContain("1 pendientes");
+  });
+
+  test("0 requisitos pendientes -- 'pendientes' en plural (no 'pendiente' para cero)", () => {
+    const html = renderWithActiveTypes(3, 3);
+    expect(html).toContain("0 pendientes");
+    // "0 pendientes" itself contains "0 pendiente" as a substring, so the
+    // real check for "never the singular form" is that nothing immediately
+    // follows "0 pendiente" except the plural "s".
+    expect(html).not.toMatch(/0 pendiente(?!s)/);
+  });
+
+  test("N (>1) requisitos pendientes -- plural", () => {
+    const html = renderWithActiveTypes(3, 0);
+    expect(html).toContain("3 requisitos");
+    expect(html).toContain("3 pendientes");
   });
 });
 
@@ -282,6 +337,187 @@ describe("WorkerDocumentsDashboard -- filtros y búsqueda", () => {
     );
     expect(html).toContain("CURP");
     expect(html).toContain("Acta de nacimiento");
+  });
+});
+
+describe("WorkerDocumentsDashboard -- descripción editorial del catálogo", () => {
+  function renderSingleType(documentType: WorkerDocumentType) {
+    const documentCatalog: WorkerDocumentCategory[] = [
+      {
+        id: 1,
+        name: "Asesoría",
+        scope: "semester",
+        sort_order: 10,
+        document_types: [documentType],
+      } as WorkerDocumentCategory,
+    ];
+    return renderToStaticMarkup(
+      <WorkerDocumentsDashboard {...baseProps({ documentCatalog })} />
+    );
+  }
+
+  test("una descripción presente se muestra en la fila del requisito", () => {
+    const html = renderSingleType(
+      type({ id: 1, name: "Control de asesorías", description: "Bitácoras" })
+    );
+    expect(html).toContain("Bitácoras");
+  });
+
+  test("description = null no renderiza ningún espacio reservado ni frase genérica", () => {
+    const html = renderSingleType(
+      type({ id: 1, name: "Evidencias", description: null })
+    );
+    // No unguarded-render artifact ("null"/"undefined" leaking into the
+    // markup), and no generic fallback phrase substituted in its place.
+    expect(html).not.toContain("null");
+    expect(html).not.toContain("undefined");
+    expect(html).not.toContain("Sin descripción");
+  });
+
+  test("description = '' (cadena vacía) tampoco renderiza nada -- mismo trato que null", () => {
+    const withEmpty = renderSingleType(
+      type({ id: 1, name: "Documentos de titulación", description: "" })
+    );
+    const withNull = renderSingleType(
+      type({ id: 1, name: "Documentos de titulación", description: null })
+    );
+    expect(withEmpty).toBe(withNull);
+  });
+
+  test("description = undefined tampoco renderiza nada", () => {
+    const withUndefined = renderSingleType(
+      type({ id: 1, name: "Documentos de titulación", description: undefined })
+    );
+    const withNull = renderSingleType(
+      type({ id: 1, name: "Documentos de titulación", description: null })
+    );
+    expect(withUndefined).toBe(withNull);
+  });
+
+  test("description = '   ' (solo espacios) no renderiza nada -- se trata como vacía tras trim()", () => {
+    const withWhitespace = renderSingleType(
+      type({ id: 1, name: "Documentos de titulación", description: "   " })
+    );
+    const withNull = renderSingleType(
+      type({ id: 1, name: "Documentos de titulación", description: null })
+    );
+    expect(withWhitespace).toBe(withNull);
+  });
+
+  test("una descripción válida con espacios exteriores se muestra recortada, sin los espacios accidentales", () => {
+    const html = renderSingleType(
+      type({ id: 1, name: "Control de asesorías", description: "  Bitácoras  " })
+    );
+    expect(html).toContain(">Bitácoras<");
+    expect(html).not.toContain(" Bitácoras ");
+    expect(html).not.toContain("  Bitácoras");
+  });
+});
+
+describe("WorkerDocumentsDashboard -- tipos retirados de Asesoría/Tutoría (union rule)", () => {
+  test("Informes no aparece si no tiene historial (inactivo, sin documentos)", () => {
+    const documentCatalog: WorkerDocumentCategory[] = [
+      {
+        id: 1,
+        name: "Asesoría",
+        scope: "semester",
+        sort_order: 10,
+        document_types: [
+          type({ id: 21, name: "Informes", is_active: false }),
+          type({ id: 24, name: "Control de asesorías", is_active: true }),
+        ],
+      } as WorkerDocumentCategory,
+    ];
+    const html = renderToStaticMarkup(
+      <WorkerDocumentsDashboard {...baseProps({ documentCatalog })} />
+    );
+    expect(html).not.toContain("Informes");
+    expect(html).toContain("Control de asesorías");
+  });
+
+  test("Relación de estudiantes tutorados no aparece si no tiene historial", () => {
+    const documentCatalog: WorkerDocumentCategory[] = [
+      {
+        id: 1,
+        name: "Tutoría",
+        scope: "semester",
+        sort_order: 10,
+        document_types: [
+          type({ id: 20, name: "Relación de estudiantes tutorados", is_active: false }),
+          type({ id: 30, name: "Plan de Trabajo", is_active: true }),
+        ],
+      } as WorkerDocumentCategory,
+    ];
+    const html = renderToStaticMarkup(
+      <WorkerDocumentsDashboard {...baseProps({ documentCatalog })} />
+    );
+    expect(html).not.toContain("Relación de estudiantes tutorados");
+    expect(html).toContain("Plan de Trabajo");
+  });
+
+  test("un tipo inactivo CON historial sí aparece, sin control de carga ('Ver archivos')", () => {
+    const documentCatalog: WorkerDocumentCategory[] = [
+      {
+        id: 1,
+        name: "Asesoría",
+        scope: "semester",
+        sort_order: 10,
+        document_types: [type({ id: 21, name: "Informes", is_active: false })],
+      } as WorkerDocumentCategory,
+    ];
+    const documentsByType = new Map([[21, [document({ id: 1, document_type_id: 21 })]]]);
+    const html = renderToStaticMarkup(
+      <WorkerDocumentsDashboard {...baseProps({ documentCatalog, documentsByType })} />
+    );
+    expect(html).toContain("Informes");
+    expect(html).toContain("Ver archivos");
+  });
+
+  test("un tipo inactivo no cuenta en el resumen de pendientes/progreso", () => {
+    const documentCatalog: WorkerDocumentCategory[] = [
+      {
+        id: 1,
+        name: "Asesoría",
+        scope: "semester",
+        sort_order: 10,
+        document_types: [
+          type({ id: 21, name: "Informes", is_active: false }),
+          type({ id: 24, name: "Control de asesorías", is_active: true }),
+        ],
+      } as WorkerDocumentCategory,
+    ];
+    const documentsByType = new Map([[21, [document({ id: 1, document_type_id: 21 })]]]);
+    const html = renderToStaticMarkup(
+      <WorkerDocumentsDashboard {...baseProps({ documentCatalog, documentsByType })} />
+    );
+    // Only "Control de asesorías" (active) counts -- 1 total, 0 con
+    // archivos, 1 pendiente. Informes (inactive, has a file) is excluded
+    // entirely from these counts.
+    expect(html).toContain("1 requisito");
+    expect(html).toContain("0 con archivos");
+    expect(html).toContain("1 pendiente");
+    expect(html).not.toContain("1 pendientes");
+  });
+
+  test("Plan de Trabajo aparece primero en Tutoría (orden del catálogo, sin reordenar en cliente)", () => {
+    const documentCatalog: WorkerDocumentCategory[] = [
+      {
+        id: 1,
+        name: "Tutoría",
+        scope: "semester",
+        sort_order: 10,
+        document_types: [
+          type({ id: 30, name: "Plan de Trabajo", sort_order: 5 }),
+          type({ id: 20, name: "Relación de estudiantes tutorados", is_active: false }),
+          type({ id: 19, name: "Canalizaciones", sort_order: 20 }),
+        ],
+      } as WorkerDocumentCategory,
+    ];
+    const html = renderToStaticMarkup(
+      <WorkerDocumentsDashboard {...baseProps({ documentCatalog })} />
+    );
+    expect(html.indexOf("Plan de Trabajo")).toBeGreaterThan(-1);
+    expect(html.indexOf("Plan de Trabajo")).toBeLessThan(html.indexOf("Canalizaciones"));
   });
 });
 
