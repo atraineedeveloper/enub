@@ -9,46 +9,40 @@ const SummaryBar = styled.div`
   padding: 1.2rem 0;
 `;
 
-const Counts = styled.p`
+const Counts = styled.p<{ $muted?: boolean }>`
   color: var(--color-grey-600);
   font-size: 1.4rem;
   margin: 0;
   white-space: nowrap;
+  opacity: ${(props) => (props.$muted ? 0.55 : 1)};
 `;
 
-// Discrete, not a hero element: a thin track, no animation, no large
-// numerals -- the counts text carries the information, this is a
-// secondary visual confirmation of it.
-const ProgressTrack = styled.div`
-  flex: 1 1 16rem;
-  min-width: 12rem;
-  height: 0.6rem;
-  border-radius: 999px;
-  background-color: var(--color-grey-100);
-  overflow: hidden;
-`;
-
-const ProgressFill = styled.div<{ $percentage: number }>`
-  height: 100%;
-  width: ${(props) => props.$percentage}%;
-  background-color: var(--color-brand-600);
-  border-radius: 999px;
-  transition: width 0.2s ease;
-`;
-
-const ProgressLabel = styled.span`
+const UpdatingNote = styled.span`
   color: var(--color-grey-500);
   font-size: 1.3rem;
-  white-space: nowrap;
+  font-style: italic;
 `;
 
 interface DocumentSummaryProps {
   summary: DocumentProgressSummary;
+  isUpdatingSemesterData?: boolean;
 }
 
+// Objective counts only -- deliberately no percentage/completion rate and
+// no progress bar (design decision: requirements don't necessarily carry
+// equal weight, and there is no formal compliance rule that a single
+// percentage could honestly represent; see
+// documentRequirementSummary.ts's computeDocumentProgressSummary).
 // A human message when there are zero active requirements at all --
-// avoids ever rendering a 0/0 or a bar with no meaning.
-function DocumentSummary({ summary }: DocumentSummaryProps) {
+// avoids ever rendering a meaningless "0 requisitos · 0 con archivos · 0
+// pendientes".
+//
+// While isUpdatingSemesterData is true, `summary` still reflects the
+// PREVIOUS period's documents (placeholderData) -- never presented as if
+// it were the new period's real result. The counts stay visible (dimmed,
+// for context) with "Actualizando periodo…" appended, rather than being
+// hidden or silently recomputed as if already accurate.
+function DocumentSummary({ summary, isUpdatingSemesterData = false }: DocumentSummaryProps) {
   if (summary.totalActive === 0) {
     return (
       <SummaryBar>
@@ -59,20 +53,12 @@ function DocumentSummary({ summary }: DocumentSummaryProps) {
 
   return (
     <SummaryBar>
-      <Counts>
+      <Counts $muted={isUpdatingSemesterData}>
         {summary.totalActive} {summary.totalActive === 1 ? "requisito" : "requisitos"} ·{" "}
-        {summary.withFiles} con archivos · {summary.pending} pendientes
+        {summary.withFiles} con archivos ·{" "}
+        {summary.pending} {summary.pending === 1 ? "pendiente" : "pendientes"}
       </Counts>
-      <ProgressTrack
-        role="progressbar"
-        aria-valuenow={summary.percentage ?? 0}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label="Progreso del expediente documental"
-      >
-        <ProgressFill $percentage={summary.percentage ?? 0} />
-      </ProgressTrack>
-      <ProgressLabel>{summary.percentage}%</ProgressLabel>
+      {isUpdatingSemesterData && <UpdatingNote>Actualizando periodo…</UpdatingNote>}
     </SummaryBar>
   );
 }

@@ -14,10 +14,12 @@ import DocumentDetailDrawer from "./components/DocumentDetailDrawer";
 import { filterVisibleDocumentTypes } from "./workerDocumentTypeVisibility";
 import {
   applyCategoryChange,
+  canOpenDocumentRequirement,
   computeDocumentProgressSummary,
   decideDrawerTransition,
   filterRequirementsByStatus,
   filterRequirementsBySearch,
+  resolveActiveCategoryId,
   type DocumentStatusFilter,
   type DrawerCloseGuard,
 } from "./documentRequirementSummary";
@@ -170,6 +172,14 @@ export interface WorkerDocumentsDashboardProps {
   semesters: Semester[];
   selectedSemesterId: string;
   onSemesterChange: (semesterId: string) => void;
+  // True while `documentsByType` still reflects a PREVIOUS semester's
+  // documents (placeholderData, see useWorkerDocumentsBySemester/
+  // WorkerDocumentsView) -- the whole dashboard becomes read-only for this
+  // window: no drawer can open, no row action fires, no new period change
+  // can start, "Descargar reporte" is disabled. It never unmounts or hides
+  // behind a full-page spinner for this -- category/filters/structure stay
+  // exactly as they were, only interaction is suspended.
+  isUpdatingSemesterData: boolean;
   isLoadingReport: boolean;
   onDownloadReport: () => void;
   onView: (storagePath: string) => void;
@@ -187,6 +197,7 @@ function WorkerDocumentsDashboardInner({
   semesters,
   selectedSemesterId,
   onSemesterChange,
+  isUpdatingSemesterData,
   isLoadingReport,
   onDownloadReport,
   onView,
@@ -194,13 +205,14 @@ function WorkerDocumentsDashboardInner({
 }: WorkerDocumentsDashboardProps) {
   const { open: openModal } = useModal();
 
-  // Lazily initialized from the catalog prop directly (already resolved by
-  // the time WorkerDocumentsView renders this component at all) rather
-  // than via an effect that sets it after mount -- the first category is
-  // selected on the very first render, with no flash of an empty list.
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
-    () => documentCatalog[0]?.id ?? null
-  );
+  // Raw selection state, set ONLY by explicit user action
+  // (handleSelectCategory) -- starts null and stays null until the user
+  // picks a category. resolveActiveCategoryId (below) is the single place
+  // that falls back to the first category; this state is never lazily
+  // initialized from the catalog itself, so there is exactly one piece of
+  // code encoding "what happens with no selection" instead of two that
+  // could drift apart.
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [selectedDocumentTypeId, setSelectedDocumentTypeId] = useState<number | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [documentFilter, setDocumentFilter] = useState<DocumentStatusFilter>("all");
@@ -209,7 +221,16 @@ function WorkerDocumentsDashboardInner({
   const [drawerDiscardableCount, setDrawerDiscardableCount] = useState(0);
   const [pendingTransition, setPendingTransition] = useState<(() => void) | null>(null);
 
-  const activeCategory = documentCatalog.find((category) => category.id === selectedCategoryId);
+  // The EFFECTIVE category shown -- derived at render time, never written
+  // back into selectedCategoryId. Keeps the selection by id across
+  // whatever caused this render (a semester refetch, a new catalog array
+  // reference, a documentsByType change); falls back to the first category
+  // only when selectedCategoryId is null or no longer names a category in
+  // the current catalog. See resolveActiveCategoryId's own comment -- this
+  // must never be paired with a useEffect that writes activeCategoryId
+  // back into selectedCategoryId on every catalog change.
+  const activeCategoryId = resolveActiveCategoryId(documentCatalog, selectedCategoryId);
+  const activeCategory = documentCatalog.find((category) => category.id === activeCategoryId);
   const selectedDocumentType: WorkerDocumentType | undefined = documentCatalog
     .flatMap((category) => category.document_types)
     .find((type) => type.id === selectedDocumentTypeId);
@@ -250,6 +271,14 @@ function WorkerDocumentsDashboardInner({
   }
 
   function openRequirement(documentTypeId: number) {
+    // Defense in depth alongside the disabled row buttons themselves
+    // (DocumentRequirementList's `disabled` prop): the drawer must never
+    // open against a dataset that belongs to a different semester than
+    // the one currently selected. canOpenDocumentRequirement is the named,
+    // independently unit-tested guard (documentRequirementSummary.ts) --
+    // this holds even if a call reaches openRequirement through some path
+    // other than a native click on an enabled button.
+    if (!canOpenDocumentRequirement({ isUpdatingSemesterData })) return;
     requestDrawerTransition(() => {
       setSelectedDocumentTypeId(documentTypeId);
       setDrawerOpen(true);
@@ -257,7 +286,7 @@ function WorkerDocumentsDashboardInner({
   }
 
   function handleSelectCategory(categoryId: number) {
-    if (categoryId === selectedCategoryId) return;
+    if (categoryId === activeCategoryId) return;
     requestDrawerTransition(() => {
       const nextState = applyCategoryChange(documentFilter);
       setSelectedCategoryId(categoryId);
@@ -268,9 +297,17 @@ function WorkerDocumentsDashboardInner({
   }
 
   function handleSemesterChange(value: string) {
+    // No new period change may start until the current one resolves --
+    // defense in depth alongside the disabled <Select> itself.
+    if (isUpdatingSemesterData) return;
     requestDrawerTransition(() => {
-      onSemesterChange(value);
+      // Close the drawer BEFORE changing the period -- it must never stay
+      // open showing what's about to become placeholder data for the new
+      // semesterId. Both are synchronous state updates batched into the
+      // same commit either way, but this ordering documents the required
+      // sequence directly in the code.
       closeDrawer();
+      onSemesterChange(value);
     });
   }
 
@@ -292,7 +329,7 @@ function WorkerDocumentsDashboardInner({
   const semesterScopedCategory = activeCategory?.scope === "semester";
 
   return (
-    <PageContainer>
+    <PageContainer aria-busy={isUpdatingSemesterData}>
       <PageHeader>
         <WorkerSummary>
           <Heading as="h1">Expediente documental</Heading>
@@ -308,6 +345,7 @@ function WorkerDocumentsDashboardInner({
                 id="semester"
                 value={selectedSemesterId}
                 onChange={(event) => handleSemesterChange(event.target.value)}
+                disabled={isUpdatingSemesterData}
               >
                 {semesters.map((semester) => (
                   <option key={semester.id} value={semester.id}>
@@ -320,7 +358,7 @@ function WorkerDocumentsDashboardInner({
           <Button
             type="button"
             variation="secondary"
-            disabled={isLoadingReport}
+            disabled={isLoadingReport || isUpdatingSemesterData}
             onClick={onDownloadReport}
           >
             <HiArrowDownTray /> Descargar reporte
@@ -328,7 +366,7 @@ function WorkerDocumentsDashboardInner({
         </HeaderControls>
       </PageHeader>
 
-      <DocumentSummary summary={progressSummary} />
+      <DocumentSummary summary={progressSummary} isUpdatingSemesterData={isUpdatingSemesterData} />
 
       {documentCatalog.length === 0 ? (
         <EmptyState>No hay catálogo de documentos configurado.</EmptyState>
@@ -336,7 +374,7 @@ function WorkerDocumentsDashboardInner({
         <>
           <DocumentCategoryTabs
             categories={documentCatalog}
-            selectedCategoryId={selectedCategoryId}
+            selectedCategoryId={activeCategoryId}
             onSelectCategory={handleSelectCategory}
           />
 
@@ -352,6 +390,7 @@ function WorkerDocumentsDashboardInner({
             documentsByType={documentsByType}
             emptyMessage="No hay requisitos que coincidan con el filtro o la búsqueda actual."
             onOpenRequirement={openRequirement}
+            disabled={isUpdatingSemesterData}
           />
         </>
       )}

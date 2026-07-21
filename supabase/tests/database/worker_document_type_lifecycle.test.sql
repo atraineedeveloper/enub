@@ -78,10 +78,13 @@ SELECT ok(
     'Docencia / Plan de trabajo semestral and Docencia / Planeaciones semanales are both inactive'
 );
 
+-- 4 = the 2 Docencia types retired here + Asesoría / Informes and Tutoría /
+-- Relación de estudiantes tutorados, retired by
+-- 20260721030000_update_advising_tutoring_document_requirements.sql.
 SELECT is(
     (SELECT count(*) FROM public.worker_document_types WHERE is_active = false),
-    2::bigint,
-    'exactly two worker document types are inactive after a fresh reset'
+    4::bigint,
+    'exactly four worker document types are inactive after a fresh reset'
 );
 
 -- 8.3: identically-named types in other categories are untouched.

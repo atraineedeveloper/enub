@@ -12,12 +12,13 @@ import type { WorkerDocument } from "../useWorkerDocuments";
 
 // A single compact row, ~80px tall (padding + line-heights, no fixed
 // height so long names can still wrap without clipping) -- never a card.
-const Row = styled.li`
+const Row = styled.li<{ $disabled: boolean }>`
   display: flex;
   align-items: center;
   gap: 1.2rem;
   padding: 1.2rem 0.4rem;
   border-bottom: 1px solid var(--color-grey-100);
+  opacity: ${(props) => (props.$disabled ? 0.55 : 1)};
 
   &:last-child {
     border-bottom: none;
@@ -66,11 +67,30 @@ const NameButton = styled.button`
   &:hover {
     color: var(--color-brand-700);
   }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+
+  &:disabled:hover {
+    color: var(--color-grey-800);
+  }
 `;
 
 const MetaLine = styled.span`
   color: var(--color-grey-500);
   font-size: 1.2rem;
+`;
+
+// The catalog's editorial description (worker_document_types.description),
+// distinct from the file-count/last-upload metadata below it -- rendered
+// only when present (never a placeholder, never a generic fallback phrase
+// for null/empty, see documentRequirementSummary.ts's module comment on
+// this same distinction in the drawer).
+const DescriptionLine = styled.span`
+  color: var(--color-grey-500);
+  font-size: 1.2rem;
+  overflow-wrap: anywhere;
 `;
 
 const ActionButton = styled(Button)`
@@ -82,12 +102,14 @@ interface DocumentRequirementRowProps {
   documentType: WorkerDocumentType;
   documents: WorkerDocument[];
   onOpen: (documentTypeId: number) => void;
+  disabled?: boolean;
 }
 
 function DocumentRequirementRow({
   documentType,
   documents,
   onOpen,
+  disabled = false,
 }: DocumentRequirementRowProps) {
   const documentCount = documents.length;
   const tone = !documentType.is_active
@@ -104,22 +126,24 @@ function DocumentRequirementRow({
     documentType.allows_multiple,
     documentCount
   );
+  const description = documentType.description?.trim();
 
   function handleOpen() {
     onOpen(documentType.id);
   }
 
   return (
-    <Row>
+    <Row $disabled={disabled} aria-disabled={disabled}>
       <StatusIconWrapper $tone={tone} aria-hidden="true">
         {tone === "covered" && <HiCheckCircle />}
         {tone === "pending" && <HiOutlineClock />}
         {tone === "inactive" && <HiLockClosed />}
       </StatusIconWrapper>
       <Details>
-        <NameButton type="button" onClick={handleOpen}>
+        <NameButton type="button" onClick={handleOpen} disabled={disabled}>
           {documentType.name}
         </NameButton>
+        {description && <DescriptionLine>{description}</DescriptionLine>}
         <MetaLine>
           {getRequirementFileCountLabel(documentCount)} · {lastUploadText}
         </MetaLine>
@@ -129,6 +153,7 @@ function DocumentRequirementRow({
         size="small"
         variation={documentCount > 0 ? "secondary" : "primary"}
         onClick={handleOpen}
+        disabled={disabled}
       >
         {actionLabel}
       </ActionButton>
