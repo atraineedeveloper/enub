@@ -1,5 +1,11 @@
 import supabase from "./supabase";
 import type { Database } from "../types/supabase";
+import {
+  ALLOWED_DOCUMENT_FILE_EXTENSIONS,
+  DOCUMENT_MIME_TYPE_BY_EXTENSION,
+  MAX_WORKER_DOCUMENT_FILE_SIZE_BYTES,
+  MAX_WORKER_DOCUMENT_FILE_SIZE_LABEL,
+} from "./workerDocumentUploadLimits";
 
 type WorkerDocumentCategoryRow =
   Database["public"]["Tables"]["worker_document_categories"]["Row"];
@@ -10,30 +16,11 @@ type WorkerDocumentInsert =
   Database["public"]["Tables"]["worker_documents"]["Insert"];
 
 const WORKER_DOCUMENTS_BUCKET = "worker_documents";
-const MAX_WORKER_DOCUMENT_SIZE = 10 * 1024 * 1024;
 const SIGNED_URL_EXPIRES_IN_SECONDS = 60 * 60;
-const ALLOWED_FILE_EXTENSIONS = new Set([
-  "pdf",
-  "doc",
-  "docx",
-  "xls",
-  "xlsx",
-  "jpg",
-  "jpeg",
-  "png",
-  "webp",
-]);
-const MIME_TYPE_BY_EXTENSION: Record<string, string> = {
-  pdf: "application/pdf",
-  doc: "application/msword",
-  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  xls: "application/vnd.ms-excel",
-  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  png: "image/png",
-  webp: "image/webp",
-};
+const ALLOWED_FILE_EXTENSIONS = new Set<string>(
+  ALLOWED_DOCUMENT_FILE_EXTENSIONS
+);
+const MIME_TYPE_BY_EXTENSION = DOCUMENT_MIME_TYPE_BY_EXTENSION;
 const WORKER_DOCUMENT_SELECT =
   "*, worker_document_types(*, worker_document_categories(*)), semesters(*)";
 
@@ -130,8 +117,10 @@ function validateWorkerDocumentFile(file?: File | null) {
     );
   }
 
-  if (!file.size || file.size > MAX_WORKER_DOCUMENT_SIZE) {
-    throw new Error("El archivo no debe pesar más de 10 MB");
+  if (!file.size || file.size > MAX_WORKER_DOCUMENT_FILE_SIZE_BYTES) {
+    throw new Error(
+      `El archivo no debe pesar más de ${MAX_WORKER_DOCUMENT_FILE_SIZE_LABEL}`
+    );
   }
 }
 

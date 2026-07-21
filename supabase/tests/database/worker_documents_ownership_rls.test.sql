@@ -72,6 +72,19 @@ VALUES ('d0000000-0000-0000-0000-000000000001', 'staff', NULL);
 INSERT INTO public.profiles (id, role, worker_id)
 SELECT 'd0000000-0000-0000-0000-000000000002', 'worker', worker_a_id FROM wd_ownership_ids;
 
+-- Baseline staff-visible count captured BEFORE this file's own fixture rows
+-- exist -- the staff policy grants visibility over every worker_documents
+-- row table-wide (not scoped by worker_id like the worker-session policy
+-- below), so a local database that already has legitimate documents in it
+-- would make an absolute-count assertion fail. Comparing against this
+-- baseline instead keeps the assertion hermetic regardless of pre-existing
+-- data.
+SET LOCAL role authenticated;
+SET LOCAL "request.jwt.claim.sub" = 'd0000000-0000-0000-0000-000000000001';
+SELECT (SELECT count(*) FROM public.worker_documents) AS staff_baseline_count \gset
+RESET role;
+RESET "request.jwt.claim.sub";
+
 -- Fixture documents for both workers, inserted as the connecting role
 -- (bypasses RLS, same as any direct-DB setup step in the existing suite).
 INSERT INTO public.worker_documents (worker_id, document_type_id, semester_id, file_name, storage_path, mime_type, file_size)
@@ -98,7 +111,7 @@ SELECT (SELECT count(*) FROM public.worker_documents) AS staff_visible_count \gs
 RESET role;
 RESET "request.jwt.claim.sub";
 
-SELECT is(:'staff_visible_count'::bigint, 2::bigint, 'a staff session sees every worker_documents row');
+SELECT is(:'staff_visible_count'::bigint, :'staff_baseline_count'::bigint + 2, 'a staff session sees exactly this fixture''s 2 new worker_documents rows on top of whatever existed before them');
 
 SET LOCAL role authenticated;
 SET LOCAL "request.jwt.claim.sub" = 'd0000000-0000-0000-0000-000000000003';

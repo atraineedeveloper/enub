@@ -52,7 +52,7 @@ function wrapLongText(value = "", chunkSize = 36) {
     .join("");
 }
 
-function buildReportRows(categories: WorkerDocumentReportCategory[] = []) {
+export function buildReportRows(categories: WorkerDocumentReportCategory[] = []) {
   return categories.flatMap((category) =>
     (category.document_types ?? []).flatMap((documentType) => {
       const documents = documentType.documents ?? [];

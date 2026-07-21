@@ -10,7 +10,7 @@ SET search_path = public, extensions;
 -- exercised via real RLS enforcement (SET LOCAL role authenticated +
 -- request.jwt.claim.sub), matching worker_documents_ownership_rls.test.sql.
 
-SELECT plan(18);
+SELECT plan(20);
 
 CREATE TEMP TABLE wd_rpc_ids AS
 WITH worker_a AS (
@@ -28,32 +28,50 @@ semester_insert AS (
     VALUES ('QA RPC', '2026-2027')
     RETURNING id
 ),
+-- Single-file fixtures deliberately live under Investigación, not
+-- Docencia: 20260721010000_docencia_active_types_allow_multiple.sql flips
+-- every active Docencia type to allows_multiple = true, so Docencia no
+-- longer has any single-file type left to exercise the RPC's ordinary
+-- single-file success/rollback/ownership paths against. Investigación has
+-- the same 'semester' category scope as Docencia (so every existing
+-- semester_id-bearing call below needs no shape change), and none of its
+-- types are touched by that migration. This is an arbitrary choice of a
+-- still-single-file category, not a claim that Investigación is special.
 type_lookup AS (
     SELECT
         max(worker_document_types.id) FILTER (
-            WHERE worker_document_categories.name = 'Docencia'
-                AND worker_document_types.name = 'Planeación semestral'
+            WHERE worker_document_categories.name = 'Investigación'
+                AND worker_document_types.name = 'Artículos publicados'
         ) AS single_file_type_id,
         max(worker_document_types.id) FILTER (
-            WHERE worker_document_categories.name = 'Docencia'
-                AND worker_document_types.name = 'Rúbricas'
+            WHERE worker_document_categories.name = 'Investigación'
+                AND worker_document_types.name = 'Ponencias'
         ) AS single_file_type_id_2,
         max(worker_document_types.id) FILTER (
-            WHERE worker_document_categories.name = 'Docencia'
-                AND worker_document_types.name = 'Listas de cotejo'
+            WHERE worker_document_categories.name = 'Investigación'
+                AND worker_document_types.name = 'Capítulos de libro'
         ) AS single_file_type_id_3,
         max(worker_document_types.id) FILTER (
-            WHERE worker_document_categories.name = 'Docencia'
-                AND worker_document_types.name = 'Listas de asistencia'
+            WHERE worker_document_categories.name = 'Investigación'
+                AND worker_document_types.name = 'Informes técnicos'
         ) AS single_file_type_id_4,
         max(worker_document_types.id) FILTER (
-            WHERE worker_document_categories.name = 'Docencia'
-                AND worker_document_types.name = 'Actas de evaluación'
+            WHERE worker_document_categories.name = 'Investigación'
+                AND worker_document_types.name = 'Productos académicos diversos'
         ) AS single_file_type_id_5,
         max(worker_document_types.id) FILTER (
             WHERE worker_document_categories.name = 'Docencia'
                 AND worker_document_types.name = 'Plan de trabajo semestral'
-        ) AS inactive_type_id
+        ) AS inactive_type_id,
+        -- New fixture (Item 22 coverage): a Docencia type this migration
+        -- flips to allows_multiple = true, used below to prove the RPC's
+        -- pre-existing allows_multiple guard (20260716014037) now also
+        -- protects these newly-multi types, with no change to the RPC
+        -- itself required.
+        max(worker_document_types.id) FILTER (
+            WHERE worker_document_categories.name = 'Docencia'
+                AND worker_document_types.name = 'Rúbricas'
+        ) AS docencia_multi_type_id
     FROM public.worker_document_types
     JOIN public.worker_document_categories
         ON worker_document_categories.id = worker_document_types.category_id
@@ -67,12 +85,13 @@ SELECT
     type_lookup.single_file_type_id_3,
     type_lookup.single_file_type_id_4,
     type_lookup.single_file_type_id_5,
-    type_lookup.inactive_type_id
+    type_lookup.inactive_type_id,
+    type_lookup.docencia_multi_type_id
 FROM worker_a, worker_b, semester_insert, type_lookup;
 
 SELECT worker_a_id, worker_b_id, semester_id, single_file_type_id,
     single_file_type_id_2, single_file_type_id_3, single_file_type_id_4,
-    single_file_type_id_5, inactive_type_id
+    single_file_type_id_5, inactive_type_id, docencia_multi_type_id
 FROM wd_rpc_ids \gset
 
 INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
@@ -379,6 +398,37 @@ SELECT lives_ok(
 );
 RESET role;
 RESET "request.jwt.claim.sub";
+
+-- 7. A Docencia type flipped to allows_multiple = true by
+-- 20260721010000_docencia_active_types_allow_multiple.sql is rejected by
+-- the RPC's pre-existing allows_multiple guard, exactly like Evidencias
+-- bimestrales already was before that migration -- no RPC code change was
+-- needed for this to hold.
+INSERT INTO public.worker_documents (worker_id, document_type_id, semester_id, file_name, storage_path, mime_type, file_size)
+SELECT worker_a_id, docencia_multi_type_id, semester_id, 'rubrica-multi-v1.pdf', 'rpc/rubrica-multi-v1.pdf', 'application/pdf', 100
+FROM wd_rpc_ids;
+
+SELECT throws_ok(
+    format(
+        $$
+        SELECT * FROM public.replace_worker_document_metadata(%L, %L, %L, 'rubrica-multi-v2.pdf', 'rpc/rubrica-multi-v2.pdf', 'application/pdf', 200)
+        $$,
+        :'worker_a_id', :'docencia_multi_type_id', :'semester_id'
+    ),
+    'P0001',
+    NULL,
+    'the RPC rejects replacement for a newly-multi-file Docencia type (Rúbricas)'
+);
+
+SELECT ok(
+    EXISTS (
+        SELECT 1 FROM public.worker_documents WHERE storage_path = 'rpc/rubrica-multi-v1.pdf'
+    )
+    AND NOT EXISTS (
+        SELECT 1 FROM public.worker_documents WHERE storage_path = 'rpc/rubrica-multi-v2.pdf'
+    ),
+    'the rejected call leaves worker_documents completely unchanged for the newly-multi Docencia type'
+);
 
 SELECT * FROM finish();
 
