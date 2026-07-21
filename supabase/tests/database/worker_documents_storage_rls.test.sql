@@ -40,6 +40,19 @@ VALUES ('e0000000-0000-0000-0000-000000000001', 'staff', NULL);
 INSERT INTO public.profiles (id, role, worker_id)
 SELECT 'e0000000-0000-0000-0000-000000000002', 'worker', worker_a_id FROM wd_storage_ids;
 
+-- Baseline staff-visible count captured BEFORE this file's own fixture
+-- objects exist -- the staff policy grants visibility over every object in
+-- the worker_documents bucket table-wide (not scoped by a path prefix like
+-- the worker-session policy below), so a local database/bucket that already
+-- has legitimate objects in it would make an absolute-count assertion fail.
+-- Comparing against this baseline instead keeps the assertion hermetic
+-- regardless of pre-existing data.
+SET LOCAL role authenticated;
+SET LOCAL "request.jwt.claim.sub" = 'e0000000-0000-0000-0000-000000000001';
+SELECT (SELECT count(*) FROM storage.objects WHERE bucket_id = 'worker_documents') AS staff_baseline_count \gset
+RESET role;
+RESET "request.jwt.claim.sub";
+
 -- Fixture storage objects for both workers' paths, inserted as the
 -- connecting role (bypasses RLS).
 INSERT INTO storage.objects (bucket_id, name)
@@ -66,7 +79,7 @@ SELECT (SELECT count(*) FROM storage.objects WHERE bucket_id = 'worker_documents
 RESET role;
 RESET "request.jwt.claim.sub";
 
-SELECT is(:'staff_visible_count'::bigint, 2::bigint, 'a staff session sees every storage object in the worker_documents bucket');
+SELECT is(:'staff_visible_count'::bigint, :'staff_baseline_count'::bigint + 2, 'a staff session sees exactly this fixture''s 2 new storage objects on top of whatever existed before them');
 
 SET LOCAL role authenticated;
 SET LOCAL "request.jwt.claim.sub" = 'e0000000-0000-0000-0000-000000000003';

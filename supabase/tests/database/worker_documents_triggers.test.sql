@@ -2,7 +2,7 @@ BEGIN;
 
 SET search_path = public, extensions;
 
-SELECT plan(11);
+SELECT plan(23);
 
 CREATE TEMP TABLE worker_documents_trigger_ids AS
 WITH worker_insert AS (
@@ -32,7 +32,32 @@ type_lookup AS (
         max(worker_document_types.id) FILTER (
             WHERE worker_document_categories.name = 'Docencia'
                 AND worker_document_types.name = 'Plan de trabajo semestral'
-        ) AS inactive_type_id
+        ) AS inactive_type_id,
+        -- The remaining 5 active Docencia types
+        -- 20260721010000_docencia_active_types_allow_multiple.sql flips to
+        -- allows_multiple = true (semester_type_id/Planeación semestral and
+        -- evidence_type_id/Evidencias bimestrales above cover the other 2
+        -- of the 7).
+        max(worker_document_types.id) FILTER (
+            WHERE worker_document_categories.name = 'Docencia'
+                AND worker_document_types.name = 'Rúbricas'
+        ) AS rubricas_type_id,
+        max(worker_document_types.id) FILTER (
+            WHERE worker_document_categories.name = 'Docencia'
+                AND worker_document_types.name = 'Listas de cotejo'
+        ) AS listas_cotejo_type_id,
+        max(worker_document_types.id) FILTER (
+            WHERE worker_document_categories.name = 'Docencia'
+                AND worker_document_types.name = 'Listas de asistencia'
+        ) AS listas_asistencia_type_id,
+        max(worker_document_types.id) FILTER (
+            WHERE worker_document_categories.name = 'Docencia'
+                AND worker_document_types.name = 'Actas de evaluación'
+        ) AS actas_evaluacion_type_id,
+        max(worker_document_types.id) FILTER (
+            WHERE worker_document_categories.name = 'Docencia'
+                AND worker_document_types.name = 'Concentrado de calificaciones finales'
+        ) AS concentrado_type_id
     FROM public.worker_document_types
     JOIN public.worker_document_categories
         ON worker_document_categories.id = worker_document_types.category_id
@@ -43,7 +68,12 @@ SELECT
     type_lookup.permanent_type_id,
     type_lookup.semester_type_id,
     type_lookup.evidence_type_id,
-    type_lookup.inactive_type_id
+    type_lookup.inactive_type_id,
+    type_lookup.rubricas_type_id,
+    type_lookup.listas_cotejo_type_id,
+    type_lookup.listas_asistencia_type_id,
+    type_lookup.actas_evaluacion_type_id,
+    type_lookup.concentrado_type_id
 FROM worker_insert, semester_insert, type_lookup;
 
 SELECT throws_ok(
@@ -184,6 +214,138 @@ SELECT lives_ok(
     FROM worker_documents_trigger_ids;
     $$,
     'multiple Evidencias bimestrales documents for same worker/type/scope are allowed'
+);
+
+-- 20260721010000_docencia_active_types_allow_multiple.sql (Item 22
+-- coverage): the trigger admits a 2nd and 3rd file, with no exception, for
+-- EVERY one of the 7 active Docencia types -- not just Evidencias
+-- bimestrales, which already allowed multiple files before that
+-- migration. Each block inserts 3 documents (1st/2nd/3rd) for the same
+-- worker/type/semester scope and confirms all 3 persist.
+SELECT lives_ok(
+    format(
+        $$
+        INSERT INTO public.worker_documents (worker_id, document_type_id, semester_id, file_name, storage_path, mime_type, file_size)
+        VALUES
+            (%1$L, %2$L, %3$L, 'planeacion-multi-1.pdf', 'triggers/planeacion-multi-1.pdf', 'application/pdf', 100),
+            (%1$L, %2$L, %3$L, 'planeacion-multi-2.pdf', 'triggers/planeacion-multi-2.pdf', 'application/pdf', 100),
+            (%1$L, %2$L, %3$L, 'planeacion-multi-3.pdf', 'triggers/planeacion-multi-3.pdf', 'application/pdf', 100)
+        $$,
+        (SELECT worker_id FROM worker_documents_trigger_ids),
+        (SELECT semester_type_id FROM worker_documents_trigger_ids),
+        (SELECT semester_id FROM worker_documents_trigger_ids)
+    ),
+    'Docencia / Planeación semestral admits a 2nd and 3rd file for the same worker/semester'
+);
+SELECT is(
+    (SELECT count(*)::int FROM public.worker_documents WHERE storage_path LIKE 'triggers/planeacion-multi-%'),
+    3,
+    'all 3 Planeación semestral documents persist'
+);
+
+SELECT lives_ok(
+    format(
+        $$
+        INSERT INTO public.worker_documents (worker_id, document_type_id, semester_id, file_name, storage_path, mime_type, file_size)
+        VALUES
+            (%1$L, %2$L, %3$L, 'rubricas-multi-1.pdf', 'triggers/rubricas-multi-1.pdf', 'application/pdf', 100),
+            (%1$L, %2$L, %3$L, 'rubricas-multi-2.pdf', 'triggers/rubricas-multi-2.pdf', 'application/pdf', 100),
+            (%1$L, %2$L, %3$L, 'rubricas-multi-3.pdf', 'triggers/rubricas-multi-3.pdf', 'application/pdf', 100)
+        $$,
+        (SELECT worker_id FROM worker_documents_trigger_ids),
+        (SELECT rubricas_type_id FROM worker_documents_trigger_ids),
+        (SELECT semester_id FROM worker_documents_trigger_ids)
+    ),
+    'Docencia / Rúbricas admits a 2nd and 3rd file for the same worker/semester'
+);
+SELECT is(
+    (SELECT count(*)::int FROM public.worker_documents WHERE storage_path LIKE 'triggers/rubricas-multi-%'),
+    3,
+    'all 3 Rúbricas documents persist'
+);
+
+SELECT lives_ok(
+    format(
+        $$
+        INSERT INTO public.worker_documents (worker_id, document_type_id, semester_id, file_name, storage_path, mime_type, file_size)
+        VALUES
+            (%1$L, %2$L, %3$L, 'cotejo-multi-1.pdf', 'triggers/cotejo-multi-1.pdf', 'application/pdf', 100),
+            (%1$L, %2$L, %3$L, 'cotejo-multi-2.pdf', 'triggers/cotejo-multi-2.pdf', 'application/pdf', 100),
+            (%1$L, %2$L, %3$L, 'cotejo-multi-3.pdf', 'triggers/cotejo-multi-3.pdf', 'application/pdf', 100)
+        $$,
+        (SELECT worker_id FROM worker_documents_trigger_ids),
+        (SELECT listas_cotejo_type_id FROM worker_documents_trigger_ids),
+        (SELECT semester_id FROM worker_documents_trigger_ids)
+    ),
+    'Docencia / Listas de cotejo admits a 2nd and 3rd file for the same worker/semester'
+);
+SELECT is(
+    (SELECT count(*)::int FROM public.worker_documents WHERE storage_path LIKE 'triggers/cotejo-multi-%'),
+    3,
+    'all 3 Listas de cotejo documents persist'
+);
+
+SELECT lives_ok(
+    format(
+        $$
+        INSERT INTO public.worker_documents (worker_id, document_type_id, semester_id, file_name, storage_path, mime_type, file_size)
+        VALUES
+            (%1$L, %2$L, %3$L, 'asistencia-multi-1.pdf', 'triggers/asistencia-multi-1.pdf', 'application/pdf', 100),
+            (%1$L, %2$L, %3$L, 'asistencia-multi-2.pdf', 'triggers/asistencia-multi-2.pdf', 'application/pdf', 100),
+            (%1$L, %2$L, %3$L, 'asistencia-multi-3.pdf', 'triggers/asistencia-multi-3.pdf', 'application/pdf', 100)
+        $$,
+        (SELECT worker_id FROM worker_documents_trigger_ids),
+        (SELECT listas_asistencia_type_id FROM worker_documents_trigger_ids),
+        (SELECT semester_id FROM worker_documents_trigger_ids)
+    ),
+    'Docencia / Listas de asistencia admits a 2nd and 3rd file for the same worker/semester'
+);
+SELECT is(
+    (SELECT count(*)::int FROM public.worker_documents WHERE storage_path LIKE 'triggers/asistencia-multi-%'),
+    3,
+    'all 3 Listas de asistencia documents persist'
+);
+
+SELECT lives_ok(
+    format(
+        $$
+        INSERT INTO public.worker_documents (worker_id, document_type_id, semester_id, file_name, storage_path, mime_type, file_size)
+        VALUES
+            (%1$L, %2$L, %3$L, 'actas-multi-1.pdf', 'triggers/actas-multi-1.pdf', 'application/pdf', 100),
+            (%1$L, %2$L, %3$L, 'actas-multi-2.pdf', 'triggers/actas-multi-2.pdf', 'application/pdf', 100),
+            (%1$L, %2$L, %3$L, 'actas-multi-3.pdf', 'triggers/actas-multi-3.pdf', 'application/pdf', 100)
+        $$,
+        (SELECT worker_id FROM worker_documents_trigger_ids),
+        (SELECT actas_evaluacion_type_id FROM worker_documents_trigger_ids),
+        (SELECT semester_id FROM worker_documents_trigger_ids)
+    ),
+    'Docencia / Actas de evaluación admits a 2nd and 3rd file for the same worker/semester'
+);
+SELECT is(
+    (SELECT count(*)::int FROM public.worker_documents WHERE storage_path LIKE 'triggers/actas-multi-%'),
+    3,
+    'all 3 Actas de evaluación documents persist'
+);
+
+SELECT lives_ok(
+    format(
+        $$
+        INSERT INTO public.worker_documents (worker_id, document_type_id, semester_id, file_name, storage_path, mime_type, file_size)
+        VALUES
+            (%1$L, %2$L, %3$L, 'concentrado-multi-1.pdf', 'triggers/concentrado-multi-1.pdf', 'application/pdf', 100),
+            (%1$L, %2$L, %3$L, 'concentrado-multi-2.pdf', 'triggers/concentrado-multi-2.pdf', 'application/pdf', 100),
+            (%1$L, %2$L, %3$L, 'concentrado-multi-3.pdf', 'triggers/concentrado-multi-3.pdf', 'application/pdf', 100)
+        $$,
+        (SELECT worker_id FROM worker_documents_trigger_ids),
+        (SELECT concentrado_type_id FROM worker_documents_trigger_ids),
+        (SELECT semester_id FROM worker_documents_trigger_ids)
+    ),
+    'Docencia / Concentrado de calificaciones finales admits a 2nd and 3rd file for the same worker/semester'
+);
+SELECT is(
+    (SELECT count(*)::int FROM public.worker_documents WHERE storage_path LIKE 'triggers/concentrado-multi-%'),
+    3,
+    'all 3 Concentrado de calificaciones finales documents persist'
 );
 
 SELECT lives_ok(
