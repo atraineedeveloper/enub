@@ -1,6 +1,6 @@
 # API and Data Contracts
 
-This document describes ENU's application-facing API/data contracts. ENU is a React/Vite frontend backed by Supabase, so most data access happens through Supabase client calls in `src/services/api*.js`, plus a small number of Supabase Edge Functions for privileged flows.
+This document describes ENU's application-facing API/data contracts. ENU is a React/Vite frontend backed by Supabase, so most data access happens through Supabase client calls in `src/services/api*.ts`, plus a small number of Supabase Edge Functions for privileged flows.
 
 ## Data-access rule
 
@@ -9,9 +9,9 @@ Frontend components should not call Supabase directly.
 Use this pattern:
 
 ```txt
-src/services/apiDomain.js              # Supabase queries/mutations
-src/features/<domain>/useDomain.js     # TanStack Query hooks/mutations
-src/features/<domain>/*.jsx            # UI
+src/services/apiDomain.ts              # Supabase queries/mutations
+src/features/<domain>/useDomain.ts     # TanStack Query hooks/mutations
+src/features/<domain>/*.tsx            # UI
 src/pages/...                          # route-level composition
 ```
 
@@ -247,7 +247,7 @@ When adding or changing data returned to UI:
 
 For create/update/delete actions:
 
-- Put Supabase mutation logic in `src/services/api*.js`.
+- Put Supabase mutation logic in `src/services/api*.ts`.
 - Wrap it in a feature hook using TanStack Query.
 - Invalidate relevant query keys after success.
 - Show success toast on success.
@@ -268,8 +268,8 @@ If a change modifies any of the following, update this file:
 - Environment variable.
 - Auth/role contract.
 
-Also update the active feature spec under:
+Also update the active OpenSpec change under:
 
 ```txt
-specs/active/<feature-name>/
+openspec/changes/<change-name>/
 ```

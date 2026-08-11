@@ -22,12 +22,12 @@ El sistema permite a los administradores gestionar de manera eficiente semestres
 -   **Activación de Cuenta por Correo**: el trabajador establece su contraseña siguiendo el enlace recibido por correo.
 -   **Interfaz Moderna & Responsive**: Diseño adaptativo optimizado para escritorio y dispositivos móviles.
 -   **Modo Oscuro (Dark Mode)**: Soporte nativo para preferencias de sistema y alternancia manual, persistente entre sesiones.
--   **PWA (Progressive Web App)**: Instalable en dispositivos, soporte offline y rendimiento nativo.
+-   **PWA (Progressive Web App)**: Instalable en dispositivos y con caché del shell de la aplicación y recursos estáticos.
 -   **Seguridad**: Rutas protegidas y autenticación robusta integrada con Supabase.
 
 ## 🛠️ Stack Tecnológico
 
-El proyecto está construido utilizando las últimas tecnologías del ecosistema React, priorizando el rendimiento y la mantenibilidad:
+El proyecto está construido con tecnologías modernas del ecosistema React, priorizando el rendimiento y la mantenibilidad:
 
 ### Core
 -   **[React 18](https://reactjs.org/)**: Biblioteca principal para la construcción de interfaces.
@@ -53,13 +53,13 @@ Sigue estos pasos para levantar el entorno de desarrollo local:
 
 1.  **Clonar el repositorio**
     ```bash
-    git clone https://github.com/tu-usuario/enub.git
+    git clone https://github.com/atraineedeveloper/enub.git
     cd enub
     ```
 
 2.  **Instalar dependencias**
     ```bash
-    npm install
+    bun install --frozen-lockfile
     ```
 
 3.  **Configurar variables de entorno**
@@ -71,23 +71,25 @@ Sigue estos pasos para levantar el entorno de desarrollo local:
 
 4.  **Iniciar servidor de desarrollo**
     ```bash
-    npm run dev
+    bun run dev
     ```
 
 ## 📜 Scripts Disponibles
 
--   `npm run dev`: Inicia el servidor de desarrollo en modo watch.
--   `npm run build`: Genera la versión de producción optimizada en la carpeta `dist`.
--   `npm run preview`: Previsualiza localmente la build de producción.
--   `npm run lint`: Ejecuta ESLint para analizar el código en busca de errores y problemas de estilo.
+-   `bun run dev`: Inicia el servidor de desarrollo en modo watch.
+-   `bun run typecheck`: Verifica los tipos de TypeScript sin emitir archivos.
+-   `bun run lint`: Ejecuta ESLint sobre el repositorio.
+-   `bun run test`: Ejecuta de forma aislada las pruebas automatizadas de `src`.
+-   `bun run build`: Genera la versión de producción optimizada en la carpeta `dist`.
+-   `bun run preview`: Previsualiza localmente la build de producción.
 
 ## 📱 PWA
 
-Este proyecto es una Progressive Web App totalmente compatible. Al construir el proyecto (`npm run build`), se generan automáticamente:
+Al construir el proyecto (`bun run build`), Vite PWA genera automáticamente:
 -   `manifest.webmanifest`
--   Service Workers para caché y funcionamiento offline.
+-   Un service worker que precarga el shell de la aplicación y los recursos estáticos de la compilación.
 
-Para probar la experiencia PWA, se recomienda ejecutar `npm run build` seguido de `npm run preview`.
+Las consultas, autenticación, cargas y descargas que dependen de Supabase requieren conexión; la configuración actual no promete acceso offline a datos personales o académicos. Para probar la experiencia PWA, ejecuta `bun run build` seguido de `bun run preview`.
 
 ## 🤝 Contribución
 

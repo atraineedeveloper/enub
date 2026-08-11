@@ -6,10 +6,10 @@ This document defines the non-negotiable engineering rules for ENU. Agents and h
 
 Do not implement features directly from vague requests.
 
-Every non-trivial change must start with a spec under:
+Every non-trivial change must start with an OpenSpec change under:
 
 ```txt
-specs/active/<feature-name>/
+openspec/changes/<change-name>/
 ```
 
 At minimum, a feature spec should include:
@@ -25,7 +25,7 @@ At minimum, a feature spec should include:
 - Verification plan.
 - Risks.
 
-Use `docs/ai/feature-spec-template.md` as the default template.
+Follow `openspec/config.yaml` and the artifact instructions returned by the OpenSpec CLI. Existing `specs/active/` folders are legacy records and remain untouched until explicitly migrated or archived.
 
 ## 2. Small, focused changes
 
@@ -41,11 +41,11 @@ Current project conventions:
 
 - Pages live in `src/pages`.
 - Feature UI and hooks live in `src/features/<domain>`.
-- Supabase API calls live in `src/services/api*.js`.
+- Supabase API calls live in `src/services/api*.ts`.
 - Shared UI lives in `src/ui`.
 - Shared hooks live in `src/hooks`.
 - Global context lives in `src/context`.
-- Routing is centralized in `src/App.jsx`.
+- Routing is centralized in `src/App.tsx`.
 
 Do not introduce a new folder pattern, state-management approach, UI library, or data-access style unless the spec explicitly approves it.
 
@@ -103,7 +103,7 @@ Likely docs to update:
 - `docs/ai/architecture.md`
 - `docs/ai/api.md`
 - `README.md`
-- Relevant spec files under `specs/active/<feature-name>/`
+- Relevant artifacts under `openspec/changes/<change-name>/`
 
 ## 8. Verification is required before completion
 
@@ -113,6 +113,8 @@ Required default checks:
 
 ```bash
 bun run lint
+bun run typecheck
+bun run test
 bun run build
 ```
 
@@ -126,11 +128,11 @@ bunx supabase test db --local
 
 If a check cannot be run, document that fact. Do not silently claim success.
 
-## 9. Manual verification is mandatory until automated tests exist
+## 9. Automated and manual verification
 
-The project currently has no JavaScript test script. Until a test framework is added, every spec must include manual checks for the affected user flow.
+The project uses Bun's built-in test runner through `bun run test`. Run relevant automated tests for changed logic; the repository CI runs the complete isolated `src` suite.
 
-Manual verification must include:
+Manual verification remains required when behavior cannot be covered reasonably by automated tests. For UI changes, consider:
 
 - Happy path.
 - Empty state.

@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
+    "test": "bun scripts/run-src-tests.ts",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "supabase:start": "supabase start",

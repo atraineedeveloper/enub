@@ -1,183 +1,48 @@
 # Spec-Driven Development Workflow
 
-This project uses a lightweight, repository-native Spec-Driven Development workflow. It is currently a DIY/manual SDD setup, not a formal OpenSpec installation.
+ENU uses OpenSpec as its repository-native source of truth for planned product and engineering changes. Current changes live under `openspec/changes/`; durable requirements live under `openspec/specs/` after synchronization and archival.
 
-The source of truth for active product/engineering changes is:
-
-```txt
-specs/active/<feature-name>/
-```
-
-The default feature spec template is:
-
-```txt
-docs/ai/feature-spec-template.md
-```
-
-## Goals
-
-This workflow exists to make AI-assisted development predictable, reviewable, and safe.
-
-The goal is not to generate code faster from vague instructions. The goal is to turn vague requests into precise, validated, documented changes.
+The older `specs/active/` tree is preserved as legacy project history. Do not edit, migrate, or archive those folders unless a change explicitly covers that work.
 
 ## Standard lifecycle
 
 ```txt
-Request → refinement → spec → review → implementation → verification → PR → archive/update docs
+Request → propose → apply → verify → sync → archive → pull request
 ```
 
-## 1. Request intake
+## Select the appropriate lane
 
-Start with the user's request or issue.
+### Fast lane — default
 
-Do not implement yet.
+Use a concise proposal, changed requirements, tasks, and only the design decisions that are not obvious for a focused, low-risk, reversible change.
 
-Capture:
+### Full lane
 
-- What the user asked for.
-- The affected product area.
-- The suspected routes/components/services involved.
-- Any ambiguity.
-- Any security, data, or permission concern.
+Use substantive proposal, specs, design, tasks, and verification for:
 
-If the request is vague, refine it before writing code.
+- Supabase migrations, RLS, storage, RPCs, or remote data operations.
+- Authentication, authorization, roles, or worker-document access.
+- New dependencies or infrastructure.
+- Public routes or shared contracts.
+- Cross-feature, destructive, or security-sensitive work.
 
-## 2. Create or update a feature folder
+### Direct lane
 
-Create:
+A new change is unnecessary for typo-only documentation, formatting, generated lockfile updates, or mechanical corrections with no behavioral effect. Explain the reason in the commit or pull request.
 
-```txt
-specs/active/<feature-name>/
+## 1. Propose
+
+Create a kebab-case change and follow the artifact order returned by the CLI:
+
+```bash
+openspec new change <change-name>
+openspec status --change <change-name> --json
+openspec instructions <artifact> --change <change-name> --json
 ```
 
-Use kebab-case for `<feature-name>`:
+Do not guess artifact paths or templates. Use the resolved paths and instructions from the CLI. A pure documentation or tooling change may set `skip_specs: true` in `.openspec.yaml`; do not invent product requirements for such work.
 
-```txt
-worker-documents-ux-and-delete
-semester-report-export
-subject-filtering
-```
-
-Recommended files:
-
-```txt
-specs/active/<feature-name>/
-  spec.md
-  decisions.md
-  tasks.md
-  verification-plan.md
-  database-plan.md        # only when database/RLS/storage/RPC changes are involved
-  implementation-plan.md  # optional when the change is complex
-```
-
-## 3. Write the spec before code
-
-Use this template:
-
-```txt
-docs/ai/feature-spec-template.md
-```
-
-A good spec must include:
-
-- Current behavior.
-- Desired behavior.
-- Scope.
-- Out of scope.
-- Files likely to change.
-- Existing patterns to follow.
-- Data requirements.
-- Acceptance criteria.
-- Verification plan.
-- Risks.
-
-The spec should be concrete enough that another developer or agent can implement it without inventing architecture.
-
-## 4. Record decisions explicitly
-
-Use `decisions.md` for any decision that could affect implementation.
-
-Examples:
-
-```md
-# Decisions - <feature-name>
-
-## 1. Should this require a database migration?
-
-Decision: No.
-Reason: Existing table already contains the required fields.
-Impact: Only frontend/service-layer changes are needed.
-
-## 2. Should workers be allowed to access this route?
-
-Decision: Workers can access only `/my-documents`.
-Reason: Staff routes remain staff/admin-only. Worker access is mediated by profile role and RLS.
-Impact: No worker-facing link to staff routes.
-```
-
-Decisions should remove ambiguity before implementation.
-
-## 5. Create implementation tasks
-
-Use `tasks.md` to break the work into phases.
-
-Recommended format:
-
-```md
-# Tasks - <feature-name>
-
-## Phase 1: Data/API layer
-
-- [ ] Task
-- [ ] Task
-
-## Phase 2: Hooks/state
-
-- [ ] Task
-- [ ] Task
-
-## Phase 3: UI
-
-- [ ] Task
-- [ ] Task
-
-## Phase 4: Documentation
-
-- [ ] Update `docs/ai/architecture.md` if needed.
-- [ ] Update `docs/ai/api.md` if needed.
-- [ ] Update `README.md` if product-level behavior changed.
-
-## Phase 5: Verification
-
-- [ ] `bun run lint`
-- [ ] `bun run build`
-- [ ] Manual verification completed.
-```
-
-Tasks should be small enough to review independently.
-
-## 6. Plan database and RLS changes separately
-
-If the feature touches Supabase schema, RLS, functions, RPCs, or storage policies, create:
-
-```txt
-specs/active/<feature-name>/database-plan.md
-```
-
-Include:
-
-- Tables affected.
-- Columns affected.
-- Migration name.
-- RLS policies affected.
-- Storage buckets affected.
-- RPCs/functions affected.
-- Rollback/compatibility notes.
-- Local verification commands.
-
-Do not make database changes casually. Every migration must be justified by the spec.
-
-## 7. Implement only after spec review
+## 2. Apply
 
 Before implementation, read:
 
@@ -187,119 +52,53 @@ Before implementation, read:
 4. `docs/ai/constitution.md`
 5. `docs/ai/workflow.md`
 6. `docs/ai/api.md`
-7. The active feature spec under `specs/active/<feature-name>/`
-
-Implementation rules:
-
-- Follow the spec.
-- Do not expand scope without updating the spec first.
-- Do not introduce new dependencies without approval.
-- Do not change routes, schema, or data contracts without documenting them.
-- Keep changes focused.
-- Update `tasks.md` as phases are completed.
-
-## 8. If the spec is wrong, fix the spec first
-
-Do not silently fix implementation details in code while leaving the spec stale.
-
-If implementation reveals a better approach:
-
-1. Update `decisions.md`.
-2. Update `spec.md` or `tasks.md`.
-3. Then update the code.
-
-The spec should describe the final intended behavior, not the initial guess.
-
-## 9. Verification
-
-Every feature must verify the relevant path from `docs/ai/testing.md`.
-
-Required default checks:
+7. Every context file returned by:
 
 ```bash
+openspec instructions apply --change <change-name> --json
+```
+
+Implement tasks in order and mark each checkbox immediately after completing it. If implementation changes the intended design or scope, update the OpenSpec artifacts first.
+
+## 3. Verify
+
+Use the matrix in `docs/ai/testing.md`. The default repository baseline is:
+
+```bash
+bun run typecheck
 bun run lint
+bun run test
 bun run build
 ```
 
-For Supabase/database work, consider:
+Run Supabase checks only when the affected area requires them. Record checks that were skipped and why.
+
+Validate the change before completion:
 
 ```bash
-bunx supabase db reset
-bunx supabase db lint
-bunx supabase test db --local
+openspec validate <change-name> --strict
 ```
 
-Manual verification must be recorded in `verification-plan.md`.
+## 4. Synchronize and archive
 
-If something was not run, write that clearly.
+After implementation and verification:
 
-## 10. Documentation update
+1. Assess each delta spec against `openspec/specs/`.
+2. Synchronize changed requirements when applicable.
+3. Archive the completed change using the current date.
+4. Preserve the proposal, decisions, tasks, and verification record in the archive.
 
-Update docs when behavior changes.
+Tooling-only changes with `skip_specs: true` have no delta requirements to synchronize.
 
-Common docs:
+## 5. Pull request
 
-- `docs/ai/architecture.md` — routes, architecture, auth model, major feature structure.
-- `docs/ai/api.md` — Supabase tables, storage, RPCs, Edge Functions, environment variables, data contracts.
-- `docs/ai/testing.md` — verification rules when project testing strategy changes.
-- `README.md` — product-level feature list and setup instructions.
-- `AGENTS.md` — only when agent-facing rules or factual project structure changes.
+Each pull request should state:
 
-## 11. PR checklist
+- What changed and why.
+- The OpenSpec change or reason for using the direct lane.
+- Commands actually executed and their results.
+- Manual checks performed or explicitly skipped.
+- Risks, deployment order, and post-deployment steps when applicable.
+- Documentation updated.
 
-Each PR should include:
-
-```md
-## Summary
-
-- ...
-
-## Spec
-
-- `specs/active/<feature-name>/spec.md`
-
-## Verification
-
-- [ ] `bun run lint`
-- [ ] `bun run build`
-- [ ] Manual verification:
-
-## Risks
-
-- ...
-
-## Documentation updated
-
-- [ ] `docs/ai/architecture.md`
-- [ ] `docs/ai/api.md`
-- [ ] `README.md`
-- [ ] Not needed; reason:
-```
-
-## 12. After merge
-
-After a feature is merged:
-
-- Mark the spec as `Implemented` or `Archived`.
-- Move old specs out of `specs/active/` when they are no longer active.
-- Keep important final decisions in docs if they affect future work.
-
-Recommended archive structure:
-
-```txt
-specs/archive/<yyyy-mm>/<feature-name>/
-```
-
-Example:
-
-```txt
-specs/archive/2026-07/worker-documents-ux-and-delete/
-```
-
-## 13. OpenSpec note
-
-This repository currently uses a manual SDD workflow.
-
-Do not create an `openspec/` directory or migrate to OpenSpec unless explicitly requested.
-
-If OpenSpec is adopted later, this workflow should be mapped carefully so the existing `specs/active/` history is not duplicated or lost.
+AI-generated implementation still requires human review before merge.

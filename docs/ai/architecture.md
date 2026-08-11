@@ -14,8 +14,8 @@
 
 ## App entry
 
-- `src/main.jsx` renders `App` inside `ErrorBoundary`.
-- `src/App.jsx` defines providers, router, protected routes, lazy pages, and toast configuration.
+- `src/main.tsx` renders `App` inside `ErrorBoundary`.
+- `src/App.tsx` defines providers, router, protected routes, lazy pages, and toast configuration.
 
 ## Routing
 
@@ -61,21 +61,21 @@ Public routes:
 - A `worker` profile additionally has a `worker_id`, linking that Auth user to a specific row in `public.workers`. `staff`/`admin` profiles have no `worker_id`.
 - **No `profiles` row means no application access**, for any reason (a freshly-created Auth user, an account an admin forgot to link, etc.) — this is a deliberate deny-by-default design, not an oversight. Such a session lands on `/pending-access`, never on any staff or worker page.
 - Staff/admin access is a separate concern from worker self-service: a `staff`/`admin` profile grants the same broad access to all workers' records/documents that existed before self-service was added; a `worker` profile only ever grants access to that one linked worker's own data.
-- Role resolution happens via `src/features/authentication/useProfile.js`, backed by `src/services/apiProfiles.js`'s `getCurrentProfile()` and enforced server-side by RLS (see "RLS/security boundary" below) — the frontend's role check is a routing convenience, not the security boundary.
+- Role resolution happens via `src/features/authentication/useProfile.ts`, backed by `src/services/apiProfiles.ts`'s `getCurrentProfile()` and enforced server-side by RLS (see "RLS/security boundary" below) — the frontend's role check is a routing convenience, not the security boundary.
 
 ## Data access pattern
 
 Use this pattern for data-driven features:
 
-1. `src/services/apiDomain.js`
+1. `src/services/apiDomain.ts`
    - Contains Supabase calls.
    - Throws user-facing errors when Supabase returns errors.
 
-2. `src/features/domain/useDomain.js`
+2. `src/features/domain/useDomain.ts`
    - Uses TanStack Query or mutation hooks.
    - Defines query keys.
 
-3. `src/features/domain/DomainTable.jsx`
+3. `src/features/domain/DomainTable.tsx`
    - Handles loading, error, filtering, pagination, and rendering.
 
 4. `src/pages/...`
@@ -84,10 +84,10 @@ Use this pattern for data-driven features:
 ## Current examples
 
 - Subjects:
-  - `src/services/apiSubjects.js`
-  - `src/features/subjects/useSubjects.js`
-  - `src/features/subjects/SubjectTable.jsx`
-  - `src/pages/Records/Subjects.jsx`
+  - `src/services/apiSubjects.ts`
+  - `src/features/subjects/useSubjects.ts`
+  - `src/features/subjects/SubjectTable.tsx`
+  - `src/pages/Records/Subjects.tsx`
 
 ## Worker account provisioning: Edge Functions
 
@@ -132,11 +132,11 @@ Local custom email templates live in `supabase/templates/` (`invite.html`, `reco
 
 ## Worker documents module
 
-- `src/features/workers/documents/WorkerDocumentsView.jsx` is a single shared component, parametrized only by `workerId`, rendered by both:
+- `src/features/workers/documents/WorkerDocumentsView.tsx` is a single shared component, parametrized only by `workerId`, rendered by both:
   - `/workers/:id/documents` (staff/admin, `workerId` from the URL).
   - `/my-documents` (worker self-service, `workerId` resolved from the caller's own session/profile — never from the URL).
 - Workers can upload, replace, and delete their own documents; staff/admin can do the same for any worker's documents — both governed entirely by RLS on `worker_documents` and the `worker_documents` storage bucket (see "RLS/security boundary" below), not by separate application-level permission logic.
-- **Delete behavior** (`deleteWorkerDocument` in `src/services/apiWorkerDocuments.js`): fetches the document row first (to read its storage path, under normal RLS), deletes the database row, then deletes the storage object. If the DB row delete fails, the storage object is left untouched. If the storage delete fails *after* the DB row was already deleted, the row is **not** reinserted — the document is already correctly gone from the expediente — and a distinct warning toast tells the user the file may still need manual cleanup.
+- **Delete behavior** (`deleteWorkerDocument` in `src/services/apiWorkerDocuments.ts`): fetches the document row first (to read its storage path, under normal RLS), deletes the database row, then deletes the storage object. If the DB row delete fails, the storage object is left untouched. If the storage delete fails *after* the DB row was already deleted, the row is **not** reinserted — the document is already correctly gone from the expediente — and a distinct warning toast tells the user the file may still need manual cleanup.
 - **Replace behavior** (`replaceWorkerDocument` in `src/services/apiWorkerDocuments.ts`): uploads the new file to storage, then calls the `replace_worker_document_metadata` database RPC, which deletes the superseded row and inserts the replacement row inside one transaction. If the RPC call fails for any reason (an inactive-type rejection, the single-file integrity trigger, an RLS rejection, or any other database error), the whole transaction rolls back automatically — the previous metadata and storage object are left completely untouched — and only the newly uploaded storage object is cleaned up. If the RPC succeeds, the previous storage object is removed afterward, best-effort and non-fatal on failure.
 - **Upload UI**: the native browser "Choose File" control is visually hidden and replaced with a styled "Seleccionar archivo" trigger button; the selected file's name (or "Ningún archivo seleccionado") is shown next to it before the upload/replace action runs.
 - **Multi-file ("Evidencias bimestrales") document types** allow more than one file per type: each uploaded file gets its own Ver/Descargar/Eliminar actions, independent of the others. Deleting the last remaining file for such a type returns it to the same empty/pending state used before any file was ever uploaded — no special "all deleted" state.

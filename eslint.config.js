@@ -37,9 +37,6 @@ export default [
     },
   },
   {
-    // TypeScript tooling foundation only — no .ts/.tsx app code yet.
-    // Same recommended rule baseline as the .js/.jsx block above, not
-    // typescript-eslint's full recommended set (see design.md).
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
       parser: tseslint.parser,
