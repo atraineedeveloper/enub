@@ -33,6 +33,30 @@ The database SHALL permit INSERT, UPDATE, and DELETE on `schedule_assignments` a
 - **WHEN** an authenticated worker queries either schedule table
 - **THEN** existing ownership policies continue to return only rows linked to that worker.
 
+## Requirement: Shared catalogs are not public
+
+The database SHALL deny anonymous access to `groups`, `semesters`, and `utilities`. Authenticated sessions MAY read these shared catalogs. Inserts into `groups` and `semesters`, and updates to `utilities`, SHALL require `current_app_role()` to resolve to `staff` or `admin`. Client grants SHALL expose no broader DML or sequence privileges than those operations require.
+
+### Scenario: Anonymous catalog read
+
+- **WHEN** an anonymous session queries `groups`, `semesters`, or `utilities`
+- **THEN** PostgreSQL denies the operation.
+
+### Scenario: Authenticated catalog read
+
+- **WHEN** a signed-in application session reads a shared catalog
+- **THEN** the read is permitted regardless of whether the profile role is worker, staff, or admin.
+
+### Scenario: Worker attempts catalog write
+
+- **WHEN** an authenticated worker attempts to insert a group or semester or update utilities
+- **THEN** RLS denies the mutation.
+
+### Scenario: Staff manages catalog data
+
+- **WHEN** a valid staff or admin session performs an allowed catalog write used by the application
+- **THEN** the database permits the operation.
+
 ## Requirement: Email-correction state is service-role-only
 
 The database SHALL enable RLS on `worker_access_email_corrections`, SHALL grant no direct access to `PUBLIC`, `anon`, or `authenticated`, and SHALL expose no client RLS policy.
