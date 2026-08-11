@@ -10,15 +10,7 @@ This order is correct for user-visible consistency but cleanup is currently best
 
 Create `public.worker_document_storage_cleanup_queue` as an operational table with RLS enabled and no `anon`/`authenticated` policies or grants. Only `service_role` receives direct table access.
 
-Each entry records:
-
-- the unique `storage_path`;
-- `worker_id` and source document id for authorization/audit context;
-- enqueue timestamp;
-- retry count, last attempt timestamp and a controlled error code;
-- resolution timestamp.
-
-No file contents or user-visible file names are copied into the queue.
+Each entry records the unique technical `storage_path`, `worker_id`, source document id, enqueue timestamp, retry count, controlled error code and resolution timestamp. No file contents or user-visible file names are copied into the queue.
 
 ## Decision 2: enqueue from an AFTER DELETE trigger
 
@@ -32,28 +24,28 @@ This also covers replacement automatically: the existing replacement RPC deletes
 
 The browser continues to call the Storage API directly after successful metadata deletion/replacement. This preserves current behavior if application deployment, Edge Function deployment and database migration do not occur simultaneously.
 
-After that attempt, the client invokes the reconciliation Edge Function for the exact old path(s):
+After that attempt, the client invokes the reconciliation Edge Function for the worker:
 
-- if immediate cleanup already succeeded, the Edge Function observes that the object no longer exists and marks the queued entry resolved;
+- if immediate cleanup already succeeded, the Edge Function observes that queued objects are absent and resolves their queue records;
 - if immediate cleanup failed, the Edge Function retries server-side;
-- if the Edge Function is temporarily unavailable after an already-successful immediate deletion, the user operation still counts as a clean success; the harmless queue record can be resolved later;
+- if the Edge Function is unavailable after an already-successful immediate deletion, the user operation still counts as a clean success;
 - if both immediate cleanup and reconciliation fail, the current non-fatal cleanup warning remains.
 
-## Decision 4: privileged reconciliation is queue-bound
+## Decision 4: privileged reconciliation is queue-driven
 
-`reconcile-worker-document-storage` accepts only `{ workerId, storagePaths }`, with a bounded list of paths. It never accepts an arbitrary bucket name.
+`reconcile-worker-document-storage` accepts only `{ workerId }`. The browser never supplies a Storage path or bucket name.
 
 Authorization:
 
 - `worker`: requested `workerId` must equal `current_worker_id()`;
-- `staff`/`admin`: may reconcile a requested worker;
+- `staff`/`admin`: may reconcile the requested worker;
 - any other/no role: denied.
 
-The service-role client selects only unresolved queue rows matching both the authorized worker and requested paths. An arbitrary caller-supplied path that is not queued cannot be deleted.
+After authorization, the service-role client loads only unresolved queue entries for that worker, oldest first, in a bounded batch. Privileged deletion authority therefore comes from a path already committed by the database trigger, never from arbitrary client input.
 
 ## Decision 5: re-check reference before deletion
 
-For every matched queue entry, the Edge Function checks `worker_documents` again using service-role database access. If any current row references the path, the function MUST NOT delete the object. It records a controlled `path_still_referenced` failure and leaves the entry unresolved.
+For every queued entry, the Edge Function checks `worker_documents` again using service-role database access. If any current row references the path, the function MUST NOT delete the object. It records `path_still_referenced` and leaves the entry unresolved.
 
 If the path is unreferenced:
 
@@ -66,19 +58,17 @@ Storage objects are never deleted with SQL.
 
 ## Decision 6: controlled operational errors
 
-Queue `last_error` stores stable codes such as:
+Queue `last_error` stores stable codes such as `reference_check_failed`, `path_still_referenced`, `storage_exists_check_failed`, `storage_remove_failed` and `queue_update_failed`.
 
-- `reference_check_failed`
-- `path_still_referenced`
-- `storage_exists_check_failed`
-- `storage_remove_failed`
-- `queue_update_failed`
+It does not persist raw provider error messages or file data. The API response returns counts only and never returns queued Storage paths.
 
-It does not persist raw provider error messages or file data.
+## Decision 7: conservative user feedback
 
-The API response returns counts only (`requested`, `matched`, `resolved`, `failed`, `conflicts`) and never returns queued Storage paths.
+When browser cleanup failed, the UI removes its warning only if reconciliation reports a non-empty, finite pending batch with zero failures and zero reference conflicts. If the result is empty, failed, conflicting, or may be truncated at the batch limit, the warning remains.
 
-## Decision 7: no whole-bucket destructive scan
+When browser cleanup already succeeded, reconciliation is best-effort maintenance only; a reconciliation endpoint failure must not turn a completed deletion/replacement into a user-visible error.
+
+## Decision 8: no whole-bucket destructive scan
 
 A global `storage.objects` minus `worker_documents` comparison is useful as a read-only audit, but it is not an automatic deletion authority. This iteration does not mass-delete unreferenced objects because uploads can have transient states and historical objects may require investigation.
 
@@ -94,7 +84,7 @@ The retained immediate browser cleanup keeps intermediate deployment states back
 ## Verification
 
 - pgTAP catalog/security checks for queue RLS/grants, private trigger function and trigger attachment;
-- frontend unit tests for reconciliation result handling while preserving current cleanup warnings;
+- frontend tests for reconciliation client/outcome handling;
 - Deno/Edge Function validation where available;
 - local Supabase lint/tests before production migration;
 - after approved production rollout, security advisors and read-only Storage/reference counts.
