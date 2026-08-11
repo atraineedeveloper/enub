@@ -35,11 +35,11 @@ Before a queued object is deleted from Storage, the reconciler MUST verify that 
 - THEN the Storage object is not deleted
 - AND the queue entry remains unresolved with a controlled conflict code.
 
-## Requirement: only authorized queued paths can be reconciled
+## Requirement: privileged deletion authority comes only from the queue
 
-The Edge Function MUST require an authenticated request.
+The Edge Function MUST require an authenticated request and MUST accept only a worker identifier from the client, never a Storage path or bucket name.
 
-A worker MAY reconcile only queue entries whose `worker_id` matches `current_worker_id()`. Staff and admin MAY reconcile queued paths for the requested worker. A requested path that is not in the unresolved queue for that authorized worker MUST NOT be deleted.
+A worker MAY reconcile only the queue belonging to their own `current_worker_id()`. Staff and admin MAY reconcile the requested worker. The function MUST load deletion candidates from unresolved server-only queue entries after authorization.
 
 ## Requirement: Storage deletion uses the Storage API
 
@@ -73,4 +73,6 @@ The reconciler MUST use Supabase Storage APIs to check/delete objects and MUST N
 
 The frontend MUST preserve its current immediate Storage cleanup attempt after delete/replace. Reconciliation is an additional durable retry/acknowledgement layer.
 
-If immediate cleanup succeeds, a reconciliation service failure MUST NOT turn the completed user operation into a cleanup warning. If immediate cleanup fails and reconciliation also cannot resolve the path, the existing non-fatal cleanup warning MUST remain.
+If immediate cleanup succeeds, a reconciliation service failure MUST NOT turn the completed user operation into a cleanup warning.
+
+If immediate cleanup fails, the warning MAY be cleared only when the server reconciliation result proves that a non-empty finite pending batch was completed with zero failures and zero reference conflicts. Otherwise the existing non-fatal cleanup warning MUST remain.
