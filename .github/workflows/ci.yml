@@ -58,8 +58,8 @@ jobs:
       - name: Start fresh local database
         run: supabase db start
 
-      - name: Lint database
-        run: supabase db lint --local --fail-on error
+      - name: Lint application database schemas
+        run: supabase db lint --local --schema public,private --fail-on error
 
       - name: Run pgTAP database tests
         run: supabase test db --local
