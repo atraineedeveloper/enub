@@ -54,9 +54,20 @@ jobs:
 
       - name: Set up Supabase CLI
         uses: supabase/setup-cli@v2
+        with:
+          version: 2.113.0
+          github-token: ${{ github.token }}
 
       - name: Start fresh local database
         run: supabase db start
+
+      - name: Verify Postgres 17
+        env:
+          PGPASSWORD: postgres
+        run: |
+          server_version="$(psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -Atqc 'show server_version')"
+          echo "Local Supabase Postgres: ${server_version}"
+          [[ "${server_version}" == 17.* ]]
 
       - name: Lint application database schemas
         run: supabase db lint --local --schema public,private --fail-on error
