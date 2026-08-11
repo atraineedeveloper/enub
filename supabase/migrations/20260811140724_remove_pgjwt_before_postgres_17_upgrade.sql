@@ -2,8 +2,13 @@ do $preflight$
 declare
   v_external_dependencies integer;
 begin
+  -- Production originally had pgjwt installed, so the dependency check
+  -- below remains mandatory whenever the extension is present. Fresh
+  -- Supabase databases created from the repository may already start in
+  -- the desired post-migration state with pgjwt absent; that is safe and
+  -- must not make the migration chain unreproducible.
   if not exists (select 1 from pg_extension where extname='pgjwt') then
-    raise exception 'pgjwt is not installed; refusing unexpected upgrade-prep state';
+    return;
   end if;
 
   with ext as (
@@ -36,7 +41,7 @@ begin
 end
 $preflight$;
 
-drop extension pgjwt;
+drop extension if exists pgjwt;
 
 do $postcondition$
 begin
