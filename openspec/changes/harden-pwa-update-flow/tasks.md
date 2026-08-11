@@ -7,6 +7,6 @@
 - [x] Keep Supabase/data/document traffic outside Workbox runtime caching.
 - [x] Add focused frontend tests for the prompt lifecycle.
 - [x] Update PWA documentation to describe the release flow and online-only data boundary.
-- [ ] Run typecheck, lint, tests and production build in CI.
+- [x] Run typecheck, lint, tests and production build in CI.
 - [ ] Perform or record the remaining manual post-deploy service-worker verification.
 - [ ] Synchronize/archive the OpenSpec change after validation.
