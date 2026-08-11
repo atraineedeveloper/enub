@@ -8,6 +8,17 @@ export interface WorkerDocumentReconciliationResult {
   remainingMayExist: boolean;
 }
 
+export function reconciliationClearedPendingCleanup(
+  result: WorkerDocumentReconciliationResult
+) {
+  return (
+    result.matched > 0 &&
+    result.failed === 0 &&
+    result.conflicts === 0 &&
+    !result.remainingMayExist
+  );
+}
+
 export async function reconcileWorkerDocumentStorage(
   workerId: number
 ): Promise<WorkerDocumentReconciliationResult> {
