@@ -11,7 +11,7 @@ context: |
   - Shared UI: src/ui
   - Shared hooks: src/hooks
   - Global context: src/context
-  - Routes: src/App.jsx
+  - Routes: src/App.tsx
   - Database migrations and tests: supabase/
 
   Development priorities:

@@ -1,226 +1,94 @@
 # Testing and Verification Guide
 
-This project currently has no automated JavaScript test runner. Until one is added, every feature spec must include a manual verification plan and must pass lint/build checks before being considered complete.
+ENU uses Bun's built-in test runner for frontend and shared TypeScript code. The canonical `bun run test` script runs every `src` test file sequentially in its own Bun process, preventing module mocks from leaking between suites. Deno Edge Function tests and SQL/pgTAP tests use their own runtimes and remain separate.
 
-## Current verification commands
+When Supabase frontend variables are absent, the runner injects safe localhost placeholders so imported modules can initialize before test mocks. Tests must never depend on real credentials or make remote calls.
 
-Use Bun by default in this project.
+## Canonical verification commands
+
+Use the Bun version declared in `package.json` and install from the committed lockfile:
 
 ```bash
+bun install --frozen-lockfile
+bun run typecheck
 bun run lint
+bun run test
 bun run build
-bun run preview
 ```
 
-Equivalent npm commands are acceptable when Bun is unavailable:
+GitHub Actions runs this same baseline for pushes to `main` and pull requests targeting `main`.
+
+## Focused frontend tests
+
+During implementation, run only the affected tests for faster feedback, then run `bun run test` before completion:
 
 ```bash
-npm run lint
-npm run build
-npm run preview
+bun test --isolate src/path/to/affected-area
 ```
 
-## Supabase local verification commands
+Do not include `supabase/functions` in the frontend test script. Those tests target Deno APIs and are validated separately when an Edge Function changes.
 
-Use these only against the local Supabase stack unless a human explicitly approves remote inspection or remote changes.
+## Supabase local verification
+
+Use these commands only against the local Supabase stack unless a human explicitly approves remote inspection or changes:
 
 ```bash
-bunx supabase status
-bunx supabase start
-bunx supabase stop
-bunx supabase db reset
-bunx supabase db lint
-bunx supabase test db --local
-bunx supabase migration list
+bun run supabase:status
+bun run supabase:start
+bun run supabase:reset
+bun run supabase:lint
+bun run supabase:test
+bun run supabase:stop
 ```
 
-Do not run remote Supabase commands without explicit human approval.
-
-## Required verification for every change
-
-Every feature, bug fix, or refactor must include a verification section in its spec under `specs/active/<feature-name>/verification-plan.md` or inside the feature spec itself.
-
-At minimum, verify:
-
-- Lint passes or existing baseline is documented.
-- Build passes.
-- The affected route or user flow was manually checked.
-- Loading, empty, success, and error states were checked when relevant.
-- Supabase behavior was checked when data access changed.
-- Documentation was updated when routes, behavior, setup, data contracts, or feature structure changed.
+Never run remote Supabase commands as a substitute for local verification.
 
 ## Verification by change type
 
-### UI-only change
+### Documentation or repository tooling
 
-Run:
+- Run `bun run typecheck` and `bun run lint`.
+- Run `bun run test` when test discovery, scripts, dependencies, or CI change.
+- Run `bun run build` when Vite, PWA, bundling, or deployment configuration changes.
+- Validate the relevant OpenSpec change.
 
-```bash
-bun run lint
-bun run build
-bun run dev
-```
+### UI, routing, form, or shared logic
 
-Manually verify:
+- Run the canonical verification commands.
+- Run focused tests while iterating.
+- Manually verify behavior not reasonably covered by automation, including responsive and dark-mode behavior for visual changes.
 
-- Affected route renders correctly.
-- Responsive behavior is not broken.
-- Dark mode still uses existing CSS variables.
-- Empty/loading/error states still work.
-- No unrelated routes changed visually.
+### Supabase query or mutation
 
-### Form or validation change
+- Run the canonical frontend checks.
+- Run relevant service tests.
+- Run `bun run supabase:lint`; run `bun run supabase:test` when database behavior, RLS, RPCs, triggers, or policies change.
+- Verify both authorized and unauthorized paths. RLS, not hidden UI, is the security boundary.
 
-Run:
+### Database migration
 
-```bash
-bun run lint
-bun run build
-```
+- Run `bun run supabase:reset`, `bun run supabase:lint`, and `bun run supabase:test` locally.
+- Document affected tables, functions, triggers, policies, storage objects, compatibility, and deployment order.
+- Never modify a linked or remote project without explicit human approval.
 
-Manually verify:
+### Edge Function
 
-- Valid input works.
-- Required fields are enforced.
-- Invalid input shows clear user-facing errors.
-- Supabase errors are surfaced through the existing toast/error convention.
-- Form reset/cancel/edit flows still work.
+- Run the function's Deno tests using the commands documented in its `deno.json` or active OpenSpec change.
+- Verify request-shape validation, caller authorization, safe errors, and secret isolation.
+- Run the canonical frontend checks if client contracts or calls change.
 
-### Supabase read/query change
+### Worker documents
 
-Run:
+Verify both `/workers/:id/documents` as staff/admin and `/my-documents` as a worker when shared behavior changes. Cover upload, replace, delete, view/download, single- and multi-file types, inactive types, failure cleanup, and cross-worker RLS isolation.
 
-```bash
-bun run lint
-bun run build
-bunx supabase db lint
-```
+## Manual verification
 
-Manually verify:
+Manual checks are required when automation cannot demonstrate the affected behavior. Record only relevant checks, such as:
 
-- Query returns the expected records for an authorized user.
-- Query returns no unauthorized records.
-- Empty states work.
-- Loading states work.
-- Error states show user-facing messages, not raw stack traces.
+- Happy, empty, loading, and error states.
+- Responsive and dark-mode presentation.
+- Permission and RLS behavior.
+- PWA install/update behavior.
+- Post-deployment configuration that cannot be represented in the repository.
 
-### Supabase insert/update/delete change
-
-Run:
-
-```bash
-bun run lint
-bun run build
-bunx supabase db lint
-```
-
-Manually verify:
-
-- Authorized user can perform the operation.
-- Unauthorized user cannot perform the operation.
-- RLS, not frontend hiding, is the real enforcement boundary.
-- The UI invalidates/refetches the relevant TanStack Query cache.
-- The UI shows a success toast on success.
-- The UI shows a clear error toast on failure.
-- No service-role key or Admin API call is introduced in `src/`.
-
-### Database migration change
-
-Run:
-
-```bash
-bunx supabase db reset
-bunx supabase db lint
-bun run build
-```
-
-Manually verify:
-
-- Migration applies cleanly from a reset local database.
-- Any RLS policy change is documented in the relevant spec.
-- Existing affected flows still work after the migration.
-- New tables/columns/functions are documented in `docs/ai/api.md` or `docs/ai/architecture.md` when relevant.
-
-### Edge Function change
-
-Run:
-
-```bash
-bun run build
-bunx supabase db lint
-```
-
-Manually verify locally when possible:
-
-- Function accepts only the documented request shape.
-- Function rejects extra or unsafe caller-supplied fields.
-- Function checks the caller's role server-side when privileged.
-- Service-role usage, if required, stays inside the Edge Function runtime only.
-- Frontend never receives, imports, stores, logs, or commits service-role secrets.
-- Environment variables required by the function are documented.
-
-### Worker documents change
-
-Manually verify both routes because they share the same document view:
-
-- `/workers/:id/documents` as staff/admin.
-- `/my-documents` as a worker.
-
-Check:
-
-- Upload.
-- Replace.
-- Delete.
-- View/download.
-- Single-file document type behavior.
-- Multi-file `Evidencias bimestrales` behavior.
-- Empty state after deleting the last file.
-- RLS blocks another worker from accessing or mutating documents they do not own.
-- Inactive document types (`is_active = false`) are hidden from upload interfaces, but a worker's own historical documents under an inactive type remain visible/downloadable/deletable; a worker's historical documents under an inactive type never appear for a different worker.
-- A replacement attempt against an inactive type fails safely: no new storage object is left behind, and the previous metadata/storage object are untouched.
-
-## Manual verification template
-
-Use this in each feature spec.
-
-```md
-# Verification Plan - <feature-name>
-
-## Automated checks
-
-- [ ] `bun run lint`
-- [ ] `bun run build`
-
-## Manual checks
-
-- [ ] Route checked:
-- [ ] Happy path checked:
-- [ ] Empty state checked:
-- [ ] Loading state checked:
-- [ ] Error state checked:
-- [ ] Dark mode checked:
-- [ ] Responsive behavior checked:
-
-## Supabase checks, if applicable
-
-- [ ] Authorized user can perform the action.
-- [ ] Unauthorized user is blocked by RLS.
-- [ ] Expected rows/storage objects changed.
-- [ ] No service-role/Admin API usage was added to `src/`.
-
-## Documentation checks
-
-- [ ] `docs/ai/architecture.md` updated if architecture/routes/feature structure changed.
-- [ ] `docs/ai/api.md` updated if Supabase tables, RPCs, Edge Functions, storage, or contracts changed.
-- [ ] `README.md` updated if product-level behavior or setup changed.
-```
-
-## When a check cannot be run
-
-Do not mark it as passed. Document it clearly:
-
-```md
-- [ ] `bunx supabase db reset` — not run because Docker/Supabase local was unavailable.
-```
-
-A task may still be reviewed, but the PR/spec must state what was not verified.
+If a check cannot be run, leave it incomplete and state the reason. Never claim an unexecuted check passed.

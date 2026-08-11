@@ -53,7 +53,7 @@ A separate OpenSpec change is not required for typo-only documentation edits, fo
 - Shared UI lives in `src/ui`.
 - Shared hooks live in `src/hooks`.
 - Global context lives in `src/context`.
-- Routing is centralized in `src/App.jsx`.
+- Routing is centralized in `src/App.tsx`.
 - Database migrations and database tests live under `supabase/`.
 
 ## Commands
@@ -64,6 +64,7 @@ Prefer Bun:
 - Run dev server: `bun run dev`
 - Build: `bun run build`
 - Lint: `bun run lint`
+- Run frontend tests: `bun run test`
 - Type-check: `bun run typecheck`
 - Preview production build: `bun run preview`
 - Start local Supabase: `bun run supabase:start`
