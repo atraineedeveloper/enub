@@ -478,3 +478,10 @@ entrypoint = "./functions/get-worker-access-email-context/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/resend-worker-access-link/*.html" ]
+
+[functions.reconcile-worker-document-storage]
+enabled = true
+# Must stay true: cleanup is privileged and must never run for an unauthenticated request.
+verify_jwt = true
+import_map = "./functions/reconcile-worker-document-storage/deno.json"
+entrypoint = "./functions/reconcile-worker-document-storage/index.ts"
