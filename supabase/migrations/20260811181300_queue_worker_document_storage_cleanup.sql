@@ -40,7 +40,7 @@ comment on column public.worker_document_storage_cleanup_queue.storage_path is
   'Private worker_documents bucket path; never expose this table directly to app clients.';
 
 create index worker_document_storage_cleanup_queue_pending_idx
-  on public.worker_document_storage_cleanup_queue (enqueued_at, id)
+  on public.worker_document_storage_cleanup_queue (worker_id, enqueued_at, id)
   where resolved_at is null;
 
 alter table public.worker_document_storage_cleanup_queue enable row level security;
