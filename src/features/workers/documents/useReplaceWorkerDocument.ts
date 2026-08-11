@@ -1,6 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { replaceWorkerDocument } from "../../../services/apiWorkerDocuments";
+import {
+  reconcileWorkerDocumentStorage,
+  reconciliationClearedPendingCleanup,
+} from "../../../services/apiWorkerDocumentReconciliation";
 import { invalidateWorkerDocumentQueries } from "./workerDocumentKeys";
 import type { WorkerDocument } from "./useWorkerDocuments";
 
@@ -27,13 +31,29 @@ export function useReplaceWorkerDocument() {
   const { mutate: replaceDocumentMutate, isPending: isReplacing } =
     useMutation({
       mutationFn: replaceDocument,
-      onSuccess: (document) => {
-        // storageCleanupFailed is a distinct outcome, not a plain failure --
-        // the replacement itself already committed successfully (the new
-        // metadata and file are in place); only removing the now-superseded
-        // storage object failed, so this is a separate, distinguishable
-        // toast rather than reusing the plain success message or throwing.
-        if (document?.storageCleanupFailed) {
+      onSuccess: async (document) => {
+        let storageCleanupFailed = Boolean(document?.storageCleanupFailed);
+
+        if (document?.worker_id) {
+          if (storageCleanupFailed) {
+            try {
+              const reconciliation = await reconcileWorkerDocumentStorage(
+                document.worker_id
+              );
+              if (reconciliationClearedPendingCleanup(reconciliation)) {
+                storageCleanupFailed = false;
+              }
+            } catch (error) {
+              console.error(error);
+            }
+          } else {
+            void reconcileWorkerDocumentStorage(document.worker_id).catch(
+              (error) => console.error(error)
+            );
+          }
+        }
+
+        if (storageCleanupFailed) {
           toast.error(
             "El documento se reemplazó con éxito, pero el archivo anterior podría necesitar limpieza adicional; contacta a soporte si esto se repite"
           );
