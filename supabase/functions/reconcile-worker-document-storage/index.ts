@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
 const WORKER_DOCUMENTS_BUCKET = "worker_documents";
-const MAX_PATHS_PER_REQUEST = 20;
+const MAX_ENTRIES_PER_REQUEST = 20;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -67,47 +67,14 @@ Deno.serve(async (req: Request) => {
     return jsonError(400, "Cuerpo de solicitud inválido");
   }
 
-  const bodyKeys = Object.keys(body).sort();
-  if (
-    bodyKeys.length !== 2 ||
-    bodyKeys[0] !== "storagePaths" ||
-    bodyKeys[1] !== "workerId"
-  ) {
-    return jsonError(
-      400,
-      "El cuerpo debe contener únicamente workerId y storagePaths",
-    );
+  const bodyKeys = Object.keys(body);
+  if (bodyKeys.length !== 1 || bodyKeys[0] !== "workerId") {
+    return jsonError(400, "El cuerpo debe contener únicamente workerId");
   }
 
   const workerId = Number(body.workerId);
   if (!Number.isInteger(workerId) || workerId <= 0) {
     return jsonError(400, "workerId es requerido");
-  }
-
-  if (!Array.isArray(body.storagePaths)) {
-    return jsonError(400, "storagePaths debe ser una lista");
-  }
-
-  const storagePaths = Array.from(
-    new Set(
-      body.storagePaths.filter(
-        (value): value is string =>
-          typeof value === "string" && value.length > 0 && value.length <= 1024,
-      ),
-    ),
-  );
-
-  if (
-    storagePaths.length === 0 ||
-    storagePaths.length > MAX_PATHS_PER_REQUEST ||
-    storagePaths.length !== body.storagePaths.length
-  ) {
-    return jsonError(400, "storagePaths contiene valores inválidos");
-  }
-
-  const workerPrefix = `${workerId}/`;
-  if (storagePaths.some((path) => !path.startsWith(workerPrefix))) {
-    return jsonError(400, "Las rutas no corresponden al trabajador indicado");
   }
 
   const userClient = createClient(supabaseUrl, anonKey, {
@@ -143,12 +110,17 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  // The caller never supplies a Storage path. Privileged deletion authority
+  // comes only from unresolved rows that the database trigger already placed
+  // in this service-role-only queue for the authorized worker.
   const { data: queuedRows, error: queueError } = await adminClient
     .from("worker_document_storage_cleanup_queue")
     .select("id, storage_path, worker_id, attempt_count")
     .eq("worker_id", workerId)
     .is("resolved_at", null)
-    .in("storage_path", storagePaths);
+    .order("enqueued_at", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(MAX_ENTRIES_PER_REQUEST);
 
   if (queueError) {
     console.error(queueError);
@@ -171,9 +143,7 @@ Deno.serve(async (req: Request) => {
       .eq("id", entry.id)
       .is("resolved_at", null);
 
-    if (error) {
-      console.error(error);
-    }
+    if (error) console.error(error);
   }
 
   async function recordResolved(entry: CleanupEntry) {
@@ -199,6 +169,8 @@ Deno.serve(async (req: Request) => {
   }
 
   for (const entry of entries) {
+    // Defense in depth: a queue entry is never sufficient by itself. If a
+    // current document row references the path again, keep the object.
     const { data: references, error: referenceError } = await adminClient
       .from("worker_documents")
       .select("id")
@@ -251,10 +223,10 @@ Deno.serve(async (req: Request) => {
   }
 
   return jsonResponse(200, {
-    requested: storagePaths.length,
     matched: entries.length,
     resolved,
     failed,
     conflicts,
+    remainingMayExist: entries.length === MAX_ENTRIES_PER_REQUEST,
   });
 });
