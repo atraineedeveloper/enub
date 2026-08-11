@@ -16,7 +16,7 @@ bun run test
 bun run build
 ```
 
-GitHub Actions runs this same baseline for pushes to `main` and pull requests targeting `main`.
+GitHub Actions runs this same frontend baseline for pushes to `main` and pull requests targeting `main`. A separate Supabase CI job also starts a fresh local Postgres instance from the committed migrations, runs database linting with errors as the failure threshold, and executes the complete local pgTAP suite. CI never requires production Supabase credentials for these checks.
 
 ## Focused frontend tests
 
@@ -39,6 +39,14 @@ bun run supabase:reset
 bun run supabase:lint
 bun run supabase:test
 bun run supabase:stop
+```
+
+For the database-only CI path, GitHub Actions uses the Supabase CLI directly:
+
+```bash
+supabase db start
+supabase db lint --local --fail-on error
+supabase test db --local
 ```
 
 Never run remote Supabase commands as a substitute for local verification.
