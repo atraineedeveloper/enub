@@ -28,6 +28,8 @@
 
 El portal oficial vigente de la Secretaría de Educación identifica actualmente a la dependencia y publica su domicilio general en Calle Héroes del 47 S/N, colonia Gil y Sáenz, Villahermosa, Tabasco, además de canales de atención. El propio portal muestra una inconsistencia de código postal (86060/86080), por lo que **no debe copiarse ese domicilio al aviso sin validación institucional**.
 
+El sitio institucional de SETAB para la Dirección General de Administración, consultado en 2026, identifica una Dirección de Recursos Humanos y publica el correo `unidadtransparencia@correo.setab.gob.mx`. Esto ayuda a localizar a las áreas que deben validar el expediente y el canal ARCO, pero **no sustituye la confirmación del domicilio físico vigente de la Unidad de Transparencia ni prueba qué aviso institucional cubre ENU**.
+
 La última evidencia oficial localizada en esta revisión que identifica nominalmente al titular de la Unidad de Transparencia de SETAB es una publicación de julio de 2025 que menciona a Jorge Arturo Castillo Martínez. Como el cargo puede cambiar, **el nombre, domicilio y canales actuales deben confirmarse antes de publicar**; la ley exige el domicilio de la Unidad de Transparencia, no que el proyecto adivine al titular.
 
 ### Escuela Normal Urbana de Balancán
