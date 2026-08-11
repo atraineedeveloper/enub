@@ -89,7 +89,9 @@ Al construir el proyecto (`bun run build`), Vite PWA genera automáticamente:
 -   `manifest.webmanifest`
 -   Un service worker que precarga el shell de la aplicación y los recursos estáticos de la compilación.
 
-Las consultas, autenticación, cargas y descargas que dependen de Supabase requieren conexión; la configuración actual no promete acceso offline a datos personales o académicos. Para probar la experiencia PWA, ejecuta `bun run build` seguido de `bun run preview`.
+Cuando existe una nueva versión de ENU, la aplicación muestra un aviso y deja que el usuario decida cuándo recargarla. Esto evita interrumpir formularios o capturas en curso. El usuario puede actualizar en ese momento o posponer el aviso; mientras la aplicación permanece abierta también se comprueban nuevas versiones periódicamente.
+
+Las consultas, autenticación, cargas y descargas que dependen de Supabase requieren conexión. La PWA no configura caché de ejecución para respuestas de Supabase, expedientes, horarios ni documentos personales, y no promete acceso offline a esos datos. Para probar la experiencia PWA, ejecuta `bun run build` seguido de `bun run preview`.
 
 ## 🤝 Contribución
 
