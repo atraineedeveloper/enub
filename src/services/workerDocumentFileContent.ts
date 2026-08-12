@@ -1,4 +1,8 @@
-import { ALLOWED_DOCUMENT_FILE_EXTENSIONS } from "./workerDocumentUploadLimits";
+import {
+  ALLOWED_DOCUMENT_FILE_EXTENSIONS,
+  MAX_WORKER_DOCUMENT_FILE_SIZE_BYTES,
+  MAX_WORKER_DOCUMENT_FILE_SIZE_LABEL,
+} from "./workerDocumentUploadLimits";
 
 type AllowedExtension = (typeof ALLOWED_DOCUMENT_FILE_EXTENSIONS)[number];
 
@@ -108,6 +112,15 @@ export async function validateWorkerDocumentFileContent(file: File) {
 
   if (!ALLOWED_EXTENSIONS.has(extension)) {
     throw new Error("El formato del archivo no está permitido");
+  }
+
+  // Reject invalid/oversized files before reading their complete bytes into
+  // memory. The core service repeats the same 10 MiB boundary as defense in
+  // depth before Storage, but content inspection must not run first.
+  if (!file.size || file.size > MAX_WORKER_DOCUMENT_FILE_SIZE_BYTES) {
+    throw new Error(
+      `El archivo no debe pesar más de ${MAX_WORKER_DOCUMENT_FILE_SIZE_LABEL}`
+    );
   }
 
   const bytes = new Uint8Array(await file.arrayBuffer());
