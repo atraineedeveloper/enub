@@ -2,16 +2,11 @@ BEGIN;
 
 SET search_path = public, extensions;
 
--- Behavioral + structural coverage for the ownership-scoped
--- schedule_assignments SELECT policies introduced by
--- 20260716215631_schedule_ownership_rls_policies.sql. Verifies that the
--- open "Enable read access for all users" policy is gone, that admin/staff
--- see every row (including worker-less rows), that a worker session only
--- sees their own rows, that anonymous/no-profile/malformed sessions see
--- nothing, and that INSERT/UPDATE/DELETE remain exactly as unrestricted as
--- before -- exercised via real RLS enforcement, not just policy metadata.
-
-SELECT plan(23);
+-- Current authorization coverage after the ownership-scoped SELECT migration
+-- and the later P0 hardening migration. Anonymous clients have no table
+-- privileges at all; authenticated workers can read only their own rows;
+-- staff/admin can read all rows and are the only roles allowed to write.
+SELECT plan(24);
 
 CREATE TEMP TABLE sa_ownership_ids AS
 WITH worker_a AS (
@@ -35,18 +30,19 @@ SELECT
     semester_insert.id AS semester_id
 FROM worker_a, worker_b, semester_insert;
 
--- Captured into psql variables (not re-queried later) because this temp
--- table is only accessible to the connecting role -- later statements in
--- this file run under `SET LOCAL role authenticated`, which cannot see it.
 SELECT worker_a_id, worker_b_id, semester_id FROM sa_ownership_ids \gset
 
-INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+INSERT INTO auth.users (
+    instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+    raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+)
 VALUES
     ('00000000-0000-0000-0000-000000000000', 'e1000000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'sa-ownership-admin@example.test', 'x', now(), '{}', '{}', now(), now()),
     ('00000000-0000-0000-0000-000000000000', 'e1000000-0000-0000-0000-000000000002', 'authenticated', 'authenticated', 'sa-ownership-staff@example.test', 'x', now(), '{}', '{}', now(), now()),
     ('00000000-0000-0000-0000-000000000000', 'e1000000-0000-0000-0000-000000000003', 'authenticated', 'authenticated', 'sa-ownership-worker-a@example.test', 'x', now(), '{}', '{}', now(), now()),
     ('00000000-0000-0000-0000-000000000000', 'e1000000-0000-0000-0000-000000000004', 'authenticated', 'authenticated', 'sa-ownership-worker-b@example.test', 'x', now(), '{}', '{}', now(), now()),
-    ('00000000-0000-0000-0000-000000000000', 'e1000000-0000-0000-0000-000000000005', 'authenticated', 'authenticated', 'sa-ownership-noprofile@example.test', 'x', now(), '{}', '{}', now(), now());
+    ('00000000-0000-0000-0000-000000000000', 'e1000000-0000-0000-0000-000000000005', 'authenticated', 'authenticated', 'sa-ownership-noprofile@example.test', 'x', now(), '{}', '{}', now(), now()),
+    ('00000000-0000-0000-0000-000000000000', 'e1000000-0000-0000-0000-000000000009', 'authenticated', 'authenticated', 'sa-ownership-invalid@example.test', 'x', now(), '{}', '{}', now(), now());
 
 INSERT INTO public.profiles (id, role, worker_id) VALUES
     ('e1000000-0000-0000-0000-000000000001', 'admin', NULL),
@@ -58,12 +54,6 @@ SELECT 'e1000000-0000-0000-0000-000000000003', 'worker', worker_a_id FROM sa_own
 INSERT INTO public.profiles (id, role, worker_id)
 SELECT 'e1000000-0000-0000-0000-000000000004', 'worker', worker_b_id FROM sa_ownership_ids;
 
--- e1000000-...-005 intentionally has no profiles row (the "missing profile" session).
-
--- Fixture rows: one owned by worker A, one owned by worker B, one
--- worker-less (worker_id NULL, e.g. an unassigned slot). Distinguished by
--- weekday so tests can target a specific row without relying on worker_id
--- filters alone.
 INSERT INTO public.schedule_assignments (weekday, worker_id, semester_id)
 SELECT 'QA-Lunes-A', worker_a_id, semester_id FROM sa_ownership_ids;
 
@@ -73,7 +63,7 @@ SELECT 'QA-Martes-B', worker_b_id, semester_id FROM sa_ownership_ids;
 INSERT INTO public.schedule_assignments (weekday, worker_id, semester_id)
 SELECT 'QA-Miercoles-Null', NULL, semester_id FROM sa_ownership_ids;
 
--- Admin sees every row, including the worker-less one.
+-- Admin sees every row, including an unassigned slot.
 SET LOCAL role authenticated;
 SET LOCAL "request.jwt.claim.sub" = 'e1000000-0000-0000-0000-000000000001';
 SELECT (SELECT count(*) FROM public.schedule_assignments WHERE semester_id = :'semester_id'::bigint) AS admin_visible_count \gset
@@ -81,198 +71,210 @@ SELECT (SELECT count(*) FROM public.schedule_assignments WHERE semester_id = :'s
 RESET role;
 RESET "request.jwt.claim.sub";
 
-SELECT is(:'admin_visible_count'::bigint, 3::bigint, 'an admin session sees every schedule_assignments row');
-SELECT is(:'admin_sees_null_owned'::bigint, 1::bigint, 'an admin session sees the worker-less row');
+SELECT is(:'admin_visible_count'::bigint, 3::bigint, 'admin sees every schedule_assignments row');
+SELECT is(:'admin_sees_null_owned'::bigint, 1::bigint, 'admin sees the worker-less schedule_assignments row');
 
--- Staff sees every row too.
+-- Staff has the same read scope.
 SET LOCAL role authenticated;
 SET LOCAL "request.jwt.claim.sub" = 'e1000000-0000-0000-0000-000000000002';
 SELECT (SELECT count(*) FROM public.schedule_assignments WHERE semester_id = :'semester_id'::bigint) AS staff_visible_count \gset
 RESET role;
 RESET "request.jwt.claim.sub";
 
-SELECT is(:'staff_visible_count'::bigint, 3::bigint, 'a staff session sees every schedule_assignments row');
+SELECT is(:'staff_visible_count'::bigint, 3::bigint, 'staff sees every schedule_assignments row');
 
--- Worker A sees only their own row: not worker B's, not the null-owned one.
+-- Workers see only their own row.
 SET LOCAL role authenticated;
 SET LOCAL "request.jwt.claim.sub" = 'e1000000-0000-0000-0000-000000000003';
 SELECT (SELECT count(*) FROM public.schedule_assignments) AS worker_a_visible_count \gset
 SELECT (SELECT count(*) FROM public.schedule_assignments WHERE weekday = 'QA-Martes-B') AS worker_a_sees_worker_b \gset
-SELECT (SELECT count(*) FROM public.schedule_assignments WHERE worker_id = :'worker_b_id'::bigint) AS worker_a_filtered_by_worker_b \gset
 SELECT (SELECT count(*) FROM public.schedule_assignments WHERE worker_id IS NULL) AS worker_a_sees_null_owned \gset
 RESET role;
 RESET "request.jwt.claim.sub";
 
-SELECT is(:'worker_a_visible_count'::bigint, 1::bigint, 'worker A session sees exactly one schedule_assignments row (no explicit filter needed)');
-SELECT is(:'worker_a_sees_worker_b'::bigint, 0::bigint, 'worker A session cannot see worker B''s row by its weekday marker');
-SELECT is(:'worker_a_filtered_by_worker_b'::bigint, 0::bigint, 'worker A session filtered explicitly by worker B''s worker_id returns zero rows');
-SELECT is(:'worker_a_sees_null_owned'::bigint, 0::bigint, 'worker A session cannot see the worker-less row');
+SELECT is(:'worker_a_visible_count'::bigint, 1::bigint, 'worker A sees exactly one schedule_assignments row');
+SELECT is(:'worker_a_sees_worker_b'::bigint, 0::bigint, 'worker A cannot see worker B schedule_assignments rows');
+SELECT is(:'worker_a_sees_null_owned'::bigint, 0::bigint, 'worker A cannot see worker-less schedule_assignments rows');
 
--- Worker B sees only their own row (ownership check is symmetric).
 SET LOCAL role authenticated;
 SET LOCAL "request.jwt.claim.sub" = 'e1000000-0000-0000-0000-000000000004';
 SELECT (SELECT count(*) FROM public.schedule_assignments) AS worker_b_visible_count \gset
 RESET role;
 RESET "request.jwt.claim.sub";
 
-SELECT is(:'worker_b_visible_count'::bigint, 1::bigint, 'worker B session sees exactly one schedule_assignments row');
+SELECT is(:'worker_b_visible_count'::bigint, 1::bigint, 'worker B sees exactly one schedule_assignments row');
 
--- Anonymous (no authenticated session at all) is denied.
-SET LOCAL role anon;
-SELECT (SELECT count(*) FROM public.schedule_assignments WHERE semester_id = :'semester_id'::bigint) AS anon_visible_count \gset
-RESET role;
+-- P0 hardening removed anonymous table privileges entirely. Do not perform a
+-- SELECT as anon here: permission denial before RLS is the intended boundary.
+SELECT ok(
+    NOT has_table_privilege('anon', 'public.schedule_assignments', 'SELECT')
+    AND NOT has_table_privilege('anon', 'public.schedule_assignments', 'INSERT')
+    AND NOT has_table_privilege('anon', 'public.schedule_assignments', 'UPDATE')
+    AND NOT has_table_privilege('anon', 'public.schedule_assignments', 'DELETE'),
+    'anon has no schedule_assignments DML privileges'
+);
 
-SELECT is(:'anon_visible_count'::bigint, 0::bigint, 'an anonymous session sees no schedule_assignments rows');
-
--- A real auth.users row with no profiles row (missing profile) is denied.
+-- An authenticated account without an application profile fails closed via RLS.
 SET LOCAL role authenticated;
 SET LOCAL "request.jwt.claim.sub" = 'e1000000-0000-0000-0000-000000000005';
 SELECT (SELECT count(*) FROM public.schedule_assignments WHERE semester_id = :'semester_id'::bigint) AS noprofile_visible_count \gset
 RESET role;
 RESET "request.jwt.claim.sub";
 
-SELECT is(:'noprofile_visible_count'::bigint, 0::bigint, 'a session with no profiles row sees no schedule_assignments rows');
+SELECT is(:'noprofile_visible_count'::bigint, 0::bigint, 'an authenticated session with no profile sees no schedule_assignments rows');
 
--- "Unknown role" and "invalid/missing worker link" are not reachable states
--- in this schema: profiles_role_check restricts role to admin/staff/worker,
--- and profiles_worker_role_consistency forbids a worker-role profile with a
--- NULL worker_id. Assert the schema itself closes off both states, which is
--- why current_app_role()/current_worker_id() (and therefore these SELECT
--- policies) never have to handle them.
 SELECT throws_ok(
     $$INSERT INTO public.profiles (id, role, worker_id) VALUES ('e1000000-0000-0000-0000-000000000009', 'manager', NULL)$$,
     '23514',
     NULL,
-    'the profiles role check constraint rejects an unrecognized role value'
+    'profiles rejects an unrecognized role value'
 );
 
 SELECT throws_ok(
     $$INSERT INTO public.profiles (id, role, worker_id) VALUES ('e1000000-0000-0000-0000-000000000009', 'worker', NULL)$$,
     '23514',
     NULL,
-    'the profiles worker/role consistency check rejects a worker-role profile with no worker_id'
+    'profiles rejects a worker role with no worker_id'
 );
 
--- Structural: the old unrestricted policy is gone, and nothing else
--- unrestricted has taken its place under any name.
+-- Current SELECT policy shape: authenticated staff/admin full read plus
+-- authenticated worker-owned read. There are no public/anon policies.
 SELECT ok(
     NOT EXISTS (
         SELECT 1 FROM pg_policies
         WHERE schemaname = 'public'
-            AND tablename = 'schedule_assignments'
-            AND cmd = 'SELECT'
-            AND policyname = 'Enable read access for all users'
+          AND tablename = 'schedule_assignments'
+          AND policyname = 'Enable read access for all users'
     ),
-    'the old unrestricted "Enable read access for all users" SELECT policy no longer exists on schedule_assignments'
+    'legacy unrestricted schedule_assignments SELECT policy is absent'
 );
 
 SELECT ok(
     NOT EXISTS (
         SELECT 1 FROM pg_policies
         WHERE schemaname = 'public'
-            AND tablename = 'schedule_assignments'
-            AND cmd = 'SELECT'
-            AND (
-                qual = 'true'
-                OR 'public' = ANY(roles)
-                OR 'anon' = ANY(roles)
-            )
+          AND tablename = 'schedule_assignments'
+          AND ('public' = ANY(roles) OR 'anon' = ANY(roles))
     ),
-    'no unrestricted or anon/public SELECT policy exists on schedule_assignments under any name'
-);
-
-SELECT ok(
-    EXISTS (
-        SELECT 1 FROM pg_policies
-        WHERE schemaname = 'public'
-            AND tablename = 'schedule_assignments'
-            AND cmd = 'SELECT'
-            AND permissive = 'PERMISSIVE'
-            AND roles = ARRAY['authenticated']::name[]
-            AND qual = '(current_app_role() = ANY (ARRAY[''staff''::text, ''admin''::text]))'
-    ),
-    'the admin/staff full-read SELECT policy exists on schedule_assignments with the expected shape'
-);
-
-SELECT ok(
-    EXISTS (
-        SELECT 1 FROM pg_policies
-        WHERE schemaname = 'public'
-            AND tablename = 'schedule_assignments'
-            AND cmd = 'SELECT'
-            AND permissive = 'PERMISSIVE'
-            AND roles = ARRAY['authenticated']::name[]
-            AND qual = '(worker_id = current_worker_id())'
-    ),
-    'the worker-own-row SELECT policy exists on schedule_assignments with the expected shape'
+    'schedule_assignments has no public or anon policies'
 );
 
 SELECT is(
-    (SELECT count(*)::int FROM pg_policies WHERE schemaname = 'public' AND tablename = 'schedule_assignments' AND cmd = 'SELECT'),
+    (SELECT count(*)::int FROM pg_policies
+     WHERE schemaname = 'public'
+       AND tablename = 'schedule_assignments'
+       AND cmd = 'SELECT'
+       AND roles = ARRAY['authenticated']::name[]),
     2,
-    'exactly two SELECT policies exist on schedule_assignments'
+    'schedule_assignments has exactly two authenticated SELECT policies'
 );
 
--- Structural: INSERT/UPDATE/DELETE policy metadata is untouched by the migration.
+SELECT is(
+    (SELECT count(*)::int FROM pg_policies
+     WHERE schemaname = 'public'
+       AND tablename = 'schedule_assignments'
+       AND cmd IN ('INSERT', 'UPDATE', 'DELETE')
+       AND roles = ARRAY['authenticated']::name[]),
+    3,
+    'schedule_assignments has exactly three authenticated write policies'
+);
+
+SELECT is(
+    (SELECT count(*)::int FROM pg_policies
+     WHERE schemaname = 'public'
+       AND tablename = 'schedule_assignments'
+       AND policyname IN (
+           'Staff and admin create schedule assignments',
+           'Staff and admin update schedule assignments',
+           'Staff and admin delete schedule assignments'
+       )),
+    3,
+    'schedule_assignments has the expected staff/admin write policies'
+);
+
 SELECT ok(
-    EXISTS (
-        SELECT 1 FROM pg_policies
-        WHERE schemaname = 'public' AND tablename = 'schedule_assignments'
-            AND policyname = 'Enable create access for all users'
-            AND cmd = 'INSERT' AND permissive = 'PERMISSIVE'
-            AND roles = ARRAY['public']::name[] AND with_check = 'true'
-    ),
-    'the schedule_assignments INSERT policy is unchanged'
+    has_table_privilege('authenticated', 'public.schedule_assignments', 'SELECT')
+    AND has_table_privilege('authenticated', 'public.schedule_assignments', 'INSERT')
+    AND has_table_privilege('authenticated', 'public.schedule_assignments', 'UPDATE')
+    AND has_table_privilege('authenticated', 'public.schedule_assignments', 'DELETE'),
+    'authenticated retains the DML grants needed for RLS-controlled access'
 );
 
 SELECT ok(
-    EXISTS (
-        SELECT 1 FROM pg_policies
-        WHERE schemaname = 'public' AND tablename = 'schedule_assignments'
-            AND policyname = 'Enable update access for all users'
-            AND cmd = 'UPDATE' AND permissive = 'PERMISSIVE'
-            AND roles = ARRAY['public']::name[] AND qual = 'true' AND with_check = 'true'
-    ),
-    'the schedule_assignments UPDATE policy is unchanged'
+    NOT has_sequence_privilege('anon', 'public.schedule_assignments_id_seq', 'USAGE')
+    AND NOT has_sequence_privilege('anon', 'public.schedule_assignments_id_seq', 'SELECT'),
+    'anon has no schedule_assignments identity-sequence privileges'
 );
 
-SELECT ok(
-    EXISTS (
-        SELECT 1 FROM pg_policies
-        WHERE schemaname = 'public' AND tablename = 'schedule_assignments'
-            AND policyname = 'Enable delete access for all users'
-            AND cmd = 'DELETE' AND permissive = 'PERMISSIVE'
-            AND roles = ARRAY['public']::name[] AND qual = 'true'
-    ),
-    'the schedule_assignments DELETE policy is unchanged'
-);
-
--- Behavioral: writes still work exactly as before (open policies, no
--- ownership check) -- exercised under an authenticated worker session.
+-- Worker writes fail closed. INSERT raises RLS; UPDATE/DELETE see zero rows
+-- under the staff/admin-only write policies.
 SET LOCAL role authenticated;
 SET LOCAL "request.jwt.claim.sub" = 'e1000000-0000-0000-0000-000000000003';
 
-SELECT lives_ok(
+SELECT throws_ok(
     format(
-        $$INSERT INTO public.schedule_assignments (weekday, worker_id, semester_id) VALUES ('QA-Jueves-Insert', %L, %L)$$,
+        $$INSERT INTO public.schedule_assignments (weekday, worker_id, semester_id) VALUES ('QA-Worker-Insert', %L, %L)$$,
         :'worker_a_id',
         :'semester_id'
     ),
-    'writes to schedule_assignments still succeed (INSERT policy unchanged)'
+    '42501',
+    NULL,
+    'worker cannot insert schedule_assignments rows'
 );
 
-SELECT lives_ok(
-    $$UPDATE public.schedule_assignments SET weekday = 'QA-Jueves-Updated' WHERE weekday = 'QA-Jueves-Insert'$$,
-    'writes to schedule_assignments still succeed (UPDATE policy unchanged)'
-);
+WITH updated AS (
+    UPDATE public.schedule_assignments
+    SET weekday = 'QA-Worker-Updated'
+    WHERE weekday = 'QA-Lunes-A'
+    RETURNING 1
+)
+SELECT count(*) AS worker_update_count FROM updated \gset
 
-SELECT lives_ok(
-    $$DELETE FROM public.schedule_assignments WHERE weekday = 'QA-Jueves-Updated'$$,
-    'writes to schedule_assignments still succeed (DELETE policy unchanged)'
-);
+WITH deleted AS (
+    DELETE FROM public.schedule_assignments
+    WHERE weekday = 'QA-Lunes-A'
+    RETURNING 1
+)
+SELECT count(*) AS worker_delete_count FROM deleted \gset
 
 RESET role;
 RESET "request.jwt.claim.sub";
+
+SELECT is(:'worker_update_count'::bigint, 0::bigint, 'worker cannot update schedule_assignments rows');
+SELECT is(:'worker_delete_count'::bigint, 0::bigint, 'worker cannot delete schedule_assignments rows');
+
+-- Staff write behavior remains available.
+SET LOCAL role authenticated;
+SET LOCAL "request.jwt.claim.sub" = 'e1000000-0000-0000-0000-000000000002';
+
+WITH inserted AS (
+    INSERT INTO public.schedule_assignments (weekday, worker_id, semester_id)
+    VALUES ('QA-Staff-Insert', :'worker_a_id'::bigint, :'semester_id'::bigint)
+    RETURNING 1
+)
+SELECT count(*) AS staff_insert_count FROM inserted \gset
+
+WITH updated AS (
+    UPDATE public.schedule_assignments
+    SET weekday = 'QA-Staff-Updated'
+    WHERE weekday = 'QA-Staff-Insert'
+    RETURNING 1
+)
+SELECT count(*) AS staff_update_count FROM updated \gset
+
+WITH deleted AS (
+    DELETE FROM public.schedule_assignments
+    WHERE weekday = 'QA-Staff-Updated'
+    RETURNING 1
+)
+SELECT count(*) AS staff_delete_count FROM deleted \gset
+
+RESET role;
+RESET "request.jwt.claim.sub";
+
+SELECT is(:'staff_insert_count'::bigint, 1::bigint, 'staff can insert schedule_assignments rows');
+SELECT is(:'staff_update_count'::bigint, 1::bigint, 'staff can update schedule_assignments rows');
+SELECT is(:'staff_delete_count'::bigint, 1::bigint, 'staff can delete schedule_assignments rows');
 
 SELECT * FROM finish();
 

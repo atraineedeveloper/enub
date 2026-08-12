@@ -16,7 +16,9 @@ bun run test
 bun run build
 ```
 
-GitHub Actions runs this same baseline for pushes to `main` and pull requests targeting `main`.
+GitHub Actions runs this same frontend baseline for pushes to `main` and pull requests targeting `main`. A separate Supabase CI job also starts a fresh local Postgres instance from the committed migrations, asserts that the local database is PostgreSQL 17 to match ENU production's major version, runs database linting on the application-owned `public` and `private` schemas with errors as the failure threshold, and executes the complete local pgTAP suite. CI never requires production Supabase credentials for these checks.
+
+The CI job pins Supabase CLI 2.113.0 rather than inheriting the older repository lockfile version because a clean checkout must resolve a PostgreSQL 17 local image. The explicit server-version assertion is the final guard: a future CLI/config regression that starts a different PostgreSQL major fails CI before lint or pgTAP can provide a misleading result.
 
 ## Focused frontend tests
 
@@ -40,6 +42,17 @@ bun run supabase:lint
 bun run supabase:test
 bun run supabase:stop
 ```
+
+For the database-only CI path, GitHub Actions uses the pinned Supabase CLI directly:
+
+```bash
+supabase db start
+# verify server_version starts with 17.
+supabase db lint --local --schema public,private --fail-on error
+supabase test db --local
+```
+
+The `extensions` schema is deliberately excluded from application linting because it contains third-party extension implementation code such as pgTAP. Those extensions are exercised through the database test runner rather than treated as ENU-owned PL/pgSQL source.
 
 Never run remote Supabase commands as a substitute for local verification.
 
