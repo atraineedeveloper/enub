@@ -120,7 +120,7 @@ describe("validateWorkerDocumentFileContent", () => {
       arrayBuffer: async () => {
         throw new Error("arrayBuffer should not be called");
       },
-    } as File;
+    } as unknown as File;
 
     await expect(validateWorkerDocumentFileContent(oversizedFile)).rejects.toThrow(
       "El archivo no debe pesar más de 10 MB"
