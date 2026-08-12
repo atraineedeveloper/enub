@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { validateWorkerDocumentFileContent } from "./workerDocumentFileContent";
+import { MAX_WORKER_DOCUMENT_FILE_SIZE_BYTES } from "./workerDocumentUploadLimits";
 
 const encoder = new TextEncoder();
 
@@ -109,6 +110,20 @@ describe("validateWorkerDocumentFileContent", () => {
         0x04,
         ...encoder.encode("random/file.txt"),
       ])
+    );
+  });
+
+  test("rejects oversized files before attempting a full byte read", async () => {
+    const oversizedFile = {
+      name: "demasiado-grande.pdf",
+      size: MAX_WORKER_DOCUMENT_FILE_SIZE_BYTES + 1,
+      arrayBuffer: async () => {
+        throw new Error("arrayBuffer should not be called");
+      },
+    } as File;
+
+    await expect(validateWorkerDocumentFileContent(oversizedFile)).rejects.toThrow(
+      "El archivo no debe pesar más de 10 MB"
     );
   });
 });
