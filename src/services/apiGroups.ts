@@ -28,6 +28,9 @@ export async function createGroup(newGroup: object) {
 
   if (error) {
     console.error(error);
+    if (error.code === "23505") {
+      throw new Error("Ya existe un grupo con el mismo año de admisión, letra y licenciatura.");
+    }
     throw new Error("Hubo un error al crear el registro");
   }
 
