@@ -108,10 +108,32 @@ function ScheduleDashboard() {
   if (anyError) return <ErrorMessage message={anyError.message} />;
 
   const currentSemester = semesters!.find((s) => s.id === +id!);
-  const currentGroups = groups!.filter((g) => {
-    const grade = calculateSemesterGroupForSemester(g.year_of_admission, currentSemester?.semester);
-    return grade >= 1 && grade <= 8;
-  });
+  // Keep group selectors in academic order, independent of insertion order in Supabase.
+  // Make a copy before sorting; React Query's cached groups must not be mutated.
+  const currentGroups = groups!
+    .filter((g) => {
+      const grade = calculateSemesterGroupForSemester(
+        g.year_of_admission,
+        currentSemester?.semester
+      );
+      return grade >= 1 && grade <= 8;
+    })
+    .sort((a, b) => {
+      const gradeA = calculateSemesterGroupForSemester(
+        a.year_of_admission,
+        currentSemester?.semester
+      );
+      const gradeB = calculateSemesterGroupForSemester(
+        b.year_of_admission,
+        currentSemester?.semester
+      );
+      return (
+        gradeA - gradeB ||
+        (a.degrees?.code ?? "").localeCompare(b.degrees?.code ?? "", "es") ||
+        (a.letter ?? "").localeCompare(b.letter ?? "", "es") ||
+        a.id - b.id
+      );
+    });
   const currentWorkers = workers!.filter((w) => w.status === 1);
   const sortedCurrentWorkers = sortWorkersBySurname(currentWorkers);
 
