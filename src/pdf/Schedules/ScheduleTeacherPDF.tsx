@@ -14,6 +14,7 @@ import { SemesterContext } from "../../pages/SemesterContext";
 import type { ScheduleAssignment } from "../../features/schedules/useScheduleAssignments";
 import type { ScheduleTeacher } from "../../features/schedules/useScheduleTeachers";
 import type { Database } from "../../types/supabase";
+import { formatTeacherSchedulePlazas, type TeacherSchedulePlaza } from "./teacherSchedulePlazas";
 
 type StateRole = Database["public"]["Tables"]["state_roles"]["Row"];
 
@@ -28,12 +29,14 @@ interface ScheduleTeacherPDFProps {
   schedulesScholar: ScheduleAssignment[];
   scheduleTeacher: ScheduleTeacher[];
   totalHours: number;
+  plazas: TeacherSchedulePlaza[];
 }
 
 function ScheduleTeacherPDF({
   schedulesScholar,
   scheduleTeacher,
   totalHours,
+  plazas,
 }: ScheduleTeacherPDFProps) {
   const { isLoading: isLoadingRoles, roles } = useRoles();
   const { isLoading: isLoadingStateRoles, stateRoles } = useStateRoles();
@@ -134,7 +137,7 @@ function ScheduleTeacherPDF({
           pageHeight - 50
         );
         doc.text(
-          "Teléfono (934) 344 04 77, 344 04 88",
+          "Teléfono (934) 344 04 77",
           data.settings.margin.left,
           pageHeight - 40
         );
@@ -175,7 +178,12 @@ function ScheduleTeacherPDF({
         font: "Montserrat-Bold",
         fontSize: 9,
       },
-      body: infoGroup,
+      body: [
+        ...infoGroup,
+        ...formatTeacherSchedulePlazas(plazas).map((content) => [
+          { content, colSpan: 2, styles: { halign: "center" as const, overflow: "linebreak" as const } },
+        ]),
+      ],
       theme: "plain",
     });
 

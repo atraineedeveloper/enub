@@ -1,0 +1,5 @@
+- [x] Pass existing plaza data to individual PDF.
+- [x] Add header rows and correct phone.
+- [x] Add formatting tests.
+- [ ] Run CI and verify preview layout.
+- [ ] Obtain approval before merge.

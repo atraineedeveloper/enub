@@ -6,7 +6,7 @@ import CreateEditTeacherSchedule from "./CreateEditTeacherSchedule";
 import ShowTeacherSchedule from "./ShowTeacherSchedule";
 import TeacherAssignment from "./TeacherAssignment";
 import Modal from "../../ui/Modal";
-import type { Worker } from "../workers/useWorkers";
+import type { Worker, WorkerWithDetails } from "../workers/useWorkers";
 import type { ScheduleTeacher } from "./useScheduleTeachers";
 import type { ScheduleAssignment } from "./useScheduleAssignments";
 
@@ -41,7 +41,7 @@ const SubTab = styled.button<{ $active: boolean }>`
 `;
 
 interface TeacherScheduleProps {
-  workers: Worker[];
+  workers: (Worker & Partial<Pick<WorkerWithDetails, "sustenance_plazas">>)[];
   scheduleTeachers: ScheduleTeacher[];
   scheduleAssignments: ScheduleAssignment[];
   semesterId?: string;
