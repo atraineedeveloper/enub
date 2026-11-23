@@ -29,7 +29,9 @@ type WorkersResult<T extends Worker> = {
 };
 
 export function useWorkers(options: { fullDetails: true }): WorkersResult<WorkerWithDetails>;
+// eslint-disable-next-line no-redeclare -- TypeScript overload, not a duplicate implementation.
 export function useWorkers(options?: UseWorkersOptions): WorkersResult<Worker>;
+// eslint-disable-next-line no-redeclare -- Implementation of the overloads above.
 export function useWorkers({ fullDetails = false }: UseWorkersOptions = {}): WorkersResult<Worker> {
   const {
     isLoading,
