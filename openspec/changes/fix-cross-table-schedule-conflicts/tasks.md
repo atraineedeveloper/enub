@@ -1,0 +1,4 @@
+- [x] Supply both schedule collections to the scholar form.
+- [x] Scope edit exclusion to the originating table.
+- [x] Add regression tests.
+- [ ] Run typecheck, lint, tests and build.

@@ -8,6 +8,7 @@ interface SemesterContextValue {
   workers: Worker[];
   subjects: Subject[];
   scheduleAssignments: unknown[];
+  scheduleTeachers?: unknown[];
   semesterCode: string | null;
 }
 

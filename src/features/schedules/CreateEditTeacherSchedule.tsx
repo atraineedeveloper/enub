@@ -9,7 +9,7 @@ import capitalizeName from "../../helpers/capitalizeFirstLetter";
 import { useCreateScheduleTeacher } from "./useCreateScheduleTeacher";
 import { useEditScheduleTeacher } from "./useEditScheduleTeacher";
 import { WEEKDAYS } from "../../helpers/constants";
-import { hasWorkerConflict } from "../../helpers/detectScheduleConflict";
+import { hasWorkerScheduleConflict } from "../../helpers/detectScheduleConflict";
 import type { Worker } from "../workers/useWorkers";
 import type { ScheduleTeacher } from "./useScheduleTeachers";
 import type { ScheduleAssignment } from "./useScheduleAssignments";
@@ -155,9 +155,8 @@ function CreateEditTeacherSchedule({
       }
     }
 
-    const allSchedules = [...scheduleTeachers, ...scheduleAssignments];
-    if (hasWorkerConflict(allSchedules, data, editId)) {
-      toast.error("El maestro ya tiene una actividad asignada ese día en ese horario.");
+    if (hasWorkerScheduleConflict(scheduleTeachers, scheduleAssignments, data, editId)) {
+      toast.error("El maestro ya tiene una clase o actividad asignada ese día en ese horario.");
       return;
     }
 
