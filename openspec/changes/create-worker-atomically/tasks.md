@@ -1,0 +1,7 @@
+- [x] Inspect current update RPC and relation policies.
+- [x] Draft atomic create RPC and authorization policy.
+- [ ] Verify schema defaults and grants locally.
+- [ ] Generate migration with CLI; add pgTAP tests for rollback, staff/admin success, worker/anon denial, empty and invalid relations.
+- [ ] Run local database tests and advisors.
+- [ ] Regenerate types and integrate frontend; test photo cleanup.
+- [ ] Approve migration deployment separately.
