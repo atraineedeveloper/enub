@@ -34,7 +34,5 @@ export default defineConfig({
       },
     }),
   ],
-  server: {
-    allowedHosts: true,
-  },
+  // Keep Vite\u0027s default host allowlist. Explicitly configure trusted development hosts when needed.
 });
