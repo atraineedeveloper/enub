@@ -1,3 +1,5 @@
+import toast from "react-hot-toast";
+import { loadPdfImage } from "../loadPdfImage";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import type { UserOptions } from "jspdf-autotable";
@@ -67,6 +69,7 @@ function TeacherAssignmentPDF({
   };
 
   const generatePDF = async () => {
+    try {
     await import("../../styles/Montserrat-Regular-normal.js");
     await import("../../styles/Montserrat-Italic-italic.js");
     await import("../../styles/Montserrat-Bold-bold.js");
@@ -76,12 +79,10 @@ function TeacherAssignmentPDF({
 
     // Header
 
-    const logoEnub = new Image();
-    logoEnub.src = "/enub.jpg";
+    const logoEnub = await loadPdfImage("/enub.jpg");
     doc.addImage(logoEnub, "JPG", 380, 10, 50, 50);
 
-    const logoSetab = new Image();
-    logoSetab.src = "/setab.jpeg";
+    const logoSetab = await loadPdfImage("/setab.jpeg");
     doc.addImage(logoSetab, "JPEG", 15, 17, 130, 36);
 
     doc.autoTable({
@@ -510,6 +511,10 @@ function TeacherAssignmentPDF({
     const blobUrl = doc.output("bloburl");
     const previewWindow = window.open(blobUrl, "_blank");
     if (!previewWindow) doc.save("AsignacionHoraria.pdf");
+    } catch (error) {
+      console.error("PDF export failed", error);
+      toast.error("No se pudo generar el PDF. Revisa los datos e inténtalo nuevamente.");
+    }
   };
   return (
     <Button variation="secondary" onClick={generatePDF}>
