@@ -21,8 +21,14 @@ const rows = paths.map((path) => {
     if (node.kind === ts.SyntaxKind.AnyKeyword) any++;
     if (ts.isAsExpression(node) || ts.isTypeAssertionExpression(node)) assertions++;
     if (ts.isNonNullExpression(node)) nonNull++;
-    if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
-      const spec = node.moduleSpecifier.text;
+    const moduleSpecifier =
+      ts.isImportDeclaration(node) || ts.isExportDeclaration(node)
+        ? node.moduleSpecifier
+        : ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword
+          ? node.arguments[0]
+          : undefined;
+    if (moduleSpecifier && ts.isStringLiteral(moduleSpecifier)) {
+      const spec = moduleSpecifier.text;
       if (spec.startsWith(".")) {
         const base = normalize(join(dirname(path), spec));
         const resolved = [base, base + ".ts", base + ".tsx", join(base, "index.ts"), join(base, "index.tsx")].find((p) => known.has(p) && existsSync(p));
@@ -68,9 +74,9 @@ console.log(JSON.stringify({
   largest: [...app].sort((a, b) => b.lines - a.lines).slice(0, 20),
   typeReview: [...app].sort((a, b) => b.any - a.any || b.assertions - a.assertions).slice(0, 20),
   cycles,
-  // Review candidates only: static relative imports omit JS consumers,
-  // dynamic imports, entry points and external callers. Never auto-delete.
-  noStaticIncomingReferences: app.filter((r) =>
+  // Review candidates only: literal relative imports include lazy routes,
+  // but omit JS consumers, computed imports and external callers. Never auto-delete.
+  noKnownIncomingReferences: app.filter((r) => r.path !== "src/main.tsx" &&
     ![...edges.values()].some((targets) => targets.includes(r.path))
   ).map((r) => r.path),
 }, null, 2));
