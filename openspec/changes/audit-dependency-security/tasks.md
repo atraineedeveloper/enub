@@ -29,3 +29,7 @@
 - [x] Vite committed CI passed after Bun alignment (45303633285); manual PWA preview verification remains open.
 - [x] Prepare isolated React Router 7.18.0 candidate, remove obsolete v6 future flags, pin existing Supabase SDK 2.52.0 and patch transitive ws to 8.21.1 without changing auth configuration.
 - [ ] Verify candidate lock, audit, route/role regression tests and build; verify authenticated preview before final approval.
+
+- [x] Router and WebSocket candidate passed frozen install, typecheck, lint, tests and build (run 45304448711); 71 vulnerabilities (47 high, 20 moderate, 4 low).
+- [x] Transfer generated lockfile with exact Git blob hash verification.
+- [ ] Verify committed router upgrade in normal CI and manually test authenticated navigation and role gates in preview.
