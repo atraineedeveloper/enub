@@ -43,6 +43,21 @@ jobs:
       - name: Build
         run: bun run build
 
+  dependency-audit:
+    name: Dependency security audit (report only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Audit locked dependencies
+        continue-on-error: true
+        run: bun audit
+
   supabase:
     name: Supabase migrations, lint, and pgTAP
     runs-on: ubuntu-latest

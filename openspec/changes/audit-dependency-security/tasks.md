@@ -1,0 +1,7 @@
+- [x] Inventory locked PDF and build dependencies.
+- [x] Add non-blocking dependency audit job.
+- [ ] Confirm audit execution and distinguish advisory findings from tool/network failures.
+- [ ] Select reviewed compatible versions (including jsPDF/AutoTable and Vite/PWA peer compatibility).
+- [ ] Regenerate lockfile using Bun and review diff.
+- [ ] Run frozen install, audit, typecheck, lint, tests, build and PDF/PWA preview regression.
+- [ ] Establish blocking policy after triage; pin reviewed audit runtime.
