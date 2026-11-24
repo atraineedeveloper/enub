@@ -149,6 +149,7 @@ function ScheduleDashboard() {
         workers: sortedCurrentWorkers,
         subjects: subjects!,
         scheduleAssignments: scheduleAssignments!,
+        scheduleTeachers: scheduleTeachers!,
         semesterCode: currentSemester?.semester ?? null,
       }}
     >

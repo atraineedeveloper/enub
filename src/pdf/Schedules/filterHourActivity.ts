@@ -1,20 +1,6 @@
 import type { ScheduleTeacher } from "../../features/schedules/useScheduleTeachers";
 
-function filterHourActivity(
-  schedules: ScheduleTeacher[],
-  weekday: string,
-  startTime: string
-) {
-  const activitytHour = schedules.filter((schedule) => {
-    return schedule.weekday === weekday && schedule.start_time === startTime;
-  });
-
-  if (activitytHour.length > 0) {
-    const textSchedule = `${activitytHour[0].activity}`;
-    return textSchedule;
-  }
-
-  return ``;
+export default function filterHourActivity(schedules: ScheduleTeacher[], weekday: string, startTime: string) {
+  return schedules.filter(schedule => schedule.weekday === weekday && schedule.start_time === startTime)
+    .map(schedule => schedule.activity?.trim() || "Actividad sin nombre").join("\n\n");
 }
-
-export default filterHourActivity;

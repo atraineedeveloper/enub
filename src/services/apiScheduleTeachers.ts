@@ -37,19 +37,12 @@ export async function createEditScheduleTeachers(
   )
     throw new Error("El horario debe corresponder a un bloque académico válido.");
 
-  let query = supabase.from("schedule_teachers");
-
-  // A) CREATE
-  if (!id)
-    query = query.insert([
-      newScheduleTeachers as ScheduleTeacherInsert,
-    ]) as never;
-
-  // B) EDIT
-  if (id)
-    query = query
-      .update({ ...newScheduleTeachers } as ScheduleTeacherUpdate)
-      .eq("id", id) as never;
+  const query = id
+    ? supabase.from("schedule_teachers")
+        .update({ ...newScheduleTeachers } as ScheduleTeacherUpdate)
+        .eq("id", id)
+    : supabase.from("schedule_teachers")
+        .insert([newScheduleTeachers as ScheduleTeacherInsert]);
 
   const { data, error } = await query.select();
 

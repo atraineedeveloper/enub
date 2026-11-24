@@ -1,29 +1,10 @@
 import { calculateSemesterGroupForSemester } from "../../helpers/calculateSemesterGroup";
 import type { ScheduleAssignment } from "../../features/schedules/useScheduleAssignments";
 
-function filterHourGroup(
-  schedules: ScheduleAssignment[],
-  weekday: string,
-  startTime: string,
-  semesterCode: string | null
-) {
-  const subjectHour = schedules.filter((schedule) => {
-    return schedule.weekday === weekday && schedule.start_time === startTime;
-  });
-
-  if (subjectHour.length > 0) {
-    const textSchedule = `${subjectHour[0].subjects!.name!.toUpperCase()}
-
-  ${calculateSemesterGroupForSemester(
-    subjectHour[0].groups!.year_of_admission,
-    semesterCode
-  )}° "${
-      subjectHour[0].groups!.letter
-    }" - ${subjectHour[0].groups!.degrees!.code}`;
-    return textSchedule;
-  }
-
-  return ``;
+export default function filterHourGroup(schedules: ScheduleAssignment[], weekday: string, startTime: string, semesterCode: string | null) {
+  return schedules.filter(schedule => schedule.weekday === weekday && schedule.start_time === startTime).map(schedule => {
+    const group = schedule.groups;
+    const grade = group?.year_of_admission == null ? "—" : calculateSemesterGroupForSemester(group.year_of_admission, semesterCode);
+    return `${schedule.subjects?.name?.toUpperCase() || "Asignatura no registrada"}\n\n  ${grade}° "${group?.letter ?? "—"}" - ${group?.degrees?.code ?? "—"}`;
+  }).join("\n\n");
 }
-
-export default filterHourGroup;
