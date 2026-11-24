@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { logout as logoutApi } from "../../services/apiAuth";
 import { useNavigate } from "react-router-dom";
+import { clearSessionCache } from "./clearSessionCache";
 
 export function useLogout() {
   const navigate = useNavigate();
@@ -12,8 +13,8 @@ export function useLogout() {
   // caller, Logout.tsx, was removed when the header was modernized).
   const { mutate: logout, isPending: isLoading } = useMutation({
     mutationFn: logoutApi,
-    onSuccess: () => {
-      queryClient.removeQueries();
+    onSuccess: async () => {
+      await clearSessionCache(queryClient);
       navigate("/login", { replace: true });
     },
   });
