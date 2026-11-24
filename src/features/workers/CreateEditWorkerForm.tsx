@@ -1,13 +1,14 @@
 import Input from "../../ui/Input";
-import { useFieldArray, useForm, type FieldValues } from "react-hook-form";
-import Form from "../../ui/Form";
+import { useFieldArray, useForm, type FieldErrors, type FieldValues } from "react-hook-form";
 import Button from "../../ui/Button";
-import FormRow from "../../ui/FormRow";
+import { WorkerFormField as FormRow } from "./workerFormStyles";
+import { WORKER_FORM_SECTIONS, firstInvalidWorkerSection, type WorkerFormSectionId } from "./workerFormSections";
+import { WorkerForm, FormHeader, FormWorkspace, SectionNav, SectionButton, FormBody, FormSection, SectionHeading, FieldGrid, FormFooter, FooterActions } from "./workerFormStyles";
 import { useEditWorker } from "./useEditWorker";
 import { useCreateWorker } from "./useCreateWorker";
 import Select from "../../ui/Select";
 import Textarea from "../../ui/Textarea";
-import styled from "styled-components";
+import { PhotoCard, PhotoSection, PhotoSectionTitle, PhotoError, PhotoPreview, PhotoImage, PhotoActions, PhotoActionButton, HiddenInput, PlazasContainer, PlazaRow, PlazaActionButton, AddPlazaButton, AdmissionsContainer, AdmissionRow } from "./workerFormStyles";
 import {
   HiOutlinePencilSquare,
   HiOutlineTrash,
@@ -17,178 +18,9 @@ import {
   HiOutlineXMark,
 } from "react-icons/hi2";
 import { getProfilePicturePublicUrl } from "../../services/apiWorkers";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { WorkerWithDetails } from "./useWorkers";
 import { selectChangedWorkerRelations } from "./workerEditRelations";
-
-const PhotoCard = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.2rem;
-  padding: 1.2rem;
-  border: 1px solid var(--color-grey-200);
-  border-radius: var(--border-radius-md);
-  background: linear-gradient(
-    145deg,
-    var(--color-grey-50),
-    color-mix(in oklab, var(--color-grey-0) 80%, var(--color-brand-50))
-  );
-`;
-
-const PhotoSection = styled.section`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-  padding: 0 0 1.6rem;
-  margin-bottom: 1.2rem;
-  border-bottom: 1px solid var(--color-grey-100);
-`;
-
-const PhotoSectionTitle = styled.p`
-  font-size: 1.8rem;
-  font-weight: 600;
-  color: var(--color-grey-700);
-  text-align: center;
-`;
-
-const PhotoError = styled.span`
-  font-size: 1.4rem;
-  color: var(--color-red-700);
-`;
-
-const PhotoPreview = styled.div`
-  width: 10rem;
-  height: 10rem;
-  border-radius: 50%;
-  overflow: hidden;
-  border: 2px solid var(--color-grey-200);
-  box-shadow: var(--shadow-sm);
-  display: grid;
-  place-items: center;
-  background-color: var(--color-grey-100);
-  color: var(--color-grey-500);
-  font-size: 1.2rem;
-  text-align: center;
-  padding: 0.8rem;
-`;
-
-const PhotoImage = styled.img`
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
-`;
-
-const PhotoActions = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  flex-wrap: wrap;
-`;
-
-const PhotoActionButton = styled.button`
-  display: inline-grid;
-  place-items: center;
-  border: 1px solid var(--color-grey-300);
-  border-radius: 999px;
-  background-color: var(--color-grey-0);
-  width: 3.2rem;
-  height: 3.2rem;
-
-  &:hover {
-    background-color: var(--color-grey-100);
-  }
-
-  & svg {
-    width: 1.6rem;
-    height: 1.6rem;
-  }
-`;
-
-const HiddenInput = styled.input`
-  display: none;
-`;
-
-const PlazasContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.8rem;
-`;
-
-const PlazaRow = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr auto;
-  gap: 0.8rem;
-  align-items: center;
-
-  @media (max-width: 900px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const PlazaActionButton = styled.button`
-  width: 3rem;
-  height: 3rem;
-  border: 1px solid var(--color-grey-300);
-  border-radius: 999px;
-  background-color: var(--color-grey-0);
-  display: grid;
-  place-items: center;
-
-  &:hover {
-    background-color: var(--color-grey-100);
-  }
-`;
-
-const AddPlazaButton = styled.button`
-  border: 1px dashed var(--color-grey-400);
-  border-radius: var(--border-radius-sm);
-  background-color: var(--color-grey-0);
-  padding: 0.8rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  font-size: 1.3rem;
-  font-weight: 600;
-  width: fit-content;
-
-  &:hover {
-    background-color: var(--color-grey-100);
-  }
-`;
-
-const AdmissionsContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.8rem;
-  width: min(56rem, 100%);
-  padding: 1rem;
-  border: 1px solid var(--color-grey-200);
-  border-radius: var(--border-radius-sm);
-  background: linear-gradient(
-    180deg,
-    var(--color-grey-0),
-    color-mix(in oklab, var(--color-grey-0) 85%, var(--color-brand-50))
-  );
-`;
-
-const AdmissionRow = styled.div`
-  display: grid;
-  grid-template-columns: 15rem minmax(0, 1fr) auto;
-  gap: 0.8rem;
-  align-items: center;
-
-  @media (max-width: 900px) {
-    grid-template-columns: minmax(0, 1fr) auto;
-
-    & > :first-child {
-      grid-column: 1 / -1;
-    }
-  }
-`;
 
 function normalizeSustenanceTypeForForm(value = "") {
   const normalizedValue = value.trim().toLowerCase();
@@ -206,6 +38,27 @@ function CreateEditWorkerForm({
   workerToEdit = {},
   onCloseModal,
 }: CreateEditWorkerFormProps) {
+  const [activeSection, setActiveSection] = useState<WorkerFormSectionId>("identity");
+  const formId = useId();
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const sectionId = (id: string) => `${formId}-${id}`;
+  const currentStep = WORKER_FORM_SECTIONS.findIndex((section) => section.id === activeSection);
+  function navigateSection(id: WorkerFormSectionId) {
+    setActiveSection(id);
+    if (bodyRef.current) bodyRef.current.scrollTop = 0;
+  }
+
+  function handleInvalid(errors: FieldErrors<FieldValues>) {
+    const section = firstInvalidWorkerSection(errors);
+    if (section) {
+      navigateSection(section);
+      requestAnimationFrame(() => {
+        const panel = document.getElementById(sectionId(section));
+        const target = panel?.querySelector<HTMLElement>("[aria-invalid='true']");
+        (target ?? panel?.querySelector<HTMLElement>("h3"))?.focus();
+      });
+    }
+  }
   const { id: editId, ...editValues } = workerToEdit;
   const isEditSession = Boolean(editId);
   const { isEditing, editWorker } = useEditWorker();
@@ -219,6 +72,8 @@ function CreateEditWorkerForm({
 
   const { register, handleSubmit, reset, control, formState, watch, setValue } =
     useForm<FieldValues>({
+      shouldFocusError: false,
+      shouldUnregister: false,
       defaultValues: (isEditSession
         ? {
             ...editValues,
@@ -376,7 +231,24 @@ function CreateEditWorkerForm({
   }
 
   return (
-    <Form onSubmit={handleSubmit(onSubmit)}>
+    <WorkerForm onSubmit={handleSubmit(onSubmit, handleInvalid)} noValidate>
+      <FormHeader>
+        <div><span>GESTIÓN DE PERSONAL</span><h2>{isEditSession ? "Editar trabajador" : "Nuevo trabajador"}</h2><p>{isEditSession ? workerToEdit.name || "Actualiza el expediente" : "Completa la información del expediente."}</p></div>
+      </FormHeader>
+      <FormWorkspace>
+        <SectionNav aria-label="Secciones del formulario">
+          {WORKER_FORM_SECTIONS.map((section, index) => (
+            <SectionButton key={section.id} type="button" $active={activeSection === section.id} aria-current={activeSection === section.id ? "step" : undefined} aria-controls={sectionId(section.id)} onClick={() => navigateSection(section.id)}>
+              <span className="step-number">{index + 1}</span>
+              <span className="step-text"><strong>{section.label}</strong><small>{section.description}</small></span>
+              {section.fields.some((field) => Boolean(errors[field])) && <span className="step-error" aria-label="Contiene errores">!</span>}
+            </SectionButton>
+          ))}
+        </SectionNav>
+        <FormBody ref={bodyRef}>
+          <FormSection id={sectionId("identity")} hidden={activeSection !== "identity"} aria-labelledby={sectionId("identity-heading")}>
+            <SectionHeading><h3 tabIndex={-1} id={sectionId("identity-heading")}>Datos personales</h3><p>Identificación y fotografía del trabajador.</p></SectionHeading>
+            <FieldGrid>
       <PhotoSection>
         <PhotoSectionTitle>Foto de perfil</PhotoSectionTitle>
         <PhotoCard>
@@ -451,7 +323,7 @@ function CreateEditWorkerForm({
         )}
       </PhotoSection>
 
-      <FormRow label="Nombre" error={errors?.name?.message as string | undefined}>
+      <FormRow label="Nombre completo" error={errors?.name?.message as string | undefined}>
         <Input
           type="text"
           id="name"
@@ -459,6 +331,40 @@ function CreateEditWorkerForm({
           {...register("name", {
             required: "Este campo es requerido",
           })}
+        />
+      </FormRow>
+      <FormRow label="RFC" error={errors?.RFC?.message as string | undefined}>
+        <Input
+          type="text"
+          id="RFC"
+          disabled={isWorking}
+          {...register("RFC", {
+            required: "Este campo es requerido",
+          })}
+        />
+      </FormRow>
+            </FieldGrid>
+          </FormSection>
+
+          <FormSection id={sectionId("contact")} hidden={activeSection !== "contact"} aria-labelledby={sectionId("contact-heading")}>
+            <SectionHeading><h3 tabIndex={-1} id={sectionId("contact-heading")}>Contacto y domicilio</h3><p>Información para localizar al trabajador.</p></SectionHeading>
+            <FieldGrid>
+      <FormRow label="Teléfono" error={errors?.phone?.message as string | undefined}>
+        <Input
+          type="text"
+          id="phone"
+          disabled={isWorking}
+          {...register("phone", {
+            required: "Este campo es requerido",
+          })}
+        />
+      </FormRow>
+      <FormRow label="Correo electrónico" error={errors?.email?.message as string | undefined}>
+        <Input
+          type="text"
+          id="email"
+          disabled={isWorking}
+          {...register("email")}
         />
       </FormRow>
       <FormRow label="Calle" error={errors?.street?.message as string | undefined}>
@@ -511,34 +417,12 @@ function CreateEditWorkerForm({
           })}
         />
       </FormRow>
-      <FormRow label="Télefono" error={errors?.phone?.message as string | undefined}>
-        <Input
-          type="text"
-          id="phone"
-          disabled={isWorking}
-          {...register("phone", {
-            required: "Este campo es requerido",
-          })}
-        />
-      </FormRow>
-      <FormRow label="Correo Electrónico" error={errors?.email?.message as string | undefined}>
-        <Input
-          type="text"
-          id="email"
-          disabled={isWorking}
-          {...register("email")}
-        />
-      </FormRow>
-      <FormRow label="RFC" error={errors?.RFC?.message as string | undefined}>
-        <Input
-          type="text"
-          id="RFC"
-          disabled={isWorking}
-          {...register("RFC", {
-            required: "Este campo es requerido",
-          })}
-        />
-      </FormRow>
+            </FieldGrid>
+          </FormSection>
+
+          <FormSection id={sectionId("employment")} hidden={activeSection !== "employment"} aria-labelledby={sectionId("employment-heading")}>
+            <SectionHeading><h3 tabIndex={-1} id={sectionId("employment-heading")}>Información laboral</h3><p>Perfil profesional, función y situación laboral.</p></SectionHeading>
+            <FieldGrid>
       <FormRow label="Especialidad" error={errors?.specialty?.message as string | undefined}>
         <Input
           type="text"
@@ -563,6 +447,36 @@ function CreateEditWorkerForm({
           <option value="Contratacion">Contratación</option>
         </Select>
       </FormRow>
+      <FormRow label="Estatus" error={errors?.status?.message as string | undefined}>
+        <Select id="status" disabled={isWorking} {...register("status")}>
+          <option value="">Seleccione...</option>
+          <option value="1">Activo</option>
+          <option value="0">Inactivo</option>
+        </Select>
+      </FormRow>
+      <FormRow
+        label="Función que desempeña"
+        error={errors?.function_performed?.message as string | undefined}
+      >
+        <Textarea
+          id="function_performed"
+          disabled={isWorking}
+          {...register("function_performed")}
+        />
+      </FormRow>
+      <FormRow label="Observaciones" error={errors?.observations?.message as string | undefined}>
+        <Textarea
+          id="observations"
+          disabled={isWorking}
+          {...register("observations")}
+        />
+      </FormRow>
+            </FieldGrid>
+          </FormSection>
+
+          <FormSection id={sectionId("relations")} hidden={activeSection !== "relations"} aria-labelledby={sectionId("relations-heading")}>
+            <SectionHeading><h3 tabIndex={-1} id={sectionId("relations-heading")}>Plazas y antigüedad</h3><p>Registra las plazas y las fechas de admisión correspondientes.</p></SectionHeading>
+            <FieldGrid>
       <FormRow
         label="Plazas"
         alignTop
@@ -657,44 +571,21 @@ function CreateEditWorkerForm({
           </AddPlazaButton>
         </AdmissionsContainer>
       </FormRow>
-      <FormRow
-        label="Función que desempeña"
-        error={errors?.function_performed?.message as string | undefined}
-      >
-        <Textarea
-          id="function_performed"
-          disabled={isWorking}
-          {...register("function_performed")}
-        />
-      </FormRow>
-      <FormRow label="Observaciones" error={errors?.observations?.message as string | undefined}>
-        <Textarea
-          id="observations"
-          disabled={isWorking}
-          {...register("observations")}
-        />
-      </FormRow>
-      <FormRow label="Estatus" error={errors?.status?.message as string | undefined}>
-        <Select id="status" disabled={isWorking} {...register("status")}>
-          <option value="">Seleccione...</option>
-          <option value="1">Activo</option>
-          <option value="0">Inactivo</option>
-        </Select>
-      </FormRow>
-      <FormRow>
-        <Button
-          variation="secondary"
-          type="reset"
-          onClick={() => onCloseModal?.()}
-          disabled={isWorking}
-        >
-          Cancelar
-        </Button>
-        <Button disabled={isWorking}>
-          {isEditSession ? "Actualizar trabajador" : "Añadir Trabajador"}
-        </Button>
-      </FormRow>
-    </Form>
+            </FieldGrid>
+          </FormSection>
+
+        </FormBody>
+      </FormWorkspace>
+      <FormFooter>
+        <span aria-live="polite">{currentStep + 1} de {WORKER_FORM_SECTIONS.length} secciones</span>
+        <FooterActions>
+          <Button variation="secondary" type="button" onClick={() => onCloseModal?.()} disabled={isWorking}>Cancelar</Button>
+          {currentStep > 0 && <Button variation="secondary" type="button" onClick={() => navigateSection(WORKER_FORM_SECTIONS[currentStep - 1].id)}>Anterior</Button>}
+          {currentStep < WORKER_FORM_SECTIONS.length - 1 && <Button variation="secondary" type="button" onClick={() => navigateSection(WORKER_FORM_SECTIONS[currentStep + 1].id)}>Siguiente</Button>}
+          <Button type="submit" disabled={isWorking}>{isWorking ? "Guardando…" : isEditSession ? "Guardar cambios" : "Crear trabajador"}</Button>
+        </FooterActions>
+      </FormFooter>
+    </WorkerForm>
   );
 }
 

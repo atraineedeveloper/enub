@@ -142,7 +142,7 @@ function WorkerRow({ worker }: WorkerRowProps) {
           </Menus.Menu>
         </Menus>
       </Table.Row>
-      <Modal.Window name="worker-form">
+      <Modal.Window name="worker-form" wide title="Editar trabajador">
         <CreateEditWorkerForm workerToEdit={worker} />
       </Modal.Window>
       {isAdmin && (

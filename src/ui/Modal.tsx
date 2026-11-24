@@ -14,7 +14,7 @@ import { useOutsideClick } from "../hooks/useOutsideClick";
 import { ModalContext } from "./ModalContext";
 import { useModal } from "./useModal";
 
-const StyledModal = styled.div`
+const StyledModal = styled.div<{ $wide?: boolean }>`
   position: fixed;
   top: 50%;
   left: 50%;
@@ -27,6 +27,7 @@ const StyledModal = styled.div`
   overflow: auto;
   max-height: 500px;
   outline: none;
+  ${({ $wide }) => $wide && `width: min(108rem, calc(100vw - 3.2rem)); max-height: 94dvh; padding: 0; overflow: hidden; @media(max-width:640px) { width: calc(100vw - 1.6rem); }`}
 `;
 
 const Overlay = styled.div`
@@ -49,6 +50,7 @@ const Button = styled.button`
   transform: translateX(0.8rem);
   transition: all 0.2s;
   position: absolute;
+  z-index: 1;
   top: 1.2rem;
   right: 1.9rem;
 
@@ -126,9 +128,10 @@ interface WindowProps {
   // so "no consumer update required" never means "no accessible name at
   // all".
   title?: string;
+  wide?: boolean;
 }
 
-function Window({ children, name, title }: WindowProps) {
+function Window({ children, name, title, wide }: WindowProps) {
   const { openName, close } = useModal();
   const isOpen = name === openName;
   const titleId = `modal-window-title-${name}`;
@@ -175,7 +178,7 @@ function Window({ children, name, title }: WindowProps) {
       const current = dialogRef.current;
       const focusableEls = Array.from(
         current?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR) ?? []
-      );
+      ).filter((element) => !element.closest('[hidden]') && element.getAttribute('type') !== 'hidden');
       if (!focusableEls.length) {
         event.preventDefault();
         return;
@@ -209,6 +212,7 @@ function Window({ children, name, title }: WindowProps) {
   return createPortal(
     <Overlay>
       <StyledModal
+        $wide={wide}
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
