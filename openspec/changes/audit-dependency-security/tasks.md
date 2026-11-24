@@ -14,3 +14,7 @@
 
 - [x] Address preview typography regression: normalize Montserrat alias/style pairs in shared AutoTable wrapper; add actual PDF font regression test.
 - [ ] Confirm typography, alignment and spacing in all four preview exports after fix.
+
+- [x] PDF committed CI passed (run 45302106625); user confirmed corrected assignment PDF; baseline 100 advisories, zero critical.
+- [x] Prepare isolated Vite 6 candidate, compatible React plugin and scoped Rollup ranges; preserve PWA configuration.
+- [ ] Review candidate resolution and peer compatibility, CI/audit, generated PWA assets and manual preview; commit verified lockfile only after review.

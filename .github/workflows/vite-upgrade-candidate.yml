@@ -1,0 +1,51 @@
+name: Vite dependency upgrade candidate
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/vite-upgrade-candidate.yml'
+      - 'scripts/prepare-vite-upgrade-candidate.mjs'
+permissions:
+  contents: read
+jobs:
+  candidate:
+    if: github.head_ref == 'fix/dependency-security'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.5'
+      - name: Prepare Vite candidate
+        run: node scripts/prepare-vite-upgrade-candidate.mjs
+      - name: Generate lockfile
+        run: bun install --ignore-scripts
+      - name: Verify frozen installation
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Emit generated lockfile
+        run: |
+          git hash-object bun.lock
+          echo BEGIN_GENERATED_LOCKFILE
+          base64 -w 76 bun.lock
+          echo END_GENERATED_LOCKFILE
+      - name: Capture candidate patch
+        run: git diff --binary -- package.json bun.lock > vite-upgrade.patch
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vite-upgrade-candidate
+          path: vite-upgrade.patch
+      - name: Audit candidate
+        continue-on-error: true
+        run: bun audit
+      - run: bun run typecheck
+      - run: bun run lint
+      - run: bun run test
+      - run: bun run build
+      - name: Verify generated PWA assets
+        run: |
+          test -s dist/sw.js
+          test -s dist/manifest.webmanifest
+          node -e "const m=JSON.parse(require('fs').readFileSync('dist/manifest.webmanifest')); if(m.start_url!=='/' || m.display!=='standalone' || m.icons.length<2) process.exit(1)"
