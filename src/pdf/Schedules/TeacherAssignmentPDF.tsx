@@ -1,7 +1,7 @@
 import toast from "react-hot-toast";
 import { loadPdfImage } from "../loadPdfImage";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import { autoTable } from "jspdf-autotable";
 import type { UserOptions } from "jspdf-autotable";
 import { useContext } from "react";
 import Button from "../../ui/Button";
@@ -85,10 +85,10 @@ function TeacherAssignmentPDF({
     const logoSetab = await loadPdfImage("/setab.jpeg");
     doc.addImage(logoSetab, "JPEG", 15, 17, 130, 36);
 
-    doc.autoTable({
+    autoTable(doc, {
       willDrawPage: function () {
         // Header
-        doc.autoTable({
+        autoTable(doc, {
           styles: {
             halign: "center",
             font: "Montserrat-BoldItalic",
@@ -143,7 +143,7 @@ function TeacherAssignmentPDF({
     const today = new Date();
     const formattedDate = today.toLocaleDateString("es-ES", options);
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "right",
         valign: "middle",
@@ -162,7 +162,7 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "right",
         valign: "middle",
@@ -181,7 +181,7 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY - 8,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "right",
         valign: "middle",
@@ -200,7 +200,7 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY - 8,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "right",
         valign: "middle",
@@ -219,7 +219,7 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY - 8,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "right",
         valign: "middle",
@@ -238,7 +238,7 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY - 8,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "right",
         valign: "middle",
@@ -251,7 +251,7 @@ function TeacherAssignmentPDF({
     });
 
     // Info of teacher
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         valign: "middle",
         font: "Montserrat-Regular",
@@ -269,7 +269,7 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY - 4,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         valign: "middle",
         font: "Montserrat-Regular",
@@ -287,7 +287,7 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY - 8,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         valign: "middle",
         font: "Montserrat-Regular",
@@ -305,7 +305,7 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY - 8,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "justify",
         fontSize: 10,
@@ -329,7 +329,7 @@ function TeacherAssignmentPDF({
       (schedule) => (totalHours += schedule.quantity * 2)
     );
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "center",
         valign: "middle",
@@ -387,7 +387,7 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "center",
         valign: "middle",
@@ -417,7 +417,7 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY - 3,
     });
     if (totalHours == 40) {
-      doc.autoTable({
+      autoTable(doc, {
         styles: {
           halign: "center",
           valign: "middle",
@@ -451,7 +451,7 @@ function TeacherAssignmentPDF({
       });
     }
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "center",
         valign: "middle",
@@ -473,7 +473,7 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "center",
         valign: "middle",
@@ -485,7 +485,7 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "center",
         valign: "middle",
@@ -496,7 +496,7 @@ function TeacherAssignmentPDF({
       theme: "plain",
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "center",
         valign: "middle",

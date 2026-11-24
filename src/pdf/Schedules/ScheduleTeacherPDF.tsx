@@ -1,7 +1,7 @@
 import toast from "react-hot-toast";
 import { loadPdfImage } from "../loadPdfImage";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import { autoTable } from "jspdf-autotable";
 import type { UserOptions, RowInput } from "jspdf-autotable";
 import { useContext } from "react";
 import Button from "../../ui/Button";
@@ -107,10 +107,10 @@ function ScheduleTeacherPDF({
     const logoSetab = await loadPdfImage("/setab.jpeg");
     doc.addImage(logoSetab, "JPEG", 15, 17, 130, 36);
 
-    doc.autoTable({
+    autoTable(doc, {
       willDrawPage: function () {
         // Header
-        doc.autoTable({
+        autoTable(doc, {
           styles: {
             halign: "center",
             font: "Montserrat-BoldItalic",
@@ -173,7 +173,7 @@ function ScheduleTeacherPDF({
       ],
     ];
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         valign: "middle",
         font: "Montserrat-Bold",
@@ -393,7 +393,7 @@ function ScheduleTeacherPDF({
 
     // ==========ADD EXTRA HOURS IF THERE'S SOME ==============
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "center",
         valign: "middle",
@@ -449,7 +449,7 @@ function ScheduleTeacherPDF({
       ],
     ];
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "center",
         valign: "middle",

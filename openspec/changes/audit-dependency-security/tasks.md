@@ -8,3 +8,6 @@
 
 - [x] Select initial PDF candidates: jsPDF 4.2.1, AutoTable 5.0.9, DOMPurify 3.5.0, fflate 0.8.3; run isolated candidate workflow without changing the tracked lockfile.
 - [ ] Review candidate patch, verify transitive overrides and PDF API compatibility, commit actual generated package/lock changes, then remove temporary candidate workflow/script.
+
+- [x] PDF candidate passed frozen install, typecheck, lint, tests and build; audit reported 100 advisories, zero critical (run 45297156808).
+- [ ] Verify committed PDF upgrade in normal CI and Vercel preview; review all four PDF exports visually.

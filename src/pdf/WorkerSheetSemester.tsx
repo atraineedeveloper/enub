@@ -1,7 +1,7 @@
 import toast from "react-hot-toast";
 import { loadPdfImage } from "./loadPdfImage";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import { autoTable } from "jspdf-autotable";
 import type { UserOptions, RowInput, Styles, CellHookData, PageHook } from "jspdf-autotable";
 import type { PageInfo } from "jspdf";
 import { useState } from "react";
@@ -394,7 +394,7 @@ function WorkerSheetSemester({
       13: { cellWidth: 34 },
     };
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "left",
         valign: "middle",
@@ -541,7 +541,7 @@ function WorkerSheetSemester({
       didDrawPage: drawPageHeaderFooter,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "center",
         font: "Montserrat-Italic",
@@ -558,7 +558,7 @@ function WorkerSheetSemester({
       didDrawPage: drawPageHeaderFooter,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "left",
         valign: "middle",
@@ -704,7 +704,7 @@ function WorkerSheetSemester({
       didDrawPage: drawPageHeaderFooter,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "center",
         font: "Montserrat-Italic",
@@ -721,7 +721,7 @@ function WorkerSheetSemester({
       didDrawPage: drawPageHeaderFooter,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "left",
         valign: "middle",
