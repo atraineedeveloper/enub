@@ -18,3 +18,7 @@
 - [x] PDF committed CI passed (run 45302106625); user confirmed corrected assignment PDF; baseline 100 advisories, zero critical.
 - [x] Prepare isolated Vite 6 candidate, compatible React plugin and scoped Rollup ranges; preserve PWA configuration.
 - [ ] Review candidate resolution and peer compatibility, CI/audit, generated PWA assets and manual preview; commit verified lockfile only after review.
+
+- [x] Vite candidate passed frozen install, typecheck, lint, tests, build and PWA asset checks (run 45302981214); audit 78 advisories (48 high, 26 moderate, 4 low).
+- [x] Transfer generated lockfile with exact Git blob hash verification.
+- [ ] Verify committed Vite upgrade in regular CI and manually review navigation, PDF exports, and PWA update flow in preview.
