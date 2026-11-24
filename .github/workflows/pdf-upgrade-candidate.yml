@@ -27,6 +27,12 @@ jobs:
         run: bun install --frozen-lockfile --ignore-scripts
       - name: Capture candidate patch
         run: git diff --binary -- package.json bun.lock src/pdf > pdf-upgrade.patch
+      - name: Emit generated lockfile for reviewed commit handoff
+        run: |
+          git hash-object bun.lock
+          echo 'BEGIN_GENERATED_LOCKFILE'
+          base64 -w 76 bun.lock
+          echo 'END_GENERATED_LOCKFILE'
       - name: Upload candidate patch
         uses: actions/upload-artifact@v4
         with:
