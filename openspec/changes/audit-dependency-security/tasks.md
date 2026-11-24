@@ -45,3 +45,7 @@
 - [x] Happy DOM and ESLint committed CI passed (45305995221); audit 32 advisories (18 high, 10 moderate, 4 low).
 - [x] Analyze remaining 13 affected packages and prepare isolated patch candidate, including React Router 7.18.6 and scoped cross-major build dependency experiments.
 - [ ] Review candidate resolution, audit, build and PWA artifacts; reject incompatible overrides and document residual advisories.
+
+- [x] Remaining-dependency candidate passed frozen install, typecheck, lint, tests, build and PWA asset checks (run 45306508943); Bun audit detected zero vulnerabilities across 574 packages.
+- [x] Transfer generated lockfile with exact Git blob hash verification.
+- [ ] Verify committed candidate in standard CI and Vercel; manually validate login, navigation, PDF and PWA update behavior, especially cross-major transitive overrides. Zero known audit findings does not establish absence of other security risks.
