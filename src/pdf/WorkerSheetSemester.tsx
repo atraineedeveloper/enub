@@ -1,7 +1,7 @@
 import toast from "react-hot-toast";
 import { loadPdfImage } from "./loadPdfImage";
 import jsPDF from "jspdf";
-import { autoTable } from "jspdf-autotable";
+import { autoTable } from "./montserratAutoTable";
 import type { UserOptions, RowInput, Styles, CellHookData, PageHook } from "jspdf-autotable";
 import type { PageInfo } from "jspdf";
 import { useState } from "react";

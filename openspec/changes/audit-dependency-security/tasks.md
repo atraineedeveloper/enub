@@ -11,3 +11,6 @@
 
 - [x] PDF candidate passed frozen install, typecheck, lint, tests and build; audit reported 100 advisories, zero critical (run 45297156808).
 - [ ] Verify committed PDF upgrade in normal CI and Vercel preview; review all four PDF exports visually.
+
+- [x] Address preview typography regression: normalize Montserrat alias/style pairs in shared AutoTable wrapper; add actual PDF font regression test.
+- [ ] Confirm typography, alignment and spacing in all four preview exports after fix.
