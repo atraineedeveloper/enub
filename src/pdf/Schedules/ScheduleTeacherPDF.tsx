@@ -1,3 +1,5 @@
+import toast from "react-hot-toast";
+import { loadPdfImage } from "../loadPdfImage";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import type { UserOptions, RowInput } from "jspdf-autotable";
@@ -14,6 +16,7 @@ import { SemesterContext } from "../../pages/SemesterContext";
 import type { ScheduleAssignment } from "../../features/schedules/useScheduleAssignments";
 import type { ScheduleTeacher } from "../../features/schedules/useScheduleTeachers";
 import type { Database } from "../../types/supabase";
+import { formatTeacherSchedulePlazas, type TeacherSchedulePlaza } from "./teacherSchedulePlazas";
 
 type StateRole = Database["public"]["Tables"]["state_roles"]["Row"];
 
@@ -28,12 +31,14 @@ interface ScheduleTeacherPDFProps {
   schedulesScholar: ScheduleAssignment[];
   scheduleTeacher: ScheduleTeacher[];
   totalHours: number;
+  plazas: TeacherSchedulePlaza[];
 }
 
 function ScheduleTeacherPDF({
   schedulesScholar,
   scheduleTeacher,
   totalHours,
+  plazas,
 }: ScheduleTeacherPDFProps) {
   const { isLoading: isLoadingRoles, roles } = useRoles();
   const { isLoading: isLoadingStateRoles, stateRoles } = useStateRoles();
@@ -68,9 +73,9 @@ function ScheduleTeacherPDF({
   }
 
   schedulesScholar.map((schedule) => {
-    if (schedule.groups!.degrees!.code == "LEPRIM") {
+    if (schedule.groups?.degrees?.code == "LEPRIM") {
       numberLEPRIM++;
-    } else if (schedule.groups!.degrees!.code == "LEPREES") {
+    } else if (schedule.groups?.degrees?.code == "LEPREES") {
       numberLEPREES++;
     }
   });
@@ -86,6 +91,7 @@ function ScheduleTeacherPDF({
   }
 
   const generatePDF = async () => {
+    try {
     await import("../../styles/Montserrat-Regular-normal.js");
     await import("../../styles/Montserrat-Italic-italic.js");
     await import("../../styles/Montserrat-Bold-bold.js");
@@ -95,12 +101,10 @@ function ScheduleTeacherPDF({
 
     // Header
 
-    const logoEnub = new Image();
-    logoEnub.src = "/enub.jpg";
+    const logoEnub = await loadPdfImage("/enub.jpg");
     doc.addImage(logoEnub, "JPG", 380, 10, 50, 50);
 
-    const logoSetab = new Image();
-    logoSetab.src = "/setab.jpeg";
+    const logoSetab = await loadPdfImage("/setab.jpeg");
     doc.addImage(logoSetab, "JPEG", 15, 17, 130, 36);
 
     doc.autoTable({
@@ -134,7 +138,7 @@ function ScheduleTeacherPDF({
           pageHeight - 50
         );
         doc.text(
-          "Teléfono (934) 344 04 77, 344 04 88",
+          "Teléfono (934) 344 04 77",
           data.settings.margin.left,
           pageHeight - 40
         );
@@ -156,14 +160,14 @@ function ScheduleTeacherPDF({
       [
         "ESCUELA NORMAL URBANA",
         `PERIODO ESCOLAR: ${
-          schedulesScholar[0]?.semesters!.school_year ||
-          scheduleTeacher[0].semesters!.school_year
+          schedulesScholar[0]?.semesters?.school_year ||
+          scheduleTeacher[0]?.semesters?.school_year || "No registrado"
         }`,
       ],
       [`LICENCIATURA EN ${titleDegrees}`, `PLAN: 2022`],
       [
         `DOCENTE: ${capitalizeName(
-          schedulesScholar[0]?.workers!.name || scheduleTeacher[0].workers!.name
+          schedulesScholar[0]?.workers?.name || scheduleTeacher[0]?.workers?.name || "No registrado"
         )}`,
         `TURNO: MATUTINO`,
       ],
@@ -175,7 +179,12 @@ function ScheduleTeacherPDF({
         font: "Montserrat-Bold",
         fontSize: 9,
       },
-      body: infoGroup,
+      body: [
+        ...infoGroup,
+        ...formatTeacherSchedulePlazas(plazas).map((content) => [
+          { content, colSpan: 2, styles: { halign: "center" as const, overflow: "linebreak" as const } },
+        ]),
+      ],
       theme: "plain",
     });
 
@@ -454,6 +463,10 @@ function ScheduleTeacherPDF({
     const blobUrl = doc.output("bloburl");
     const previewWindow = window.open(blobUrl, "_blank");
     if (!previewWindow) doc.save("HorarioMaestro.pdf");
+    } catch (error) {
+      console.error("PDF export failed", error);
+      toast.error("No se pudo generar el PDF. Revisa los datos e inténtalo nuevamente.");
+    }
   };
 
   if (isLoadingRoles || isLoadingStateRoles || isLoadingUtilities)

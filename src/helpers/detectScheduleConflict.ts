@@ -68,3 +68,14 @@ export function hasGroupConflict(
     return data.start_time! < schedule.end_time! && schedule.start_time! < data.end_time!;
   });
 }
+
+/** Exclude the edited ID only from its own table, never from the other table. */
+export function hasWorkerScheduleConflict(
+  sameTableSchedules: unknown[],
+  otherTableSchedules: unknown[],
+  data: ScheduleConflictWorkerItem,
+  excludeId: number | null = null
+): boolean {
+  return hasWorkerConflict(sameTableSchedules, data, excludeId) ||
+    hasWorkerConflict(otherTableSchedules, data);
+}

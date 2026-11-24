@@ -8,7 +8,7 @@ import { isCanonicalTeacherBlock } from "./teacherScheduleBlocks";
 import { ScheduleTable, ScheduleTableHeader } from "./scheduleTableLayout";
 import type { ScheduleAssignment } from "./useScheduleAssignments";
 import type { ScheduleTeacher } from "./useScheduleTeachers";
-import type { Worker } from "../workers/useWorkers";
+import type { Worker, WorkerWithDetails } from "../workers/useWorkers";
 
 const InvalidActivitiesWarning = styled.div`
   color: var(--color-red-700);
@@ -51,7 +51,7 @@ const groupData = (array: ScheduleAssignment[], key: "subject_id") => {
 };
 
 interface ShowTeacherScheduleProps {
-  workers: Worker[];
+  workers: (Worker & Partial<Pick<WorkerWithDetails, "sustenance_plazas">>)[];
   scheduleTeachers: ScheduleTeacher[];
   scheduleAssignments: ScheduleAssignment[];
   semesterId?: string;
@@ -203,6 +203,7 @@ function ShowTeacherSchedule({
       {recordExist && (
         <ScheduleTeacherPDF
           totalHours={totalHours}
+          plazas={selectedWorker?.sustenance_plazas ?? []}
           schedulesScholar={filteredSchedulesAssignments}
           scheduleTeacher={filteredSchedulesTeacher}
         />

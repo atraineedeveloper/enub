@@ -1,0 +1,7 @@
+- [x] Add worker query overloads for full details (A06).
+- [x] Remove schedule mutation never casts (A10).
+- [x] Correct obsolete migration comment and error typo (A12, partial).
+- [ ] Run typecheck, lint, tests and build.
+- [ ] Audit all worker form call sites before narrowing relation types (A18).
+- [ ] Inventory actual consumers before narrowing select projections (A09).
+- [ ] Consolidate duplicated PDF and schedule block logic after PDF visual regression checks (A07/A08).

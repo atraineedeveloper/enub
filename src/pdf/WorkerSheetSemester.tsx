@@ -1,3 +1,5 @@
+import toast from "react-hot-toast";
+import { loadPdfImage } from "./loadPdfImage";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import type { UserOptions, RowInput, Styles, CellHookData, PageHook } from "jspdf-autotable";
@@ -164,11 +166,9 @@ function WorkerSheetSemester({
       await import("../styles/Montserrat-BoldItalic-bolditalic.js");
 
       const doc = new jsPDF("landscape", "px", "letter") as JsPdfWithAutoTable;
-      const logoEnub = new Image();
-      logoEnub.src = "/enub.jpg";
+      const logoEnub = await loadPdfImage("/enub.jpg");
 
-      const logoSetab = new Image();
-      logoSetab.src = "/setab.jpeg";
+      const logoSetab = await loadPdfImage("/setab.jpeg");
       const drawnPages = new Set();
       const tableMargins = { top: 96, right: 18, bottom: 112, left: 18 };
       const pageWidth = doc.internal.pageSize.getWidth();
@@ -435,7 +435,7 @@ function WorkerSheetSemester({
 
         const countTeacherSchedules = currentSemesterTeacherSchedules.reduce(
           (acc: Record<string, number>, item) => {
-            const trimmedAcitivity = item.activity!.trim();
+            const trimmedAcitivity = item.activity?.trim() || "Actividad sin nombre";
 
             if (acc[trimmedAcitivity]) {
               acc[trimmedAcitivity]++;
@@ -598,7 +598,7 @@ function WorkerSheetSemester({
 
         const countTeacherSchedules = currentSemesterTeacherSchedules.reduce(
           (acc: Record<string, number>, item) => {
-            const trimmedAcitivity = item.activity!.trim();
+            const trimmedAcitivity = item.activity?.trim() || "Actividad sin nombre";
 
             if (acc[trimmedAcitivity]) {
               acc[trimmedAcitivity]++;
@@ -761,7 +761,7 @@ function WorkerSheetSemester({
 
         const countTeacherSchedules = currentSemesterTeacherSchedules.reduce(
           (acc: Record<string, number>, item) => {
-            const trimmedAcitivity = item.activity!.trim();
+            const trimmedAcitivity = item.activity?.trim() || "Actividad sin nombre";
 
             if (acc[trimmedAcitivity]) {
               acc[trimmedAcitivity]++;
@@ -870,6 +870,9 @@ function WorkerSheetSemester({
       const blobUrl = doc.output("bloburl");
       const previewWindow = window.open(blobUrl, "_blank");
       if (!previewWindow) doc.save("Plantilla.pdf");
+    } catch (error) {
+      console.error("PDF export failed", error);
+      toast.error("No se pudo generar el PDF. Revisa los datos e inténtalo nuevamente.");
     } finally {
       setIsGeneratingPdf(false);
     }

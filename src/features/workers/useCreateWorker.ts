@@ -15,10 +15,8 @@ interface CreateWorkerVariables {
   options?: CreateWorkerOptions;
 }
 
-// createEditWorkers is untyped JS (out of scope); TS infers its `options`
-// param narrowly from the destructured defaults (e.g. `profilePictureFile =
-// null` implies `null`, not `File | null`). This cast describes the real,
-// accepted shape without converting apiWorkers.js.
+// Compatibility boundary for the current form payload. Narrow the form
+// relation types before removing this cast; apiWorkers is already TypeScript.
 const createOrEditWorker = createEditWorkers as (
   newWorker: Record<string, unknown>,
   id: number | undefined,

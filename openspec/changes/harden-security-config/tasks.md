@@ -1,0 +1,8 @@
+- [x] Remove unrestricted Vite hosts.
+- [x] Gate devtools to development.
+- [x] Add baseline Vercel headers.
+- [ ] Verify headers on preview, including PDF previews and PWA.
+- [ ] Run dependency audit with supported Bun version; assess direct and transitive advisories.
+- [ ] Update vulnerable versions and regenerate lockfile in reproducible environment.
+- [ ] Decide CI audit policy and test it without blocking unrelated builds unexpectedly.
+- [ ] Validate remaining deployed Supabase permissions separately.

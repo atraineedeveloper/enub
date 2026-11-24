@@ -1,0 +1,5 @@
+- [x] Await logo loads in four exporters.
+- [x] Display export errors.
+- [x] Preserve matching records in PDF cell filters and handle missing cell data.
+- [x] Add activity filter regression tests.
+- [ ] Run typecheck, lint, tests, build and visual review.

@@ -10,7 +10,7 @@ import type { Subject } from "../subjects/useSubjects";
 import { useEditScheduleAssignment } from "./useEditScheduleAssignments";
 import { useCreateScheduleAssignments } from "./useCreateScheduleAssignments";
 import { SemesterContext } from "../../pages/SemesterContext";
-import { hasWorkerConflict, hasGroupConflict } from "../../helpers/detectScheduleConflict";
+import { hasWorkerScheduleConflict, hasGroupConflict } from "../../helpers/detectScheduleConflict";
 import type { ScheduleAssignment } from "./useScheduleAssignments";
 import {
   SCHEDULE_BLOCKS,
@@ -42,7 +42,7 @@ function CreateEditScholarSchedule({
 
   const semesterData = useContext(SemesterContext);
 
-  const { groups, workers, subjects, scheduleAssignments, semesterCode } =
+  const { groups, workers, subjects, scheduleAssignments, scheduleTeachers = [], semesterCode } =
     semesterData!;
 
   const { id: editId, ...editValues } = scheduleToEdit;
@@ -148,8 +148,8 @@ function CreateEditScholarSchedule({
     }
     data.end_time = block.end_time;
 
-    if (hasWorkerConflict(scheduleAssignments, data, editId)) {
-      toast.error("El maestro ya tiene clase asignada ese día en ese horario.");
+    if (hasWorkerScheduleConflict(scheduleAssignments, scheduleTeachers, data, editId)) {
+      toast.error("El maestro ya tiene una clase o actividad asignada ese día en ese horario.");
       return;
     }
     if (hasGroupConflict(scheduleAssignments, data, editId)) {

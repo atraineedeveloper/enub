@@ -1,3 +1,5 @@
+import toast from "react-hot-toast";
+import { loadPdfImage } from "../loadPdfImage";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import type { UserOptions, RowInput } from "jspdf-autotable";
@@ -42,6 +44,7 @@ function ScheduleGroupPDF({ schedules }: ScheduleGroupPDFProps) {
     (stateRoles as StateRole[] | undefined) ?? [];
 
   const generatePDF = async () => {
+    try {
     await import("../../styles/Montserrat-Regular-normal.js");
     await import("../../styles/Montserrat-Italic-italic.js");
     await import("../../styles/Montserrat-Bold-bold.js");
@@ -52,14 +55,14 @@ function ScheduleGroupPDF({ schedules }: ScheduleGroupPDFProps) {
     const infoGroup = [
       [
         "ESCUELA NORMAL URBANA",
-        `PERIODO ESCOLAR: ${schedules[0].semesters!.school_year}`,
+        `PERIODO ESCOLAR: ${schedules[0]?.semesters?.school_year ?? "No registrado"}`,
       ],
-      [schedules[0].groups!.degrees!.name!.toUpperCase(), `PLAN: 2022`],
+      [schedules[0]?.groups?.degrees?.name?.toUpperCase() ?? "LICENCIATURA NO REGISTRADA", `PLAN: 2022`],
       [
-        `SEMESTRE: ${calculateSemesterGroupForSemester(
-          schedules[0].groups!.year_of_admission,
+        `SEMESTRE: ${schedules[0]?.groups?.year_of_admission == null ? "—" : calculateSemesterGroupForSemester(
+          schedules[0].groups.year_of_admission,
           semesterCode
-        )}°    GRUPO: ${schedules[0].groups!.letter}`,
+        )}°    GRUPO: ${schedules[0]?.groups?.letter ?? "—"}`,
         `TURNO: MATUTINO`,
       ],
     ];
@@ -110,12 +113,10 @@ function ScheduleGroupPDF({ schedules }: ScheduleGroupPDFProps) {
 
     // Header
 
-    const logoEnub = new Image();
-    logoEnub.src = "/enub.jpg";
+    const logoEnub = await loadPdfImage("/enub.jpg");
     doc.addImage(logoEnub, "JPG", 380, 10, 50, 50);
 
-    const logoSetab = new Image();
-    logoSetab.src = "/setab.jpeg";
+    const logoSetab = await loadPdfImage("/setab.jpeg");
     doc.addImage(logoSetab, "JPEG", 15, 17, 130, 36);
 
     doc.autoTable({
@@ -249,6 +250,10 @@ function ScheduleGroupPDF({ schedules }: ScheduleGroupPDFProps) {
     const blobUrl = doc.output("bloburl");
     const previewWindow = window.open(blobUrl, "_blank");
     if (!previewWindow) doc.save("HorarioGrupal.pdf");
+    } catch (error) {
+      console.error("PDF export failed", error);
+      toast.error("No se pudo generar el PDF. Revisa los datos e inténtalo nuevamente.");
+    }
   };
 
   if (isLoadingRoles || isLoadingStateRoles || isLoadingUtilities)

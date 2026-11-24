@@ -58,19 +58,12 @@ export async function createEditScheduleAssignments(
   )
     throw new Error("El horario debe corresponder a un bloque académico válido.");
 
-  let query = supabase.from("schedule_assignments");
-
-  // A) CREATE
-  if (!id)
-    query = query.insert([
-      newScheduleAssignment as ScheduleAssignmentInsert,
-    ]) as never;
-
-  // B) EDIT
-  if (id)
-    query = query
-      .update({ ...newScheduleAssignment } as ScheduleAssignmentUpdate)
-      .eq("id", id) as never;
+  const query = id
+    ? supabase.from("schedule_assignments")
+        .update({ ...newScheduleAssignment } as ScheduleAssignmentUpdate)
+        .eq("id", id)
+    : supabase.from("schedule_assignments")
+        .insert([newScheduleAssignment as ScheduleAssignmentInsert]);
 
   const { data, error } = await query.select().single();
 
@@ -90,7 +83,7 @@ export async function deleteScheduleAssignment(id: number) {
 
   if (error) {
     console.error(error);
-    throw new Error("Hubo un error al eleminar el registro");
+    throw new Error("Hubo un error al eliminar el registro");
   }
 
   return data;

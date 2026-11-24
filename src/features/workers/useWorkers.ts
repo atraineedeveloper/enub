@@ -22,12 +22,22 @@ interface UseWorkersOptions {
   fullDetails?: boolean;
 }
 
-export function useWorkers({ fullDetails = false }: UseWorkersOptions = {}) {
+type WorkersResult<T extends Worker> = {
+  isLoading: boolean;
+  error: Error | null;
+  workers: T[] | undefined;
+};
+
+export function useWorkers(options: { fullDetails: true }): WorkersResult<WorkerWithDetails>;
+// eslint-disable-next-line no-redeclare -- TypeScript overload, not a duplicate implementation.
+export function useWorkers(options?: UseWorkersOptions): WorkersResult<Worker>;
+// eslint-disable-next-line no-redeclare -- Implementation of the overloads above.
+export function useWorkers({ fullDetails = false }: UseWorkersOptions = {}): WorkersResult<Worker> {
   const {
     isLoading,
     data: workers,
     error,
-  } = useQuery<Worker[]>({
+  } = useQuery<Worker[] | WorkerWithDetails[]>({
     queryKey: ["workers", fullDetails],
     queryFn: () => (fullDetails ? getWorkersFull() : getWorkers()),
     staleTime: 5 * 60 * 1000,
