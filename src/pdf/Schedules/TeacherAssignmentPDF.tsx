@@ -308,6 +308,8 @@ function TeacherAssignmentPDF({
     autoTable(doc, {
       styles: {
         halign: "justify",
+        font: "Montserrat-Regular",
+        fontStyle: "normal",
         fontSize: 10,
       },
       body: [
