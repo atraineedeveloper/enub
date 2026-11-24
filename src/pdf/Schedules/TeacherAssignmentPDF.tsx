@@ -305,24 +305,35 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY - 8,
     });
 
-    autoTable(doc, {
-      styles: {
-        halign: "justify",
-        font: "Montserrat-Regular",
-        fontStyle: "normal",
-        fontSize: 10,
-      },
-      body: [
-        [
-          "En apego de los lineamientos que establecen la regulación de las Actividades sustantivas que debe realizar todo profesor adscrito a una Institución de Educación Superior (IES), y con base a su nombramiento como profesor de la Escuela Normal Urbana, en cumplimiento a las atribuciones conferidas a esta subdirección, me permito hacer la asignación de su carga horaria para el presente semestre. Misma que deberá desempeñar con el sentido de responsabilidad y compromiso que siempre ha demostrado en cada una de las tareas que se le han encomendado.",
-        ],
-      ],
-      theme: "plain",
-      startY: doc.lastAutoTable.finalY,
+    // Native text: measure and draw using the same registered font.
+    const intro = "En apego de los lineamientos que establecen la regulación de las Actividades sustantivas que debe realizar todo profesor adscrito a una Institución de Educación Superior (IES), y con base a su nombramiento como profesor de la Escuela Normal Urbana, en cumplimiento a las atribuciones conferidas a esta subdirección, me permito hacer la asignación de su carga horaria para el presente semestre. Misma que deberá desempeñar con el sentido de responsabilidad y compromiso que siempre ha demostrado en cada una de las tareas que se le han encomendado.";
+    doc.setFont("Montserrat-Regular", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(0);
+    const scale = doc.internal.scaleFactor;
+    // Match AutoTable's default 40pt margin and 5pt cell padding.
+    const introX = 45 / scale;
+    const introWidth = doc.internal.pageSize.getWidth() - 2 * introX;
+    const lineHeight = (10 / scale) * 1.2;
+    const lines: string[] = doc.splitTextToSize(intro, introWidth);
+    const introTop = doc.lastAutoTable.finalY + 5 / scale;
+    lines.forEach((line, index) => {
+      const y = introTop + index * lineHeight;
+      const words = line.trim().split(/\s+/);
+      // Justify explicitly to avoid a second wrapping pass inside doc.text.
+      if (index === lines.length - 1 || words.length < 2) {
+        doc.text(line, introX, y, { baseline: "top" });
+        return;
+      }
+      const wordWidth = words.reduce((sum, word) => sum + doc.getTextWidth(word), 0);
+      const gap = (introWidth - wordWidth) / (words.length - 1);
+      let x = introX;
+      for (const word of words) {
+        doc.text(word, x, y, { baseline: "top" });
+        x += doc.getTextWidth(word) + gap;
+      }
     });
-
-    // Leave positive clearance below the variable-height Montserrat paragraph.
-    const afterIntroY = doc.lastAutoTable.finalY + 12;
+    const afterIntroY = introTop + lines.length * lineHeight + 8;
 
     // Sumar horas de asignaturas impartidas
 
