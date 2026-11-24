@@ -44,7 +44,7 @@ function WorkerTable() {
           <Modal.Open opens="create-worker-form">
             <Button>Añadir trabajador</Button>
           </Modal.Open>
-          <Modal.Window name="create-worker-form">
+          <Modal.Window name="create-worker-form" wide title="Nuevo trabajador">
             <CreateEditWorkerForm />
           </Modal.Window>
         </Modal>
