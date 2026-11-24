@@ -37,3 +37,7 @@
 - [x] Router committed CI passed (45305059351); user confirmed functional preview. Audit: 71 advisories, zero critical.
 - [x] Prepare isolated Happy DOM 21 and ESLint 9 candidate with scoped security overrides; preserve lint rules and tests.
 - [ ] Review actual resolved versions, peer compatibility, audit and test results; commit verified lockfile only after approval.
+
+- [x] Happy DOM and ESLint candidate passed frozen install, typecheck, lint, tests and build (run 45305576649); 32 advisories (18 high, 10 moderate, 4 low), zero critical.
+- [x] Transfer generated lockfile with exact Git blob hash verification.
+- [ ] Verify committed toolchain upgrade in normal CI and Vercel preview.
