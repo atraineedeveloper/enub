@@ -1,5 +1,6 @@
+import type { WorkerFormValues } from "./workerFormValues";
 import Input from "../../ui/Input";
-import { useFieldArray, useForm, type FieldErrors, type FieldValues } from "react-hook-form";
+import { useFieldArray, useForm, type FieldErrors } from "react-hook-form";
 import Button from "../../ui/Button";
 import { WorkerFormField as FormRow } from "./workerFormStyles";
 import { WORKER_FORM_SECTIONS, firstInvalidWorkerSection, type WorkerFormSectionId } from "./workerFormSections";
@@ -48,7 +49,7 @@ function CreateEditWorkerForm({
     if (bodyRef.current) bodyRef.current.scrollTop = 0;
   }
 
-  function handleInvalid(errors: FieldErrors<FieldValues>) {
+  function handleInvalid(errors: FieldErrors<WorkerFormValues>) {
     const section = firstInvalidWorkerSection(errors);
     if (section) {
       navigateSection(section);
@@ -71,10 +72,10 @@ function CreateEditWorkerForm({
     : "";
 
   const { register, handleSubmit, reset, control, formState, watch, setValue } =
-    useForm<FieldValues>({
+    useForm<WorkerFormValues>({
       shouldFocusError: false,
       shouldUnregister: false,
-      defaultValues: (isEditSession
+      defaultValues: isEditSession
         ? {
             ...editValues,
             sustenance_plazas:
@@ -99,7 +100,7 @@ function CreateEditWorkerForm({
         : {
             sustenance_plazas: [{ sustenance: "", payment_key: "", plaza: "" }],
             date_of_admissions: [{ type: "", date_of_admission: "" }],
-          }) as FieldValues,
+          },
     });
   const { errors, dirtyFields } = formState;
   const { fields: plazaFields, append, remove } = useFieldArray({
@@ -158,8 +159,8 @@ function CreateEditWorkerForm({
     setValue("remove_profile_picture", false, { shouldDirty: true });
   }
 
-  function onSubmit(data: FieldValues) {
-    if (isEditSession) {
+  function onSubmit(data: WorkerFormValues) {
+    if (editId) {
       const selectedProfilePicture = data.profile_picture_file?.[0];
       const removeCurrentProfilePicture = Boolean(data.remove_profile_picture);
 
@@ -175,7 +176,7 @@ function CreateEditWorkerForm({
       editWorker(
         {
           newWorker: { ...data },
-          id: editId!,
+          id: editId,
           options: {
             profilePictureFile: selectedProfilePicture ?? null,
             removeCurrentProfilePicture: Boolean(
@@ -199,7 +200,7 @@ function CreateEditWorkerForm({
     const selectedProfilePicture = data.profile_picture_file?.[0];
 
     const dateOfAdmissions = (data.date_of_admissions ?? []).filter(
-      (d: { type?: string; date_of_admission?: string }) =>
+      (d) =>
         d.type || d.date_of_admission
     );
     delete data.date_of_admissions;
@@ -319,11 +320,11 @@ function CreateEditWorkerForm({
           />
         </PhotoCard>
         {errors?.profile_picture_file?.message && (
-          <PhotoError>{errors.profile_picture_file.message as string}</PhotoError>
+          <PhotoError>{errors.profile_picture_file.message}</PhotoError>
         )}
       </PhotoSection>
 
-      <FormRow label="Nombre completo" error={errors?.name?.message as string | undefined}>
+      <FormRow label="Nombre completo" error={errors?.name?.message}>
         <Input
           type="text"
           id="name"
@@ -333,7 +334,7 @@ function CreateEditWorkerForm({
           })}
         />
       </FormRow>
-      <FormRow label="RFC" error={errors?.RFC?.message as string | undefined}>
+      <FormRow label="RFC" error={errors?.RFC?.message}>
         <Input
           type="text"
           id="RFC"
@@ -349,7 +350,7 @@ function CreateEditWorkerForm({
           <FormSection id={sectionId("contact")} hidden={activeSection !== "contact"} aria-labelledby={sectionId("contact-heading")}>
             <SectionHeading><h3 tabIndex={-1} id={sectionId("contact-heading")}>Contacto y domicilio</h3><p>Información para localizar al trabajador.</p></SectionHeading>
             <FieldGrid>
-      <FormRow label="Teléfono" error={errors?.phone?.message as string | undefined}>
+      <FormRow label="Teléfono" error={errors?.phone?.message}>
         <Input
           type="text"
           id="phone"
@@ -359,7 +360,7 @@ function CreateEditWorkerForm({
           })}
         />
       </FormRow>
-      <FormRow label="Correo electrónico" error={errors?.email?.message as string | undefined}>
+      <FormRow label="Correo electrónico" error={errors?.email?.message}>
         <Input
           type="text"
           id="email"
@@ -367,7 +368,7 @@ function CreateEditWorkerForm({
           {...register("email")}
         />
       </FormRow>
-      <FormRow label="Calle" error={errors?.street?.message as string | undefined}>
+      <FormRow label="Calle" error={errors?.street?.message}>
         <Input
           type="text"
           id="street"
@@ -377,7 +378,7 @@ function CreateEditWorkerForm({
           })}
         />
       </FormRow>
-      <FormRow label="Colonia" error={errors?.neighborhood?.message as string | undefined}>
+      <FormRow label="Colonia" error={errors?.neighborhood?.message}>
         <Input
           type="text"
           id="neighborhood"
@@ -387,7 +388,7 @@ function CreateEditWorkerForm({
           })}
         />
       </FormRow>
-      <FormRow label="Código Postal" error={errors?.post_code?.message as string | undefined}>
+      <FormRow label="Código Postal" error={errors?.post_code?.message}>
         <Input
           type="text"
           id="post_code"
@@ -397,7 +398,7 @@ function CreateEditWorkerForm({
           })}
         />
       </FormRow>
-      <FormRow label="Ciudad" error={errors?.city?.message as string | undefined}>
+      <FormRow label="Ciudad" error={errors?.city?.message}>
         <Input
           type="text"
           id="city"
@@ -407,7 +408,7 @@ function CreateEditWorkerForm({
           })}
         />
       </FormRow>
-      <FormRow label="Estado" error={errors?.state?.message as string | undefined}>
+      <FormRow label="Estado" error={errors?.state?.message}>
         <Input
           type="text"
           id="state"
@@ -423,7 +424,7 @@ function CreateEditWorkerForm({
           <FormSection id={sectionId("employment")} hidden={activeSection !== "employment"} aria-labelledby={sectionId("employment-heading")}>
             <SectionHeading><h3 tabIndex={-1} id={sectionId("employment-heading")}>Información laboral</h3><p>Perfil profesional, función y situación laboral.</p></SectionHeading>
             <FieldGrid>
-      <FormRow label="Especialidad" error={errors?.specialty?.message as string | undefined}>
+      <FormRow label="Especialidad" error={errors?.specialty?.message}>
         <Input
           type="text"
           id="specialty"
@@ -433,7 +434,7 @@ function CreateEditWorkerForm({
           })}
         />
       </FormRow>
-      <FormRow label="Tipo de Trabajador" error={errors?.type_worker?.message as string | undefined}>
+      <FormRow label="Tipo de Trabajador" error={errors?.type_worker?.message}>
         <Select
           id="type_worker"
           disabled={isWorking}
@@ -447,7 +448,7 @@ function CreateEditWorkerForm({
           <option value="Contratacion">Contratación</option>
         </Select>
       </FormRow>
-      <FormRow label="Estatus" error={errors?.status?.message as string | undefined}>
+      <FormRow label="Estatus" error={errors?.status?.message}>
         <Select id="status" disabled={isWorking} {...register("status")}>
           <option value="">Seleccione...</option>
           <option value="1">Activo</option>
@@ -456,7 +457,7 @@ function CreateEditWorkerForm({
       </FormRow>
       <FormRow
         label="Función que desempeña"
-        error={errors?.function_performed?.message as string | undefined}
+        error={errors?.function_performed?.message}
       >
         <Textarea
           id="function_performed"
@@ -464,7 +465,7 @@ function CreateEditWorkerForm({
           {...register("function_performed")}
         />
       </FormRow>
-      <FormRow label="Observaciones" error={errors?.observations?.message as string | undefined}>
+      <FormRow label="Observaciones" error={errors?.observations?.message}>
         <Textarea
           id="observations"
           disabled={isWorking}
@@ -482,7 +483,7 @@ function CreateEditWorkerForm({
         alignTop
         error={
           (errors?.sustenance_plazas?.message ||
-            errors?.sustenance_plazas?.root?.message) as string | undefined
+            errors?.sustenance_plazas?.root?.message)
         }
       >
         <PlazasContainer>

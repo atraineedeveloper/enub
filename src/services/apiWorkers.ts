@@ -1,3 +1,4 @@
+import type { CreateEditWorkerOptions, SustenancePlazaInput, DateOfAdmissionInput } from "../types/workerMutation";
 import supabase from "./supabase";
 import type { Database, Json } from "../types/supabase";
 import { createWorkerUpdateError } from "./workerUpdateErrors";
@@ -49,12 +50,6 @@ async function removeProfilePicture(fileName?: string | null) {
   if (error) throw error;
 }
 
-interface SustenancePlazaInput {
-  sustenance?: string;
-  payment_key?: string;
-  plaza?: string;
-}
-
 function normalizeSustenancePlazas(sustenancePlazas: SustenancePlazaInput[] = []) {
   if (!Array.isArray(sustenancePlazas)) return [];
 
@@ -86,11 +81,6 @@ function validateSustenancePlazas(
       throw new Error("El sostenimiento debe ser Estatal o Federal");
     }
   }
-}
-
-interface DateOfAdmissionInput {
-  type?: string | null;
-  date_of_admission?: string | null;
 }
 
 async function replaceWorkerDateOfAdmissions(
@@ -312,14 +302,6 @@ export async function getMyWorkerProfile(
   }
 
   return data as MyWorkerProfile | null;
-}
-
-interface CreateEditWorkerOptions {
-  profilePictureFile?: File | null;
-  removeCurrentProfilePicture?: boolean;
-  currentProfilePicture?: string | null;
-  sustenancePlazas?: SustenancePlazaInput[];
-  dateOfAdmissions?: DateOfAdmissionInput[];
 }
 
 export async function createEditWorkers(

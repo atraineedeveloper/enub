@@ -1,8 +1,8 @@
+import { loadMontserratFonts } from "../loadMontserratFonts";
 import toast from "react-hot-toast";
 import { loadPdfImage } from "../loadPdfImage";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
-import type { UserOptions, RowInput } from "jspdf-autotable";
+
+import type { RowInput } from "jspdf-autotable";
 import { useContext } from "react";
 import Button from "../../ui/Button";
 import Spinner from "../../ui/Spinner";
@@ -19,13 +19,6 @@ import type { Database } from "../../types/supabase";
 import { formatTeacherSchedulePlazas, type TeacherSchedulePlaza } from "./teacherSchedulePlazas";
 
 type StateRole = Database["public"]["Tables"]["state_roles"]["Row"];
-
-// autoTable isn't on jsPDF's own type (jspdf-autotable only exports a
-// standalone function) despite existing at runtime once the jspdf-autotable
-// side-effect import above registers the plugin.
-type JsPdfWithAutoTable = jsPDF & {
-  autoTable: (options: UserOptions) => void;
-};
 
 interface ScheduleTeacherPDFProps {
   schedulesScholar: ScheduleAssignment[];
@@ -92,12 +85,13 @@ function ScheduleTeacherPDF({
 
   const generatePDF = async () => {
     try {
-    await import("../../styles/Montserrat-Regular-normal.js");
-    await import("../../styles/Montserrat-Italic-italic.js");
-    await import("../../styles/Montserrat-Bold-bold.js");
-    await import("../../styles/Montserrat-BoldItalic-bolditalic.js");
+    const [{ default: PdfDocument }, { autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("../montserratAutoTable"),
+      loadMontserratFonts(),
+    ]);
 
-    const doc = new jsPDF("p", "px", "letter") as JsPdfWithAutoTable;
+    const doc = new PdfDocument("p", "px", "letter");
 
     // Header
 
@@ -107,10 +101,10 @@ function ScheduleTeacherPDF({
     const logoSetab = await loadPdfImage("/setab.jpeg");
     doc.addImage(logoSetab, "JPEG", 15, 17, 130, 36);
 
-    doc.autoTable({
+    autoTable(doc, {
       willDrawPage: function () {
         // Header
-        doc.autoTable({
+        autoTable(doc, {
           styles: {
             halign: "center",
             font: "Montserrat-BoldItalic",
@@ -173,7 +167,7 @@ function ScheduleTeacherPDF({
       ],
     ];
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         valign: "middle",
         font: "Montserrat-Bold",
@@ -393,7 +387,7 @@ function ScheduleTeacherPDF({
 
     // ==========ADD EXTRA HOURS IF THERE'S SOME ==============
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "center",
         valign: "middle",
@@ -449,7 +443,7 @@ function ScheduleTeacherPDF({
       ],
     ];
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "center",
         valign: "middle",

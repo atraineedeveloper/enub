@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import styled from "styled-components";
 import { HiArrowDownTray } from "react-icons/hi2";
 import Modal from "../../../ui/Modal";
@@ -235,13 +235,13 @@ function WorkerDocumentsDashboardInner({
     .flatMap((category) => category.document_types)
     .find((type) => type.id === selectedDocumentTypeId);
 
-  const progressSummary = computeDocumentProgressSummary(documentCatalog, documentsByType);
+  const progressSummary = useMemo(() => computeDocumentProgressSummary(documentCatalog, documentsByType), [documentCatalog, documentsByType]);
 
-  const visibleTypes = activeCategory
+  const visibleTypes = useMemo(() => activeCategory
     ? filterVisibleDocumentTypes(activeCategory.document_types, documentsByType)
-    : [];
-  const statusFilteredTypes = filterRequirementsByStatus(visibleTypes, documentsByType, documentFilter);
-  const displayedTypes = filterRequirementsBySearch(statusFilteredTypes, searchTerm);
+    : [], [activeCategory, documentsByType]);
+  const statusFilteredTypes = useMemo(() => filterRequirementsByStatus(visibleTypes, documentsByType, documentFilter), [visibleTypes, documentsByType, documentFilter]);
+  const displayedTypes = useMemo(() => filterRequirementsBySearch(statusFilteredTypes, searchTerm), [statusFilteredTypes, searchTerm]);
 
   // The single funnel every close/navigate-away trigger goes through
   // (drawer X/overlay/Escape, switching requirement, switching category,
