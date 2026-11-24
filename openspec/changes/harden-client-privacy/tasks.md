@@ -1,0 +1,6 @@
+- [x] Inspect logout, login, query caching, PWA configuration and profile photo URL generation.
+- [x] Implement successful-logout cache cleanup and regression tests.
+- [ ] Verify CI and preview logout behavior.
+- [ ] Review cross-tab auth changes and console data exposure.
+- [ ] Review storage permissions and photo access separately; no remote changes without approval.
+- [ ] Keep institutional notices pending approval and phase 3 deferred.
