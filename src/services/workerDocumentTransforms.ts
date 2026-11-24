@@ -10,11 +10,15 @@ export function groupDocumentTypesByCategory(
   categories: WorkerDocumentCategoryRow[] = [],
   documentTypes: WorkerDocumentTypeRow[] = []
 ) {
+  const byCategory = new Map<number, WorkerDocumentTypeRow[]>();
+  for (const type of documentTypes) {
+    const items = byCategory.get(type.category_id) ?? [];
+    items.push(type);
+    byCategory.set(type.category_id, items);
+  }
   return categories.map((category) => ({
     ...category,
-    document_types: documentTypes.filter(
-      (documentType) => documentType.category_id === category.id
-    ),
+    document_types: byCategory.get(category.id) ?? [],
   }));
 }
 
@@ -60,6 +64,12 @@ export function addReportStatusToCategories(
   })[] = [],
   documents: WorkerDocumentRow[] = []
 ) {
+  const byType = new Map<number, WorkerDocumentRow[]>();
+  for (const document of documents) {
+    const items = byType.get(document.document_type_id) ?? [];
+    items.push(document);
+    byType.set(document.document_type_id, items);
+  }
   return categories.map((category) => ({
     ...category,
     // Union rule (matching WorkerDocumentsView.tsx): a type appears in this
@@ -68,15 +78,11 @@ export function addReportStatusToCategories(
     // this worker is omitted entirely, never rendered as "Pendiente".
     document_types: category.document_types
       .filter((documentType) => {
-        const hasDocumentsForThisWorker = documents.some(
-          (document) => document.document_type_id === documentType.id
-        );
+        const hasDocumentsForThisWorker = byType.has(documentType.id);
         return documentType.is_active || hasDocumentsForThisWorker;
       })
       .map((documentType) => {
-        const uploadedDocuments = documents.filter(
-          (document) => document.document_type_id === documentType.id
-        );
+        const uploadedDocuments = byType.get(documentType.id) ?? [];
 
         return {
           ...documentType,

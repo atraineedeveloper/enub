@@ -28,7 +28,8 @@ function sizes(paths: string[]) {
   }, { bytes: 0, gzipBytes: 0 });
 }
 const entries = Object.keys(manifest).filter((key) => manifest[key].isEntry);
-const routes = Object.keys(manifest).filter((key) => /(?:ScheduleDashboard|WorkerDocumentsView|MyDocuments|Login)\.tsx$/.test(key));
+const routes = Object.keys(manifest).filter((key) => /(?:ScheduleDashboard|WorkerDocuments|WorkerDocumentsView|MyDocuments|Login)\.tsx$/.test(key));
+if (!entries.length || !routes.some(key => key.endsWith("ScheduleDashboard.tsx")) || !routes.some(key => key.endsWith("WorkerDocuments.tsx"))) throw new Error("Missing required audit routes");
 const initial = closure(entries);
 const routeReports = routes.map((key) => {
   const files = closure([...entries, key]);

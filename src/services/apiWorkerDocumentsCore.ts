@@ -547,10 +547,13 @@ export async function getWorkerDocumentReportData(
     throw new Error("El trabajador no pudo cargarse");
   }
 
-  const categories = await getWorkerDocumentCategoriesAndTypes();
-  const documents = semesterId
-    ? await getWorkerDocumentsBySemester(workerId, semesterId)
-    : await getWorkerDocuments(workerId);
+  // Independent reads, after the worker access check succeeds.
+  const [categories, documents] = await Promise.all([
+    getWorkerDocumentCategoriesAndTypes(),
+    semesterId
+      ? getWorkerDocumentsBySemester(workerId, semesterId)
+      : getWorkerDocuments(workerId),
+  ]);
 
   let semester = null;
 

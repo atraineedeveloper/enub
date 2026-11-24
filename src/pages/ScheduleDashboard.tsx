@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import styled from "styled-components";
 import ScholarSchedule from "../features/schedules/ScholarSchedule";
 import { useWorkers } from "../features/workers/useWorkers";
-import type { Worker } from "../features/workers/useWorkers";
 import Spinner from "../ui/Spinner";
 import { useSubjects } from "../features/subjects/useSubjects";
 import { useGroups } from "../features/groups/useGroups";
@@ -13,25 +12,11 @@ import { calculateSemesterGroupForSemester } from "../helpers/calculateSemesterG
 import sortWorkersBySurname from "../helpers/sortWorkersBySurname";
 import TeacherSchedule from "../features/schedules/TeacherSchedule";
 import { useScheduleTeachers } from "../features/schedules/useScheduleTeachers";
-import UntypedWorkerSheetSemester from "../pdf/WorkerSheetSemester";
+import WorkerSheetSemester from "../pdf/WorkerSheetSemester";
 import { useSemesters } from "../features/semesters/useSemesters";
-import type { Semester } from "../features/semesters/useSemesters";
 import Breadcrumbs from "../ui/Breadcrumbs";
 import ErrorMessage from "../ui/ErrorMessage";
 import Heading from "../ui/Heading";
-import type { ComponentType } from "react";
-
-// WorkerSheetSemester.jsx (src/pdf/, out of scope -- PDF exporters are
-// deferred to their own migration) destructures `scheduleAssignments = []`/
-// `scheduleTeachers = []` with no other type evidence, so TS's allowJs
-// inference narrows both to `never[]`. Local, type-only cast rather than
-// converting the file.
-const WorkerSheetSemester = UntypedWorkerSheetSemester as ComponentType<{
-  workers: Worker[];
-  semester: Semester[];
-  scheduleAssignments?: unknown[];
-  scheduleTeachers?: unknown[];
-}>;
 
 const SemesterHeader = styled.div`
   display: flex;
@@ -91,26 +76,10 @@ function ScheduleDashboard() {
   const { isLoading: isLoadingScheduleTeachers, scheduleTeachers, error: errorTeachers } = useScheduleTeachers(semesterId);
   const { isLoading: isLoadingSemesters, semesters, error: errorSemesters } = useSemesters();
 
-  if (!isValidSemesterId) {
-    return <ErrorMessage message="El semestre solicitado no es válido." />;
-  }
-
-  const anyError = errorWorkers || errorSubjects || errorGroups || errorAssignments || errorTeachers || errorSemesters;
-
-  if (
-    !anyError && (
-      isLoadingWorkers || isLoadingSubjects || isLoadingGroups ||
-      isLoadingScheduleAssignments || isLoadingScheduleTeachers || isLoadingSemesters ||
-      !scheduleAssignments || !scheduleTeachers
-    )
-  ) return <Spinner />;
-
-  if (anyError) return <ErrorMessage message={anyError.message} />;
-
-  const currentSemester = semesters!.find((s) => s.id === +id!);
+  const currentSemester = semesters?.find((s) => s.id === semesterId);
   // Keep group selectors in academic order, independent of insertion order in Supabase.
   // Make a copy before sorting; React Query's cached groups must not be mutated.
-  const currentGroups = groups!
+  const currentGroups = useMemo(() => (groups ?? [])
     .filter((g) => {
       const grade = calculateSemesterGroupForSemester(
         g.year_of_admission,
@@ -133,9 +102,24 @@ function ScheduleDashboard() {
         (a.letter ?? "").localeCompare(b.letter ?? "", "es") ||
         a.id - b.id
       );
-    });
-  const currentWorkers = workers!.filter((w) => w.status === 1);
-  const sortedCurrentWorkers = sortWorkersBySurname(currentWorkers);
+    }), [groups, currentSemester?.semester]);
+  const sortedCurrentWorkers = useMemo(() => sortWorkersBySurname((workers ?? []).filter((w) => w.status === 1)), [workers]);
+
+  if (!isValidSemesterId) {
+    return <ErrorMessage message="El semestre solicitado no es válido." />;
+  }
+
+  const anyError = errorWorkers || errorSubjects || errorGroups || errorAssignments || errorTeachers || errorSemesters;
+
+  if (
+    !anyError && (
+      isLoadingWorkers || isLoadingSubjects || isLoadingGroups ||
+      isLoadingScheduleAssignments || isLoadingScheduleTeachers || isLoadingSemesters ||
+      !scheduleAssignments || !scheduleTeachers
+    )
+  ) return <Spinner />;
+
+  if (anyError) return <ErrorMessage message={anyError.message} />;
 
   const breadcrumbItems = [
     { label: "Administrar horarios", to: "/semesters" },
