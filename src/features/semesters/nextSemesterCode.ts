@@ -1,4 +1,4 @@
-import type { Semester } from "./useSemesters";
+import type { Semester } from "./semesterTypes";
 
 // Deliberately independent from src/helpers/calculateSemesterGroup.ts's
 // similar-looking YYA/YYB parsing -- that helper is scoped to the

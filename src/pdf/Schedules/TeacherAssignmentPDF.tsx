@@ -1,8 +1,8 @@
+import { groupScheduleAssignments } from "../../features/schedules/groupScheduleAssignments";
 import toast from "react-hot-toast";
 import { loadPdfImage } from "../loadPdfImage";
 import jsPDF from "jspdf";
 import { autoTable } from "../montserratAutoTable";
-import type { UserOptions } from "jspdf-autotable";
 import { useContext } from "react";
 import Button from "../../ui/Button";
 import { useRoles } from "../../features/roles/useRoles";
@@ -13,16 +13,10 @@ import { SemesterContext } from "../../pages/SemesterContext";
 import type { ScheduleAssignment } from "../../features/schedules/useScheduleAssignments";
 import type { Worker } from "../../features/workers/useWorkers";
 
-// autoTable/lastAutoTable aren't on jsPDF's own type (jspdf-autotable only
-// exports a standalone function) despite existing at runtime once the
-// jspdf-autotable side-effect import above registers the plugin.
-type JsPdfWithAutoTable = jsPDF & {
-  autoTable: (options: UserOptions) => void;
-  lastAutoTable: { finalY: number };
-};
+type JsPdfWithAutoTable = jsPDF & { lastAutoTable: { finalY: number } };
 
 interface TeacherAssignmentPDFProps {
-  // Matches TeacherAssignment.tsx's groupData() return shape (keyed by
+  // Matches TeacherAssignment.tsx's groupScheduleAssignments() return shape (keyed by
   // subject_id, one entry per matching ScheduleAssignment).
   groupedSubjects: Record<string, ScheduleAssignment[]>;
   uniqueTeacherSchedule: { name: string; quantity: number }[];
@@ -48,25 +42,7 @@ function TeacherAssignmentPDF({
 
   let totalHours = 2;
 
-  const groupData = (array: ScheduleAssignment[], key: "group_id") => {
-    return array.reduce(
-      (result: Record<string, ScheduleAssignment[]>, currentValue) => {
-        // Obtén el valor de la propiedad por la que vamos a agrupar
-        const groupKey = String(currentValue[key]);
-
-        // Si el grupo aún no existe, créalo
-        if (!result[groupKey]) {
-          result[groupKey] = [];
-        }
-
-        // Agrega el elemento actual al grupo correspondiente
-        result[groupKey].push(currentValue);
-
-        return result;
-      },
-      {}
-    );
-  };
+  
 
   const generatePDF = async () => {
     try {
@@ -382,14 +358,14 @@ function TeacherAssignmentPDF({
         return [
           groupedSubjects[subject][0].subjects!.name!.toUpperCase(),
           groupedSubjects[subject][0].groups!.degrees!.code,
-          `${Object.keys(groupData(groupedSubjects[subject], "group_id")).map(
+          `${Object.keys(groupScheduleAssignments(groupedSubjects[subject], "group_id")).map(
             (group) => {
               return `   ${calculateSemesterGroupForSemester(
-                groupData(groupedSubjects[subject], "group_id")[group][0]
+                groupScheduleAssignments(groupedSubjects[subject], "group_id")[group][0]
                   .groups!.year_of_admission,
                 semesterCode
               )}° " ${
-                groupData(groupedSubjects[subject], "group_id")[group][0]
+                groupScheduleAssignments(groupedSubjects[subject], "group_id")[group][0]
                   .groups!.letter
               }"`;
             }

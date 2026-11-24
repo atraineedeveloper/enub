@@ -1,8 +1,9 @@
+import { groupScheduleAssignments } from "../features/schedules/groupScheduleAssignments";
 import toast from "react-hot-toast";
 import { loadPdfImage } from "./loadPdfImage";
 import jsPDF from "jspdf";
 import { autoTable } from "./montserratAutoTable";
-import type { UserOptions, RowInput, Styles, CellHookData, PageHook } from "jspdf-autotable";
+import type { RowInput, Styles, CellHookData, PageHook } from "jspdf-autotable";
 import type { PageInfo } from "jspdf";
 import { useState } from "react";
 import Button from "../ui/Button";
@@ -20,7 +21,6 @@ import type { ScheduleTeacher } from "../features/schedules/useScheduleTeachers"
 // jsPDF's bundled `internal` type -- both exist at runtime once the
 // jspdf-autotable side-effect import above registers the plugin.
 type JsPdfWithAutoTable = jsPDF & {
-  autoTable: (options: UserOptions) => void;
   internal: jsPDF["internal"] & {
     getCurrentPageInfo: () => PageInfo;
   };
@@ -41,28 +41,7 @@ function getFileExtension(fileName?: string | null) {
   return fileName?.split(".").pop();
 }
 
-const groupData = (
-  array: ScheduleAssignment[],
-  key: "subject_id" | "group_id"
-) => {
-  return array.reduce(
-    (result: Record<string, ScheduleAssignment[]>, currentValue) => {
-      // Obtén el valor de la propiedad por la que vamos a agrupar
-      const groupKey = String(currentValue[key]);
 
-      // Si el grupo aún no existe, créalo
-      if (!result[groupKey]) {
-        result[groupKey] = [];
-      }
-
-      // Agrega el elemento actual al grupo correspondiente
-      result[groupKey].push(currentValue);
-
-      return result;
-    },
-    {}
-  );
-};
 
 const normalizeMultilineText = (value: unknown) =>
   String(value ?? "")
@@ -421,7 +400,7 @@ function WorkerSheetSemester({
           (schedule) => schedule.worker_id === worker.id
         );
 
-        const groupedSubjects = groupData(
+        const groupedSubjects = groupScheduleAssignments(
           currentSemesterSchedules,
           "subject_id"
         );
@@ -506,14 +485,14 @@ function WorkerSheetSemester({
             (subject) => `
   ${groupedSubjects[subject][0].subjects!.name}
 
-  ${Object.keys(groupData(groupedSubjects[subject], "group_id")).map(
+  ${Object.keys(groupScheduleAssignments(groupedSubjects[subject], "group_id")).map(
     (group) =>
       ` (${calculateSemesterGroupForSemester(
-        groupData(groupedSubjects[subject], "group_id")[group][0].groups!
+        groupScheduleAssignments(groupedSubjects[subject], "group_id")[group][0].groups!
           .year_of_admission,
         semester[0]?.semester
       )} ° "${
-        groupData(groupedSubjects[subject], "group_id")[group][0].groups!.letter
+        groupScheduleAssignments(groupedSubjects[subject], "group_id")[group][0].groups!.letter
       }")`
       )} - ${groupedSubjects[subject][0].groups!.degrees!.code}
   `
@@ -584,7 +563,7 @@ function WorkerSheetSemester({
           (schedule) => schedule.worker_id === worker.id
         );
 
-        const groupedSubjects = groupData(
+        const groupedSubjects = groupScheduleAssignments(
           currentSemesterSchedules,
           "subject_id"
         );
@@ -669,14 +648,14 @@ function WorkerSheetSemester({
             (subject) => `
   ${groupedSubjects[subject][0].subjects!.name}
 
-  ${Object.keys(groupData(groupedSubjects[subject], "group_id")).map(
+  ${Object.keys(groupScheduleAssignments(groupedSubjects[subject], "group_id")).map(
     (group) =>
       ` (${calculateSemesterGroupForSemester(
-        groupData(groupedSubjects[subject], "group_id")[group][0].groups!
+        groupScheduleAssignments(groupedSubjects[subject], "group_id")[group][0].groups!
           .year_of_admission,
         semester[0]?.semester
       )} ° "${
-        groupData(groupedSubjects[subject], "group_id")[group][0].groups!.letter
+        groupScheduleAssignments(groupedSubjects[subject], "group_id")[group][0].groups!.letter
       }")`
       )} - ${groupedSubjects[subject][0].groups!.degrees!.code}
   `
@@ -747,7 +726,7 @@ function WorkerSheetSemester({
           (schedule) => schedule.worker_id === worker.id
         );
 
-        const groupedSubjects = groupData(
+        const groupedSubjects = groupScheduleAssignments(
           currentSemesterSchedules,
           "subject_id"
         );
@@ -832,14 +811,14 @@ function WorkerSheetSemester({
             (subject) => `
   ${groupedSubjects[subject][0].subjects!.name}
 
-  ${Object.keys(groupData(groupedSubjects[subject], "group_id")).map(
+  ${Object.keys(groupScheduleAssignments(groupedSubjects[subject], "group_id")).map(
     (group) =>
       ` (${calculateSemesterGroupForSemester(
-        groupData(groupedSubjects[subject], "group_id")[group][0].groups!
+        groupScheduleAssignments(groupedSubjects[subject], "group_id")[group][0].groups!
           .year_of_admission,
         semester[0]?.semester
       )} ° "${
-        groupData(groupedSubjects[subject], "group_id")[group][0].groups!.letter
+        groupScheduleAssignments(groupedSubjects[subject], "group_id")[group][0].groups!.letter
       }")`
       )} - ${groupedSubjects[subject][0].groups!.degrees!.code}
   `

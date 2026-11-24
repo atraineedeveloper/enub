@@ -2,7 +2,7 @@ import toast from "react-hot-toast";
 import { loadPdfImage } from "../loadPdfImage";
 import jsPDF from "jspdf";
 import { autoTable } from "../montserratAutoTable";
-import type { UserOptions, RowInput } from "jspdf-autotable";
+import type { RowInput } from "jspdf-autotable";
 import { useContext } from "react";
 import Button from "../../ui/Button";
 import Spinner from "../../ui/Spinner";
@@ -19,13 +19,6 @@ import type { Database } from "../../types/supabase";
 import { formatTeacherSchedulePlazas, type TeacherSchedulePlaza } from "./teacherSchedulePlazas";
 
 type StateRole = Database["public"]["Tables"]["state_roles"]["Row"];
-
-// autoTable isn't on jsPDF's own type (jspdf-autotable only exports a
-// standalone function) despite existing at runtime once the jspdf-autotable
-// side-effect import above registers the plugin.
-type JsPdfWithAutoTable = jsPDF & {
-  autoTable: (options: UserOptions) => void;
-};
 
 interface ScheduleTeacherPDFProps {
   schedulesScholar: ScheduleAssignment[];
@@ -97,7 +90,7 @@ function ScheduleTeacherPDF({
     await import("../../styles/Montserrat-Bold-bold.js");
     await import("../../styles/Montserrat-BoldItalic-bolditalic.js");
 
-    const doc = new jsPDF("p", "px", "letter") as JsPdfWithAutoTable;
+    const doc = new jsPDF("p", "px", "letter");
 
     // Header
 
