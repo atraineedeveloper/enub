@@ -41,3 +41,7 @@
 - [x] Happy DOM and ESLint candidate passed frozen install, typecheck, lint, tests and build (run 45305576649); 32 advisories (18 high, 10 moderate, 4 low), zero critical.
 - [x] Transfer generated lockfile with exact Git blob hash verification.
 - [ ] Verify committed toolchain upgrade in normal CI and Vercel preview.
+
+- [x] Happy DOM and ESLint committed CI passed (45305995221); audit 32 advisories (18 high, 10 moderate, 4 low).
+- [x] Analyze remaining 13 affected packages and prepare isolated patch candidate, including React Router 7.18.6 and scoped cross-major build dependency experiments.
+- [ ] Review candidate resolution, audit, build and PWA artifacts; reject incompatible overrides and document residual advisories.
