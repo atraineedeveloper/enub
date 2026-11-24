@@ -321,6 +321,9 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY,
     });
 
+    // Leave positive clearance below the variable-height Montserrat paragraph.
+    const afterIntroY = doc.lastAutoTable.finalY + 12;
+
     // Sumar horas de asignaturas impartidas
 
     Object.keys(groupedSubjects).map(
@@ -386,7 +389,7 @@ function TeacherAssignmentPDF({
         ];
       }),
       theme: "grid",
-      startY: doc.lastAutoTable.finalY,
+      startY: afterIntroY,
     });
 
     autoTable(doc, {
