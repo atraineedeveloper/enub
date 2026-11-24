@@ -5,6 +5,7 @@ import { calculateSemesterGroupForSemester } from "../../helpers/calculateSemest
 import TeacherAssignmentPDF from "../../pdf/Schedules/TeacherAssignmentPDF";
 import capitalizeName from "../../helpers/capitalizeFirstLetter";
 import { SemesterContext } from "../../pages/SemesterContext";
+import { groupScheduleAssignments } from "./groupScheduleAssignments";
 import type { ScheduleAssignment } from "./useScheduleAssignments";
 import type { ScheduleTeacher } from "./useScheduleTeachers";
 import type { Worker } from "../workers/useWorkers";
@@ -60,32 +61,6 @@ const LongRow = styled.div`
   }
 `;
 
-// Extract Subjects
-// Decision 5: kept independently typed in place, in every file that already
-// had its own copy -- not consolidated into a shared helper.
-const groupData = (
-  array: ScheduleAssignment[],
-  key: "subject_id" | "group_id"
-) => {
-  return array.reduce(
-    (result: Record<string, ScheduleAssignment[]>, currentValue) => {
-      // Obtén el valor de la propiedad por la que vamos a agrupar
-      const groupKey = String(currentValue[key]);
-
-      // Si el grupo aún no existe, créalo
-      if (!result[groupKey]) {
-        result[groupKey] = [];
-      }
-
-      // Agrega el elemento actual al grupo correspondiente
-      result[groupKey].push(currentValue);
-
-      return result;
-    },
-    {}
-  );
-};
-
 interface TeacherAssignmentProps {
   workers: Worker[];
   scheduleTeachers: ScheduleTeacher[];
@@ -127,7 +102,7 @@ function TeacherAssignment({
   }, [workers, selectedWorkerId]);
 
   const groupedSubjects = useMemo(
-    () => groupData(filteredSchedulesAssignments, "subject_id"),
+    () => groupScheduleAssignments(filteredSchedulesAssignments, "subject_id"),
     [filteredSchedulesAssignments]
   );
 
@@ -196,20 +171,20 @@ function TeacherAssignment({
             <p>{groupedSubjects[subject][0].subjects!.name}</p>
             <p>{groupedSubjects[subject][0].groups!.degrees!.code}</p>
             <p>
-              {Object.keys(groupData(groupedSubjects[subject], "group_id")).map(
+              {Object.keys(groupScheduleAssignments(groupedSubjects[subject], "group_id")).map(
                 (group) => (
                   <>
                     <span key={group}>
                       (
                       {calculateSemesterGroupForSemester(
-                        groupData(groupedSubjects[subject], "group_id")[
+                        groupScheduleAssignments(groupedSubjects[subject], "group_id")[
                           group
                         ][0].groups!.year_of_admission,
                         semesterCode
                       )}
                       ° &quot;
                       {
-                        groupData(groupedSubjects[subject], "group_id")[
+                        groupScheduleAssignments(groupedSubjects[subject], "group_id")[
                           group
                         ][0].groups!.letter
                       }

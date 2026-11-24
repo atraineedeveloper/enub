@@ -47,15 +47,13 @@ interface WorkerWithName {
 }
 
 function sortWorkersBySurname<T extends WorkerWithName>(workers: T[] = []): T[] {
-  return [...workers].sort((leftWorker, rightWorker) => {
-    const leftSurname = getSurnameSortKey(leftWorker?.name ?? "");
-    const rightSurname = getSurnameSortKey(rightWorker?.name ?? "");
-
-    const surnameComparison = collator.compare(leftSurname, rightSurname);
-    if (surnameComparison !== 0) return surnameComparison;
-
-    return collator.compare(leftWorker?.name ?? "", rightWorker?.name ?? "");
-  });
+  return workers.map((worker) => ({
+    worker,
+    name: worker?.name ?? "",
+    surname: getSurnameSortKey(worker?.name ?? ""),
+  })).sort((left, right) =>
+    collator.compare(left.surname, right.surname) || collator.compare(left.name, right.name)
+  ).map(({ worker }) => worker);
 }
 
 export default sortWorkersBySurname;

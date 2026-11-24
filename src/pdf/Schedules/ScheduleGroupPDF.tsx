@@ -1,8 +1,8 @@
+import { loadMontserratFonts } from "../loadMontserratFonts";
 import toast from "react-hot-toast";
 import { loadPdfImage } from "../loadPdfImage";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
-import type { UserOptions, RowInput } from "jspdf-autotable";
+
+import type { RowInput } from "jspdf-autotable";
 import { useContext } from "react";
 import Button from "../../ui/Button";
 import { useRoles } from "../../features/roles/useRoles";
@@ -17,13 +17,6 @@ import type { ScheduleAssignment } from "../../features/schedules/useScheduleAss
 import type { Database } from "../../types/supabase";
 
 type StateRole = Database["public"]["Tables"]["state_roles"]["Row"];
-
-// autoTable/lastAutoTable aren't on jsPDF's own type (jspdf-autotable only
-// exports a standalone function) despite existing at runtime once the
-// jspdf-autotable side-effect import above registers the plugin.
-type JsPdfWithAutoTable = jsPDF & {
-  autoTable: (options: UserOptions) => void;
-};
 
 interface ScheduleGroupPDFProps {
   schedules: ScheduleAssignment[];
@@ -45,12 +38,13 @@ function ScheduleGroupPDF({ schedules }: ScheduleGroupPDFProps) {
 
   const generatePDF = async () => {
     try {
-    await import("../../styles/Montserrat-Regular-normal.js");
-    await import("../../styles/Montserrat-Italic-italic.js");
-    await import("../../styles/Montserrat-Bold-bold.js");
-    await import("../../styles/Montserrat-BoldItalic-bolditalic.js");
+    const [{ default: PdfDocument }, { autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("../montserratAutoTable"),
+      loadMontserratFonts(),
+    ]);
 
-    const doc = new jsPDF("p", "px", "letter") as JsPdfWithAutoTable;
+    const doc = new PdfDocument("p", "px", "letter");
 
     const infoGroup = [
       [
@@ -119,10 +113,10 @@ function ScheduleGroupPDF({ schedules }: ScheduleGroupPDFProps) {
     const logoSetab = await loadPdfImage("/setab.jpeg");
     doc.addImage(logoSetab, "JPEG", 15, 17, 130, 36);
 
-    doc.autoTable({
+    autoTable(doc, {
       willDrawPage: function () {
         // Header
-        doc.autoTable({
+        autoTable(doc, {
           styles: {
             halign: "center",
             font: "Montserrat-BoldItalic",
@@ -148,7 +142,7 @@ function ScheduleGroupPDF({ schedules }: ScheduleGroupPDFProps) {
           pageHeight - 50
         );
         doc.text(
-          "Teléfono (934) 344 04 77, 344 04 88",
+          "Teléfono (934) 344 04 77",
           data.settings.margin.left,
           pageHeight - 40
         );
@@ -168,7 +162,7 @@ function ScheduleGroupPDF({ schedules }: ScheduleGroupPDFProps) {
 
     // Information about groups
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         valign: "middle",
         font: "Montserrat-Bold",
@@ -180,7 +174,7 @@ function ScheduleGroupPDF({ schedules }: ScheduleGroupPDFProps) {
 
     // Schedule of the group
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "center",
         valign: "middle",
@@ -236,7 +230,7 @@ function ScheduleGroupPDF({ schedules }: ScheduleGroupPDFProps) {
       ],
     ];
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "center",
         valign: "middle",

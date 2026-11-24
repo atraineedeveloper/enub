@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getSemesters } from "../../services/apiSemesters";
-import type { Database } from "../../types/supabase";
-
-export type Semester = Database["public"]["Tables"]["semesters"]["Row"];
+import type { Semester } from "./semesterTypes";
+export type { Semester } from "./semesterTypes";
 
 export function useSemesters() {
   const {

@@ -1,8 +1,8 @@
+import { loadMontserratFonts } from "../loadMontserratFonts";
+import { groupScheduleAssignments } from "../../features/schedules/groupScheduleAssignments";
 import toast from "react-hot-toast";
 import { loadPdfImage } from "../loadPdfImage";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
-import type { UserOptions } from "jspdf-autotable";
+import type jsPDF from "jspdf";
 import { useContext } from "react";
 import Button from "../../ui/Button";
 import { useRoles } from "../../features/roles/useRoles";
@@ -13,16 +13,10 @@ import { SemesterContext } from "../../pages/SemesterContext";
 import type { ScheduleAssignment } from "../../features/schedules/useScheduleAssignments";
 import type { Worker } from "../../features/workers/useWorkers";
 
-// autoTable/lastAutoTable aren't on jsPDF's own type (jspdf-autotable only
-// exports a standalone function) despite existing at runtime once the
-// jspdf-autotable side-effect import above registers the plugin.
-type JsPdfWithAutoTable = jsPDF & {
-  autoTable: (options: UserOptions) => void;
-  lastAutoTable: { finalY: number };
-};
+type JsPdfWithAutoTable = jsPDF & { lastAutoTable: { finalY: number } };
 
 interface TeacherAssignmentPDFProps {
-  // Matches TeacherAssignment.tsx's groupData() return shape (keyed by
+  // Matches TeacherAssignment.tsx's groupScheduleAssignments() return shape (keyed by
   // subject_id, one entry per matching ScheduleAssignment).
   groupedSubjects: Record<string, ScheduleAssignment[]>;
   uniqueTeacherSchedule: { name: string; quantity: number }[];
@@ -48,34 +42,17 @@ function TeacherAssignmentPDF({
 
   let totalHours = 2;
 
-  const groupData = (array: ScheduleAssignment[], key: "group_id") => {
-    return array.reduce(
-      (result: Record<string, ScheduleAssignment[]>, currentValue) => {
-        // Obtén el valor de la propiedad por la que vamos a agrupar
-        const groupKey = String(currentValue[key]);
-
-        // Si el grupo aún no existe, créalo
-        if (!result[groupKey]) {
-          result[groupKey] = [];
-        }
-
-        // Agrega el elemento actual al grupo correspondiente
-        result[groupKey].push(currentValue);
-
-        return result;
-      },
-      {}
-    );
-  };
+  
 
   const generatePDF = async () => {
     try {
-    await import("../../styles/Montserrat-Regular-normal.js");
-    await import("../../styles/Montserrat-Italic-italic.js");
-    await import("../../styles/Montserrat-Bold-bold.js");
-    await import("../../styles/Montserrat-BoldItalic-bolditalic.js");
+    const [{ default: PdfDocument }, { autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("../montserratAutoTable"),
+      loadMontserratFonts(),
+    ]);
 
-    const doc = new jsPDF("p", "px", "letter") as JsPdfWithAutoTable;
+    const doc = new PdfDocument("p", "px", "letter") as JsPdfWithAutoTable;
 
     // Header
 
@@ -85,10 +62,10 @@ function TeacherAssignmentPDF({
     const logoSetab = await loadPdfImage("/setab.jpeg");
     doc.addImage(logoSetab, "JPEG", 15, 17, 130, 36);
 
-    doc.autoTable({
+    autoTable(doc, {
       willDrawPage: function () {
         // Header
-        doc.autoTable({
+        autoTable(doc, {
           styles: {
             halign: "center",
             font: "Montserrat-BoldItalic",
@@ -116,7 +93,7 @@ function TeacherAssignmentPDF({
           pageHeight - 50
         );
         doc.text(
-          "Teléfono (934) 344 04 77, 344 04 88",
+          "Teléfono (934) 344 04 77",
           data.settings.margin.left,
           pageHeight - 40
         );
@@ -143,7 +120,7 @@ function TeacherAssignmentPDF({
     const today = new Date();
     const formattedDate = today.toLocaleDateString("es-ES", options);
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "right",
         valign: "middle",
@@ -162,7 +139,7 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "right",
         valign: "middle",
@@ -181,7 +158,7 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY - 8,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "right",
         valign: "middle",
@@ -200,7 +177,7 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY - 8,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "right",
         valign: "middle",
@@ -219,7 +196,7 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY - 8,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "right",
         valign: "middle",
@@ -238,7 +215,7 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY - 8,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "right",
         valign: "middle",
@@ -251,7 +228,7 @@ function TeacherAssignmentPDF({
     });
 
     // Info of teacher
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         valign: "middle",
         font: "Montserrat-Regular",
@@ -269,7 +246,7 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY - 4,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         valign: "middle",
         font: "Montserrat-Regular",
@@ -287,7 +264,7 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY - 8,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         valign: "middle",
         font: "Montserrat-Regular",
@@ -305,19 +282,35 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY - 8,
     });
 
-    doc.autoTable({
-      styles: {
-        halign: "justify",
-        fontSize: 10,
-      },
-      body: [
-        [
-          "En apego de los lineamientos que establecen la regulación de las Actividades sustantivas que debe realizar todo profesor adscrito a una Institución de Educación Superior (IES), y con base a su nombramiento como profesor de la Escuela Normal Urbana, en cumplimiento a las atribuciones conferidas a esta subdirección, me permito hacer la asignación de su carga horaria para el presente semestre. Misma que deberá desempeñar con el sentido de responsabilidad y compromiso que siempre ha demostrado en cada una de las tareas que se le han encomendado.",
-        ],
-      ],
-      theme: "plain",
-      startY: doc.lastAutoTable.finalY,
+    // Native text: measure and draw using the same registered font.
+    const intro = "En apego de los lineamientos que establecen la regulación de las Actividades sustantivas que debe realizar todo profesor adscrito a una Institución de Educación Superior (IES), y con base a su nombramiento como profesor de la Escuela Normal Urbana, en cumplimiento a las atribuciones conferidas a esta subdirección, me permito hacer la asignación de su carga horaria para el presente semestre. Misma que deberá desempeñar con el sentido de responsabilidad y compromiso que siempre ha demostrado en cada una de las tareas que se le han encomendado.";
+    doc.setFont("Montserrat-Regular", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(0);
+    const scale = doc.internal.scaleFactor;
+    // Match AutoTable's default 40pt margin and 5pt cell padding.
+    const introX = 45 / scale;
+    const introWidth = doc.internal.pageSize.getWidth() - 2 * introX;
+    const lineHeight = (10 / scale) * 1.2;
+    const lines: string[] = doc.splitTextToSize(intro, introWidth);
+    const introTop = doc.lastAutoTable.finalY + 5 / scale;
+    lines.forEach((line, index) => {
+      const y = introTop + index * lineHeight;
+      const words = line.trim().split(/\s+/);
+      // Justify explicitly to avoid a second wrapping pass inside doc.text.
+      if (index === lines.length - 1 || words.length < 2) {
+        doc.text(line, introX, y, { baseline: "top" });
+        return;
+      }
+      const wordWidth = words.reduce((sum, word) => sum + doc.getTextWidth(word), 0);
+      const gap = (introWidth - wordWidth) / (words.length - 1);
+      let x = introX;
+      for (const word of words) {
+        doc.text(word, x, y, { baseline: "top" });
+        x += doc.getTextWidth(word) + gap;
+      }
     });
+    const afterIntroY = introTop + lines.length * lineHeight + 8;
 
     // Sumar horas de asignaturas impartidas
 
@@ -329,7 +322,7 @@ function TeacherAssignmentPDF({
       (schedule) => (totalHours += schedule.quantity * 2)
     );
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "center",
         valign: "middle",
@@ -366,14 +359,14 @@ function TeacherAssignmentPDF({
         return [
           groupedSubjects[subject][0].subjects!.name!.toUpperCase(),
           groupedSubjects[subject][0].groups!.degrees!.code,
-          `${Object.keys(groupData(groupedSubjects[subject], "group_id")).map(
+          `${Object.keys(groupScheduleAssignments(groupedSubjects[subject], "group_id")).map(
             (group) => {
               return `   ${calculateSemesterGroupForSemester(
-                groupData(groupedSubjects[subject], "group_id")[group][0]
+                groupScheduleAssignments(groupedSubjects[subject], "group_id")[group][0]
                   .groups!.year_of_admission,
                 semesterCode
               )}° " ${
-                groupData(groupedSubjects[subject], "group_id")[group][0]
+                groupScheduleAssignments(groupedSubjects[subject], "group_id")[group][0]
                   .groups!.letter
               }"`;
             }
@@ -384,10 +377,10 @@ function TeacherAssignmentPDF({
         ];
       }),
       theme: "grid",
-      startY: doc.lastAutoTable.finalY,
+      startY: afterIntroY,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "center",
         valign: "middle",
@@ -417,7 +410,7 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY - 3,
     });
     if (totalHours == 40) {
-      doc.autoTable({
+      autoTable(doc, {
         styles: {
           halign: "center",
           valign: "middle",
@@ -451,7 +444,7 @@ function TeacherAssignmentPDF({
       });
     }
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "center",
         valign: "middle",
@@ -473,7 +466,7 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "center",
         valign: "middle",
@@ -485,7 +478,7 @@ function TeacherAssignmentPDF({
       startY: doc.lastAutoTable.finalY,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "center",
         valign: "middle",
@@ -496,7 +489,7 @@ function TeacherAssignmentPDF({
       theme: "plain",
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "center",
         valign: "middle",

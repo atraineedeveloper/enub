@@ -1,11 +1,13 @@
+import type { SustenancePlazaInput, DateOfAdmissionInput } from "../../types/workerMutation";
+
 interface DirtyRelationFields {
   sustenance_plazas?: unknown;
   date_of_admissions?: unknown;
 }
 
 interface WorkerEditRelationValues {
-  sustenance_plazas?: unknown[];
-  date_of_admissions?: { type?: string; date_of_admission?: string }[];
+  sustenance_plazas?: SustenancePlazaInput[];
+  date_of_admissions?: DateOfAdmissionInput[];
 }
 
 export function selectChangedWorkerRelations(

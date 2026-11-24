@@ -1,3 +1,7 @@
+import { groupDocumentTypesByCategory, buildReplacedWorkerDocument, addReportStatusToCategories } from "./workerDocumentTransforms";
+export { buildReplacedWorkerDocument, addReportStatusToCategories } from "./workerDocumentTransforms";
+import { sanitizeStorageFileName } from "./workerDocumentStorageName";
+export { sanitizeStorageFileName } from "./workerDocumentStorageName";
 import supabase from "./supabase";
 import type { Database } from "../types/supabase";
 import {
@@ -7,11 +11,6 @@ import {
   MAX_WORKER_DOCUMENT_FILE_SIZE_LABEL,
 } from "./workerDocumentUploadLimits";
 
-type WorkerDocumentCategoryRow =
-  Database["public"]["Tables"]["worker_document_categories"]["Row"];
-type WorkerDocumentTypeRow =
-  Database["public"]["Tables"]["worker_document_types"]["Row"];
-type WorkerDocumentRow = Database["public"]["Tables"]["worker_documents"]["Row"];
 type WorkerDocumentInsert =
   Database["public"]["Tables"]["worker_documents"]["Insert"];
 
@@ -27,69 +26,6 @@ const WORKER_DOCUMENT_SELECT =
 function getFileExtension(fileName: string = "") {
   const parts = fileName.split(".");
   return parts.length > 1 ? parts.pop()!.toLowerCase() : "";
-}
-
-const STORAGE_BASENAME_FALLBACK = "archivo";
-// A generous but bounded segment length -- long enough that no real
-// document name is ever truncated in practice, short enough to keep the
-// full storage key (workerId/documentTypeId/scope/uuid-basename.ext) well
-// under any object-storage key-length limit.
-const MAX_STORAGE_BASENAME_LENGTH = 100;
-
-// Turns an arbitrary, user-supplied file name into a conservative, portable
-// Storage object-key segment. This is a pure function specifically so it
-// can be unit-tested directly (apiWorkerDocuments.test.ts) without a
-// Supabase client. It is never used for the user-visible file name --
-// `worker_documents.file_name` always stores the original `file.name`
-// unchanged; only the Storage path is built from this sanitized value.
-//
-// A Storage key containing raw accented Unicode (e.g. "í", "ó", "ñ") is
-// rejected by Supabase Storage with a 400 InvalidKey error -- the previous
-// version of this function only handled path separators and whitespace,
-// leaving every accented character untouched. This version:
-// 1. trims surrounding whitespace;
-// 2 (+3). Unicode-normalizes to NFKD and strips the resulting combining
-//    diacritical marks (turning "í" into "i", "ñ" into "n", etc.);
-// 4. lowercases the basename;
-// 5. replaces "/" and "\" path separators;
-// 6 (+7). replaces any run of characters outside the conservative
-//    [a-z0-9-_] set (including the now-bare disallowed remnants of step
-//    5) with a single "-";
-// 8. collapses repeated "-";
-// 9. trims leading/trailing separators;
-// 10. preserves a normalized (lowercased, alnum-only) extension separately
-//     from the basename, so the sanitizer never introduces more than one
-//     final "." in the result;
-// 11. falls back to a fixed basename if sanitization removes everything.
-export function sanitizeStorageFileName(fileName: string = "") {
-  const trimmed = fileName.trim();
-  const lastDotIndex = trimmed.lastIndexOf(".");
-  // A dot only counts as an extension separator when it isn't the first
-  // character (a leading dot alone is a hidden-file marker, not an
-  // extension separator) and isn't the last character (nothing follows
-  // it). This avoids treating ".hiddenfile" as basename "" + extension
-  // "hiddenfile", which would otherwise duplicate into "hiddenfile.hiddenfile".
-  const hasExtension = lastDotIndex > 0 && lastDotIndex < trimmed.length - 1;
-  const rawBasename = hasExtension ? trimmed.slice(0, lastDotIndex) : trimmed;
-  const extension = hasExtension
-    ? trimmed.slice(lastDotIndex + 1).toLowerCase()
-    : "";
-
-  const safeBasename = rawBasename
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[/\\]/g, "-")
-    .replace(/[^a-z0-9\-_]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^[-_]+|[-_]+$/g, "")
-    .slice(0, MAX_STORAGE_BASENAME_LENGTH)
-    .replace(/^[-_]+|[-_]+$/g, "");
-
-  const safeExtension = extension.replace(/[^a-z0-9]/g, "");
-  const finalBasename = safeBasename || STORAGE_BASENAME_FALLBACK;
-
-  return safeExtension ? `${finalBasename}.${safeExtension}` : finalBasename;
 }
 
 function normalizeSemesterId(semesterId?: number | string | null) {
@@ -304,89 +240,6 @@ async function insertWorkerDocumentMetadata({
   }
 
   return data;
-}
-
-function groupDocumentTypesByCategory(
-  categories: WorkerDocumentCategoryRow[] = [],
-  documentTypes: WorkerDocumentTypeRow[] = []
-) {
-  return categories.map((category) => ({
-    ...category,
-    document_types: documentTypes.filter(
-      (documentType) => documentType.category_id === category.id
-    ),
-  }));
-}
-
-// Builds the client-facing replaced-document object directly from
-// replace_worker_document_metadata's own RETURNING row, plus the document
-// type already fetched earlier in the same call -- this is the entire
-// "success result" the RPC's design (finding #4) exists to make possible:
-// no separate post-commit fetch is ever needed to learn what was just
-// inserted, since the RPC's own transaction already returned it.
-export function buildReplacedWorkerDocument(
-  result: {
-    new_id: number;
-    new_worker_id: number;
-    new_document_type_id: number;
-    new_semester_id: number | null;
-    new_file_name: string;
-    new_storage_path: string;
-    new_mime_type: string;
-    new_file_size: number;
-    new_uploaded_by: string | null;
-    new_created_at: string;
-  },
-  documentType: unknown
-) {
-  return {
-    id: result.new_id,
-    worker_id: result.new_worker_id,
-    document_type_id: result.new_document_type_id,
-    semester_id: result.new_semester_id,
-    file_name: result.new_file_name,
-    storage_path: result.new_storage_path,
-    mime_type: result.new_mime_type,
-    file_size: result.new_file_size,
-    uploaded_by: result.new_uploaded_by,
-    created_at: result.new_created_at,
-    worker_document_types: documentType,
-  };
-}
-
-export function addReportStatusToCategories(
-  categories: (WorkerDocumentCategoryRow & {
-    document_types: WorkerDocumentTypeRow[];
-  })[] = [],
-  documents: WorkerDocumentRow[] = []
-) {
-  return categories.map((category) => ({
-    ...category,
-    // Union rule (matching WorkerDocumentsView.tsx): a type appears in this
-    // worker's own report only when it is active, or this same worker has
-    // at least one document under it -- an inactive type with none for
-    // this worker is omitted entirely, never rendered as "Pendiente".
-    document_types: category.document_types
-      .filter((documentType) => {
-        const hasDocumentsForThisWorker = documents.some(
-          (document) => document.document_type_id === documentType.id
-        );
-        return documentType.is_active || hasDocumentsForThisWorker;
-      })
-      .map((documentType) => {
-        const uploadedDocuments = documents.filter(
-          (document) => document.document_type_id === documentType.id
-        );
-
-        return {
-          ...documentType,
-          documents: uploadedDocuments,
-          status: uploadedDocuments.length ? "Cargado" : "Pendiente",
-          uploaded_at: uploadedDocuments[0]?.created_at ?? null,
-          file_name: uploadedDocuments[0]?.file_name ?? null,
-        };
-      }),
-  }));
 }
 
 export async function getWorkerDocumentCategoriesAndTypes() {
@@ -694,10 +547,13 @@ export async function getWorkerDocumentReportData(
     throw new Error("El trabajador no pudo cargarse");
   }
 
-  const categories = await getWorkerDocumentCategoriesAndTypes();
-  const documents = semesterId
-    ? await getWorkerDocumentsBySemester(workerId, semesterId)
-    : await getWorkerDocuments(workerId);
+  // Independent reads, after the worker access check succeeds.
+  const [categories, documents] = await Promise.all([
+    getWorkerDocumentCategoriesAndTypes(),
+    semesterId
+      ? getWorkerDocumentsBySemester(workerId, semesterId)
+      : getWorkerDocuments(workerId),
+  ]);
 
   let semester = null;
 

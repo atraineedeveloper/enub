@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from "react";
+import { useMemo, useState, type ChangeEvent } from "react";
 import Spinner from "../../ui/Spinner";
 import Table from "../../ui/Table";
 import { useWorkers } from "./useWorkers";
@@ -15,9 +15,12 @@ import SearchBar from "../../ui/SearchBar";
 function WorkerTable() {
   const { isLoading, workers, error } = useWorkers({ fullDetails: true });
   const [searchTerm, setSearchTerm] = useState("");
-  const filtered = (workers ?? []).filter((worker) =>
-    worker.name!.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filtered = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+    return (workers ?? []).filter((worker) =>
+      (worker.name ?? "").toLowerCase().includes(term)
+    );
+  }, [workers, searchTerm]);
   const { currentPage, totalPages, totalCount, paginatedData, setCurrentPage } =
     usePagination(filtered);
 

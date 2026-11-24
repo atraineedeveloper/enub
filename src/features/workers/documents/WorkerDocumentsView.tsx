@@ -7,7 +7,6 @@ import { useWorkerDocumentReportData } from "./useWorkerDocumentReportData";
 import { useWorkerDocuments } from "./useWorkerDocuments";
 import type { WorkerDocument } from "./useWorkerDocuments";
 import { useWorkerDocumentsBySemester } from "./useWorkerDocumentsBySemester";
-import { generateWorkerDocumentReportPdf } from "./generateWorkerDocumentReportPdf";
 import { getDocumentsByType } from "./documentRequirementSummary";
 import { useSemesters } from "../../semesters/useSemesters";
 import { useWorker } from "../useWorker";
@@ -113,7 +112,7 @@ function WorkerDocumentsView({ workerId }: WorkerDocumentsViewProps) {
     }
   }
 
-  function handleDownloadReport() {
+  async function handleDownloadReport() {
     if (reportError) {
       toast.error(reportError?.message || "No se pudo cargar el reporte");
       return;
@@ -125,6 +124,7 @@ function WorkerDocumentsView({ workerId }: WorkerDocumentsViewProps) {
     }
 
     try {
+      const { generateWorkerDocumentReportPdf } = await import("./generateWorkerDocumentReportPdf");
       generateWorkerDocumentReportPdf(reportData);
     } catch (error) {
       toast.error(

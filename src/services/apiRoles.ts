@@ -22,13 +22,9 @@ export async function createEditRoles(
   if (!newRole || typeof newRole !== "object")
     throw new Error("Los datos del rol no son válidos");
 
-  let query = supabase.from("roles");
-
-  // A) CREATE
-  if (!id) query = query.insert([newRole as RoleInsert]) as never;
-
-  // B) EDIT
-  if (id) query = query.update({ ...newRole } as RoleUpdate).eq("id", id) as never;
+  const query = id
+    ? supabase.from("roles").update({ ...newRole } as RoleUpdate).eq("id", id)
+    : supabase.from("roles").insert([newRole as RoleInsert]);
 
   const { data, error } = await query.select().single();
 

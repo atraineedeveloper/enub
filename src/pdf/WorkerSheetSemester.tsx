@@ -1,8 +1,10 @@
+import { loadMontserratFonts } from "./loadMontserratFonts";
+import { transformDate, getFileExtension, normalizeMultilineText, buildFunctionPerformedText } from "./workerSheetText";
+import { groupScheduleAssignments } from "../features/schedules/groupScheduleAssignments";
 import toast from "react-hot-toast";
 import { loadPdfImage } from "./loadPdfImage";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
-import type { UserOptions, RowInput, Styles, CellHookData, PageHook } from "jspdf-autotable";
+import type jsPDF from "jspdf";
+import type { RowInput, Styles, CellHookData, PageHook } from "jspdf-autotable";
 import type { PageInfo } from "jspdf";
 import { useState } from "react";
 import Button from "../ui/Button";
@@ -20,7 +22,6 @@ import type { ScheduleTeacher } from "../features/schedules/useScheduleTeachers"
 // jsPDF's bundled `internal` type -- both exist at runtime once the
 // jspdf-autotable side-effect import above registers the plugin.
 type JsPdfWithAutoTable = jsPDF & {
-  autoTable: (options: UserOptions) => void;
   internal: jsPDF["internal"] & {
     getCurrentPageInfo: () => PageInfo;
   };
@@ -29,66 +30,6 @@ type JsPdfWithAutoTable = jsPDF & {
 // jspdf-autotable doesn't export HookData itself (only CellHookData, which
 // extends it) -- derived structurally from the exported PageHook signature.
 type PageHookData = Parameters<PageHook>[0];
-
-function transformDate(dateString: string) {
-  const [year, month, day] = dateString.split("-");
-  const shortYear = year.slice(-2);
-
-  return `${day}-${month}-${shortYear}`;
-}
-
-function getFileExtension(fileName?: string | null) {
-  return fileName?.split(".").pop();
-}
-
-const groupData = (
-  array: ScheduleAssignment[],
-  key: "subject_id" | "group_id"
-) => {
-  return array.reduce(
-    (result: Record<string, ScheduleAssignment[]>, currentValue) => {
-      // Obtén el valor de la propiedad por la que vamos a agrupar
-      const groupKey = String(currentValue[key]);
-
-      // Si el grupo aún no existe, créalo
-      if (!result[groupKey]) {
-        result[groupKey] = [];
-      }
-
-      // Agrega el elemento actual al grupo correspondiente
-      result[groupKey].push(currentValue);
-
-      return result;
-    },
-    {}
-  );
-};
-
-const normalizeMultilineText = (value: unknown) =>
-  String(value ?? "")
-    .replace(/\n[ \t]+/g, "\n")
-    .trim();
-
-const buildFunctionPerformedText = (
-  workerFunctionPerformed: string | null,
-  uniqueTeacherSchedule: { name: string; quantity: number }[]
-) => {
-  const manualFunction = String(workerFunctionPerformed ?? "").trim();
-  const activities = (uniqueTeacherSchedule ?? [])
-    .filter((item) => item?.name?.trim())
-    .map((item) => item.name.trim());
-
-  const merged = [manualFunction, ...activities].filter(Boolean);
-  const seen = new Set();
-  const deduped = merged.filter((item) => {
-    const key = item.toUpperCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-
-  return deduped.join("\n\n");
-};
 
 interface WorkerSheetSemesterProps {
   workers: WorkerWithDetails[];
@@ -160,12 +101,13 @@ function WorkerSheetSemester({
     if (isGeneratingPdf) return;
     setIsGeneratingPdf(true);
     try {
-      await import("../styles/Montserrat-Regular-normal.js");
-      await import("../styles/Montserrat-Italic-italic.js");
-      await import("../styles/Montserrat-Bold-bold.js");
-      await import("../styles/Montserrat-BoldItalic-bolditalic.js");
+      const [{ default: PdfDocument }, { autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("./montserratAutoTable"),
+      loadMontserratFonts(),
+    ]);
 
-      const doc = new jsPDF("landscape", "px", "letter") as JsPdfWithAutoTable;
+      const doc = new PdfDocument("landscape", "px", "letter") as JsPdfWithAutoTable;
       const logoEnub = await loadPdfImage("/enub.jpg");
 
       const logoSetab = await loadPdfImage("/setab.jpeg");
@@ -394,7 +336,7 @@ function WorkerSheetSemester({
       13: { cellWidth: 34 },
     };
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "left",
         valign: "middle",
@@ -421,7 +363,7 @@ function WorkerSheetSemester({
           (schedule) => schedule.worker_id === worker.id
         );
 
-        const groupedSubjects = groupData(
+        const groupedSubjects = groupScheduleAssignments(
           currentSemesterSchedules,
           "subject_id"
         );
@@ -506,14 +448,14 @@ function WorkerSheetSemester({
             (subject) => `
   ${groupedSubjects[subject][0].subjects!.name}
 
-  ${Object.keys(groupData(groupedSubjects[subject], "group_id")).map(
+  ${Object.keys(groupScheduleAssignments(groupedSubjects[subject], "group_id")).map(
     (group) =>
       ` (${calculateSemesterGroupForSemester(
-        groupData(groupedSubjects[subject], "group_id")[group][0].groups!
+        groupScheduleAssignments(groupedSubjects[subject], "group_id")[group][0].groups!
           .year_of_admission,
         semester[0]?.semester
       )} ° "${
-        groupData(groupedSubjects[subject], "group_id")[group][0].groups!.letter
+        groupScheduleAssignments(groupedSubjects[subject], "group_id")[group][0].groups!.letter
       }")`
       )} - ${groupedSubjects[subject][0].groups!.degrees!.code}
   `
@@ -541,7 +483,7 @@ function WorkerSheetSemester({
       didDrawPage: drawPageHeaderFooter,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "center",
         font: "Montserrat-Italic",
@@ -558,7 +500,7 @@ function WorkerSheetSemester({
       didDrawPage: drawPageHeaderFooter,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "left",
         valign: "middle",
@@ -584,7 +526,7 @@ function WorkerSheetSemester({
           (schedule) => schedule.worker_id === worker.id
         );
 
-        const groupedSubjects = groupData(
+        const groupedSubjects = groupScheduleAssignments(
           currentSemesterSchedules,
           "subject_id"
         );
@@ -669,14 +611,14 @@ function WorkerSheetSemester({
             (subject) => `
   ${groupedSubjects[subject][0].subjects!.name}
 
-  ${Object.keys(groupData(groupedSubjects[subject], "group_id")).map(
+  ${Object.keys(groupScheduleAssignments(groupedSubjects[subject], "group_id")).map(
     (group) =>
       ` (${calculateSemesterGroupForSemester(
-        groupData(groupedSubjects[subject], "group_id")[group][0].groups!
+        groupScheduleAssignments(groupedSubjects[subject], "group_id")[group][0].groups!
           .year_of_admission,
         semester[0]?.semester
       )} ° "${
-        groupData(groupedSubjects[subject], "group_id")[group][0].groups!.letter
+        groupScheduleAssignments(groupedSubjects[subject], "group_id")[group][0].groups!.letter
       }")`
       )} - ${groupedSubjects[subject][0].groups!.degrees!.code}
   `
@@ -704,7 +646,7 @@ function WorkerSheetSemester({
       didDrawPage: drawPageHeaderFooter,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "center",
         font: "Montserrat-Italic",
@@ -721,7 +663,7 @@ function WorkerSheetSemester({
       didDrawPage: drawPageHeaderFooter,
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       styles: {
         halign: "left",
         valign: "middle",
@@ -747,7 +689,7 @@ function WorkerSheetSemester({
           (schedule) => schedule.worker_id === worker.id
         );
 
-        const groupedSubjects = groupData(
+        const groupedSubjects = groupScheduleAssignments(
           currentSemesterSchedules,
           "subject_id"
         );
@@ -832,14 +774,14 @@ function WorkerSheetSemester({
             (subject) => `
   ${groupedSubjects[subject][0].subjects!.name}
 
-  ${Object.keys(groupData(groupedSubjects[subject], "group_id")).map(
+  ${Object.keys(groupScheduleAssignments(groupedSubjects[subject], "group_id")).map(
     (group) =>
       ` (${calculateSemesterGroupForSemester(
-        groupData(groupedSubjects[subject], "group_id")[group][0].groups!
+        groupScheduleAssignments(groupedSubjects[subject], "group_id")[group][0].groups!
           .year_of_admission,
         semester[0]?.semester
       )} ° "${
-        groupData(groupedSubjects[subject], "group_id")[group][0].groups!.letter
+        groupScheduleAssignments(groupedSubjects[subject], "group_id")[group][0].groups!.letter
       }")`
       )} - ${groupedSubjects[subject][0].groups!.degrees!.code}
   `

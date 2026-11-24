@@ -17,16 +17,16 @@ export function useMyScheduleTeacherActivities(semesterId: number | undefined) {
   const { workerId, isLoading: isLoadingProfile } = useProfile();
   const authUserId = user?.id ?? null;
 
-  const gated = canRunMyScheduleQuery({
-    authUserId,
-    workerId,
-    semesterId: semesterId ?? null,
-  });
+  const identity = { authUserId, workerId, semesterId: semesterId ?? null };
+  const currentIdentity: ScheduleQueryIdentity | null = canRunMyScheduleQuery(identity)
+    ? identity
+    : null;
+  const gated = currentIdentity !== null;
 
   const { queryKey, queryFn } = buildMyScheduleTeacherActivitiesQueryOptions(
-    gated ? (authUserId as string) : "",
-    gated ? (workerId as number) : -1,
-    gated ? (semesterId as number) : -1
+    currentIdentity?.authUserId ?? "",
+    currentIdentity?.workerId ?? -1,
+    currentIdentity?.semesterId ?? -1
   );
 
   const query = useQuery({
@@ -35,10 +35,6 @@ export function useMyScheduleTeacherActivities(semesterId: number | undefined) {
     staleTime: 30 * 1000,
     enabled: gated,
   });
-
-  const currentIdentity: ScheduleQueryIdentity | null = gated
-    ? { authUserId: authUserId as string, workerId: workerId as number, semesterId: semesterId as number }
-    : null;
 
   const scheduleTeacherActivities = resolveMyScheduleTeacherActivitiesSnapshot(
     query.data,
