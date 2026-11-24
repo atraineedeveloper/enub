@@ -22,14 +22,9 @@ export async function createEditStateRoles(
   if (!newStateRole || typeof newStateRole !== "object")
     throw new Error("Los datos del rol estatal no son válidos");
 
-  let query = supabase.from("state_roles");
-
-  // A) CREATE
-  if (!id) query = query.insert([newStateRole as StateRoleInsert]) as never;
-
-  // B) EDIT
-  if (id)
-    query = query.update({ ...newStateRole } as StateRoleUpdate).eq("id", id) as never;
+  const query = id
+    ? supabase.from("state_roles").update({ ...newStateRole } as StateRoleUpdate).eq("id", id)
+    : supabase.from("state_roles").insert([newStateRole as StateRoleInsert]);
 
   const { data, error } = await query.select().single();
 

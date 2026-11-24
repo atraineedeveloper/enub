@@ -1,3 +1,4 @@
+import { transformDate, getFileExtension, normalizeMultilineText, buildFunctionPerformedText } from "./workerSheetText";
 import { groupScheduleAssignments } from "../features/schedules/groupScheduleAssignments";
 import toast from "react-hot-toast";
 import { loadPdfImage } from "./loadPdfImage";
@@ -29,45 +30,6 @@ type JsPdfWithAutoTable = jsPDF & {
 // jspdf-autotable doesn't export HookData itself (only CellHookData, which
 // extends it) -- derived structurally from the exported PageHook signature.
 type PageHookData = Parameters<PageHook>[0];
-
-function transformDate(dateString: string) {
-  const [year, month, day] = dateString.split("-");
-  const shortYear = year.slice(-2);
-
-  return `${day}-${month}-${shortYear}`;
-}
-
-function getFileExtension(fileName?: string | null) {
-  return fileName?.split(".").pop();
-}
-
-
-
-const normalizeMultilineText = (value: unknown) =>
-  String(value ?? "")
-    .replace(/\n[ \t]+/g, "\n")
-    .trim();
-
-const buildFunctionPerformedText = (
-  workerFunctionPerformed: string | null,
-  uniqueTeacherSchedule: { name: string; quantity: number }[]
-) => {
-  const manualFunction = String(workerFunctionPerformed ?? "").trim();
-  const activities = (uniqueTeacherSchedule ?? [])
-    .filter((item) => item?.name?.trim())
-    .map((item) => item.name.trim());
-
-  const merged = [manualFunction, ...activities].filter(Boolean);
-  const seen = new Set();
-  const deduped = merged.filter((item) => {
-    const key = item.toUpperCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-
-  return deduped.join("\n\n");
-};
 
 interface WorkerSheetSemesterProps {
   workers: WorkerWithDetails[];

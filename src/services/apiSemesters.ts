@@ -84,7 +84,7 @@ export async function createSemester(newSemester: NewSemesterInput) {
     {
       semester: candidateCode,
       school_year: authoritativeSchoolYear,
-    } as SemesterInsert,
+    } satisfies SemesterInsert,
   ]);
 
   if (error) {

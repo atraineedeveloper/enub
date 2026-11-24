@@ -22,13 +22,9 @@ export async function createEditUtilies(
   if (!newUtily || typeof newUtily !== "object")
     throw new Error("Los datos del registro no son válidos");
 
-  let query = supabase.from("utilities");
-
-  // A) CREATE
-  if (!id) query = query.insert([newUtily as UtilityInsert]) as never;
-
-  // B) EDIT
-  if (id) query = query.update({ ...newUtily } as UtilityUpdate).eq("id", id) as never;
+  const query = id
+    ? supabase.from("utilities").update({ ...newUtily } as UtilityUpdate).eq("id", id)
+    : supabase.from("utilities").insert([newUtily as UtilityInsert]);
 
   const { data, error } = await query.select().single();
 

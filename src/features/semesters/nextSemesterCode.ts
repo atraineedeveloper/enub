@@ -25,7 +25,7 @@ export function parseSemesterCode(
   if (!match) return null;
 
   const rawYear = match[1];
-  const letter = match[2] as "A" | "B";
+  const letter = match[2] === "A" ? "A" : "B";
   const year = rawYear.length === 2 ? 2000 + Number(rawYear) : Number(rawYear);
 
   return { year, letter };

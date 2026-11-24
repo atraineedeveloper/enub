@@ -8,3 +8,7 @@
 - [ ] Review remaining form types, service boundaries, PDF visual regression and dead-code evidence; do not claim exhaustive cleanup.
 - [ ] Validate batch typecheck, lint, tests, build and inventory; inspect preview.
 - [ ] Keep phase 3 SQL work in PR #55 and privacy publication in PR #44 deferred; integrate only after approval.
+
+- [x] First batch verified: run 45318081464, 54 test files, no import cycles, 22818 application lines and 161 assertions; preview READY.
+- [x] Second batch: remove unsafe never assertions from three catalog mutations; use existing schedule identity type guard without assertions; extract and test worker-sheet text helpers; narrow semester code without assertions.
+- [ ] Validate second batch in CI and preview. Preserve identity gating, query keys, API projections and PDF formatting.
