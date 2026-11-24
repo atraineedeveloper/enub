@@ -142,7 +142,7 @@ function ScheduleGroupPDF({ schedules }: ScheduleGroupPDFProps) {
           pageHeight - 50
         );
         doc.text(
-          "Teléfono (934) 344 04 77, 344 04 88",
+          "Teléfono (934) 344 04 77",
           data.settings.margin.left,
           pageHeight - 40
         );
