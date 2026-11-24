@@ -1,34 +1,19 @@
+import type { CreateEditWorkerOptions } from "../../types/workerMutation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createEditWorkers } from "../../services/apiWorkers";
 import { toast } from "react-hot-toast";
 
-interface CreateWorkerOptions {
-  profilePictureFile?: File | null;
-  removeCurrentProfilePicture?: boolean;
-  currentProfilePicture?: string | null;
-  sustenancePlazas?: unknown[];
-  dateOfAdmissions?: unknown[];
-}
-
 interface CreateWorkerVariables {
   newWorker: Record<string, unknown>;
-  options?: CreateWorkerOptions;
+  options?: CreateEditWorkerOptions;
 }
-
-// Compatibility boundary for the current form payload. Narrow the form
-// relation types before removing this cast; apiWorkers is already TypeScript.
-const createOrEditWorker = createEditWorkers as (
-  newWorker: Record<string, unknown>,
-  id: number | undefined,
-  options?: CreateWorkerOptions
-) => Promise<unknown>;
 
 export function useCreateWorker() {
   const queryClient = useQueryClient();
 
   const { mutate: createWorker, isPending: isCreating } = useMutation({
     mutationFn: ({ newWorker, options }: CreateWorkerVariables) =>
-      createOrEditWorker(newWorker, undefined, options),
+      createEditWorkers(newWorker, undefined, options),
     onSuccess: () => {
       toast.success("El trabajador se creó con éxito");
       queryClient.invalidateQueries({ queryKey: ["workers"] });

@@ -12,3 +12,8 @@
 - [x] First batch verified: run 45318081464, 54 test files, no import cycles, 22818 application lines and 161 assertions; preview READY.
 - [x] Second batch: remove unsafe never assertions from three catalog mutations; use existing schedule identity type guard without assertions; extract and test worker-sheet text helpers; narrow semester code without assertions.
 - [ ] Validate second batch in CI and preview. Preserve identity gating, query keys, API projections and PDF formatting.
+
+- [x] Second batch CI passed (45318397341); 141 assertions; preview READY.
+- [x] Third batch: shared typed worker mutation options and form values; extract document transforms; consolidate lazy Montserrat registration; add report-only unreferenced-module candidates.
+- [ ] Verify third batch CI and review unused candidates before any deletion; preserve dynamic/entry-point modules.
+- [ ] Manual preview review of forms, documents and PDF appearance; no remote writes required.

@@ -68,4 +68,9 @@ console.log(JSON.stringify({
   largest: [...app].sort((a, b) => b.lines - a.lines).slice(0, 20),
   typeReview: [...app].sort((a, b) => b.any - a.any || b.assertions - a.assertions).slice(0, 20),
   cycles,
+  // Review candidates only: static relative imports omit JS consumers,
+  // dynamic imports, entry points and external callers. Never auto-delete.
+  noStaticIncomingReferences: app.filter((r) =>
+    ![...edges.values()].some((targets) => targets.includes(r.path))
+  ).map((r) => r.path),
 }, null, 2));

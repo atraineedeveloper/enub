@@ -1,3 +1,4 @@
+import { loadMontserratFonts } from "../loadMontserratFonts";
 import toast from "react-hot-toast";
 import { loadPdfImage } from "../loadPdfImage";
 import jsPDF from "jspdf";
@@ -85,10 +86,7 @@ function ScheduleTeacherPDF({
 
   const generatePDF = async () => {
     try {
-    await import("../../styles/Montserrat-Regular-normal.js");
-    await import("../../styles/Montserrat-Italic-italic.js");
-    await import("../../styles/Montserrat-Bold-bold.js");
-    await import("../../styles/Montserrat-BoldItalic-bolditalic.js");
+    await loadMontserratFonts();
 
     const doc = new jsPDF("p", "px", "letter");
 
