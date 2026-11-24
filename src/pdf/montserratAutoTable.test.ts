@@ -10,7 +10,7 @@ describe("Montserrat PDF styles", () => {
       "Montserrat-Bold": "bold",
       "Montserrat-Italic": "italic",
       "Montserrat-BoldItalic": "bolditalic",
-    })) {
+    } satisfies Record<string, NonNullable<Styles["fontStyle"]>>)) {
       const styles: Partial<Styles> = { font, fontStyle: "normal" };
       normalizeMontserratStyle(styles);
       expect(styles.fontStyle).toBe(fontStyle);
