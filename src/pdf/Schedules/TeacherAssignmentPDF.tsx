@@ -2,8 +2,7 @@ import { loadMontserratFonts } from "../loadMontserratFonts";
 import { groupScheduleAssignments } from "../../features/schedules/groupScheduleAssignments";
 import toast from "react-hot-toast";
 import { loadPdfImage } from "../loadPdfImage";
-import jsPDF from "jspdf";
-import { autoTable } from "../montserratAutoTable";
+import type jsPDF from "jspdf";
 import { useContext } from "react";
 import Button from "../../ui/Button";
 import { useRoles } from "../../features/roles/useRoles";
@@ -47,9 +46,13 @@ function TeacherAssignmentPDF({
 
   const generatePDF = async () => {
     try {
-    await loadMontserratFonts();
+    const [{ default: PdfDocument }, { autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("../montserratAutoTable"),
+      loadMontserratFonts(),
+    ]);
 
-    const doc = new jsPDF("p", "px", "letter") as JsPdfWithAutoTable;
+    const doc = new PdfDocument("p", "px", "letter") as JsPdfWithAutoTable;
 
     // Header
 

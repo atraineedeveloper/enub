@@ -1,8 +1,7 @@
 import { loadMontserratFonts } from "../loadMontserratFonts";
 import toast from "react-hot-toast";
 import { loadPdfImage } from "../loadPdfImage";
-import jsPDF from "jspdf";
-import { autoTable } from "../montserratAutoTable";
+
 import type { RowInput } from "jspdf-autotable";
 import { useContext } from "react";
 import Button from "../../ui/Button";
@@ -86,9 +85,13 @@ function ScheduleTeacherPDF({
 
   const generatePDF = async () => {
     try {
-    await loadMontserratFonts();
+    const [{ default: PdfDocument }, { autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("../montserratAutoTable"),
+      loadMontserratFonts(),
+    ]);
 
-    const doc = new jsPDF("p", "px", "letter");
+    const doc = new PdfDocument("p", "px", "letter");
 
     // Header
 

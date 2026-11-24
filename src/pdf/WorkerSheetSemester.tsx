@@ -3,8 +3,7 @@ import { transformDate, getFileExtension, normalizeMultilineText, buildFunctionP
 import { groupScheduleAssignments } from "../features/schedules/groupScheduleAssignments";
 import toast from "react-hot-toast";
 import { loadPdfImage } from "./loadPdfImage";
-import jsPDF from "jspdf";
-import { autoTable } from "./montserratAutoTable";
+import type jsPDF from "jspdf";
 import type { RowInput, Styles, CellHookData, PageHook } from "jspdf-autotable";
 import type { PageInfo } from "jspdf";
 import { useState } from "react";
@@ -102,9 +101,13 @@ function WorkerSheetSemester({
     if (isGeneratingPdf) return;
     setIsGeneratingPdf(true);
     try {
-      await loadMontserratFonts();
+      const [{ default: PdfDocument }, { autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("./montserratAutoTable"),
+      loadMontserratFonts(),
+    ]);
 
-      const doc = new jsPDF("landscape", "px", "letter") as JsPdfWithAutoTable;
+      const doc = new PdfDocument("landscape", "px", "letter") as JsPdfWithAutoTable;
       const logoEnub = await loadPdfImage("/enub.jpg");
 
       const logoSetab = await loadPdfImage("/setab.jpeg");
