@@ -22,3 +22,7 @@
 - [x] Read-only photo inventory: 0 missing referenced photos, 2 unreferenced objects, 0 unassigned relations. Do not delete without provenance review.
 - [x] Prepare SQL RPC relation checks and restrict legacy photo mutation policies to staff/admin; retain reads. Add seven pgTAP assertions and isolated CLI-generated migration workflow.
 - [ ] Verify hardening workflow and storage behavioral authorization; promote generated migration, validate sequence repair with imported-ID fixture.
+
+- [x] Hardening candidate CI 45657645937 passed all seven assertions; general CI 45657645763 passed 57 frontend files and SQL suite.
+- [x] Promote CLI-generated hardening migration to tracked path; move candidate test into standard suite. Add eight behavioral photo policy assertions and eight identity repair assertions using imported-ID fixtures and ahead allocator.
+- [ ] Confirm final CI including new behavioral and drift tests; check remote migration history, backup and explicit approval before deployment.
