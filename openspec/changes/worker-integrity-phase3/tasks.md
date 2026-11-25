@@ -26,3 +26,6 @@
 - [x] Hardening candidate CI 45657645937 passed all seven assertions; general CI 45657645763 passed 57 frontend files and SQL suite.
 - [x] Promote CLI-generated hardening migration to tracked path; move candidate test into standard suite. Add eight behavioral photo policy assertions and eight identity repair assertions using imported-ID fixtures and ahead allocator.
 - [ ] Confirm final CI including new behavioral and drift tests; check remote migration history, backup and explicit approval before deployment.
+
+- [x] CI 45658214975: frontend 57 files and identity repair fixture passed; direct SQL DELETE of Storage objects rejected by Storage engine, not a policy regression. Replace direct-delete success expectation with structural policy assertion and explicit engine denial test; actual DELETE via Storage API remains a deployment smoke test.
+- [x] Read remote migration history: latest 20261109232145 prevent_duplicate_school_groups is not in current repository migration inventory. Do not push or repair history blindly; reconcile this migration before rollout. No remote changes.

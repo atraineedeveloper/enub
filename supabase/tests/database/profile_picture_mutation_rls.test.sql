@@ -13,12 +13,13 @@ SET LOCAL role authenticated;
 SET LOCAL "request.jwt.claim.sub" = '54000000-0000-0000-0000-000000000002';
 SELECT throws_ok($q$INSERT INTO storage.objects(bucket_id,name) VALUES ('profile_pictures','qa-forbidden.jpg')$q$,'42501',NULL,'worker cannot upload profile photos');
 SELECT results_eq($q$WITH changed AS (UPDATE storage.objects SET name='qa-forbidden-update.jpg' WHERE bucket_id='profile_pictures' AND name='qa-existing-photo.jpg' RETURNING id) SELECT count(*) FROM changed$q$, ARRAY[0::bigint], 'worker cannot update photo');
-SELECT results_eq($q$WITH removed AS (DELETE FROM storage.objects WHERE bucket_id='profile_pictures' AND name='qa-existing-photo.jpg' RETURNING id) SELECT count(*) FROM removed$q$, ARRAY[0::bigint], 'worker cannot delete photo');
+-- The Storage engine rejects direct SQL DELETE even for authorized users.
+SELECT ok(EXISTS(SELECT 1 FROM pg_policies WHERE schemaname='storage' AND tablename='objects' AND cmd='DELETE' AND policyname='Staff admin delete worker photos' AND qual LIKE '%current_app_role%' AND qual LIKE '%staff%' AND qual LIKE '%admin%'),'photo delete policy is restricted by application role');
 SELECT is((SELECT count(*) FROM storage.objects WHERE bucket_id='profile_pictures' AND name='qa-existing-photo.jpg'),1::bigint,'existing authenticated read preserved');
 SET LOCAL "request.jwt.claim.sub" = '54000000-0000-0000-0000-000000000001';
 SELECT lives_ok($q$INSERT INTO storage.objects(bucket_id,name) VALUES ('profile_pictures','qa-staff-photo.jpg')$q$,'staff can upload photo');
 SELECT results_eq($q$WITH changed AS (UPDATE storage.objects SET name='qa-staff-updated.jpg' WHERE bucket_id='profile_pictures' AND name='qa-staff-photo.jpg' RETURNING id) SELECT count(*) FROM changed$q$, ARRAY[1::bigint], 'staff can update photo');
-SELECT results_eq($q$WITH removed AS (DELETE FROM storage.objects WHERE bucket_id='profile_pictures' AND name='qa-staff-updated.jpg' RETURNING id) SELECT count(*) FROM removed$q$, ARRAY[1::bigint], 'staff can delete photo');
+SELECT throws_ok($q$DELETE FROM storage.objects WHERE bucket_id='profile_pictures' AND name='qa-staff-updated.jpg'$q$,NULL,NULL,'direct SQL deletion remains blocked even for staff');
 RESET role;
 SELECT is((SELECT count(*) FROM storage.objects WHERE bucket_id='profile_pictures' AND name='qa-existing-photo.jpg'),1::bigint,'original photo survives denied changes');
 SELECT * FROM finish();
