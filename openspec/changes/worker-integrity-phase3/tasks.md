@@ -14,3 +14,6 @@
 - [x] Candidate CI 45656359969: generated both migration names via CLI, applied on isolated database; full pgTAP and lint passed. General CI 45656359694: 57 test files passed.
 - [x] Promote exact validated candidate SQL to tracked migration paths; add pgTAP to standard suite; connect frontend to atomic RPC and type contract.
 - [ ] Validate final integrated migrations/frontend, inspect all other identity allocators, verify backup and approve production separately. Preview must not be used to create workers against a DB without the RPC.
+
+- [x] Audit 18 public owned ID sequences against max IDs: three confirmed behind; subjects sequence requires explicit last_value/is_called check. Remaining 14 not behind in snapshot.
+- [x] Fix unused import reported by CI 45657004563; typecheck passed, lint initially failed. Re-run required.

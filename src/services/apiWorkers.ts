@@ -1,4 +1,4 @@
-import type { CreateEditWorkerOptions, SustenancePlazaInput, DateOfAdmissionInput } from "../types/workerMutation";
+import type { CreateEditWorkerOptions, SustenancePlazaInput } from "../types/workerMutation";
 import supabase from "./supabase";
 import type { Json } from "../types/supabase";
 import { createWorkerUpdateError } from "./workerUpdateErrors";
