@@ -2,7 +2,6 @@ import { describe, expect, mock, test } from "bun:test";
 import {
   createWorkerUpdateError,
   getSupabaseErrorDiagnostic,
-  WORKER_UPDATE_ERROR_MESSAGE,
 } from "./workerUpdateErrors";
 
 describe("worker update error reporting", () => {
@@ -17,18 +16,26 @@ describe("worker update error reporting", () => {
     expect(getSupabaseErrorDiagnostic(originalError)).toEqual(originalError);
   });
 
-  test("logs the original diagnostic but exposes only the safe user message", () => {
+  test("logs only the error code and exposes a safe permission message", () => {
     const logger = mock(() => undefined);
     const error = createWorkerUpdateError(originalError, logger);
 
     expect(logger).toHaveBeenCalledWith(
       "Supabase worker update failed",
-      originalError
+      { code: "42501" }
     );
-    expect(error.message).toBe(WORKER_UPDATE_ERROR_MESSAGE);
+    expect(error.message).toBe("No tienes permisos para actualizar este trabajador.");
     expect(error.message).not.toContain(originalError.details);
     expect(error.message).not.toContain(originalError.hint);
     expect(error.cause).toBe(originalError);
+  });
+
+  test("reports ambiguous transport outcome without claiming rollback", () => {
+    expect(createWorkerUpdateError({ code: "" }, mock(() => undefined)).message).toContain("No se pudo confirmar");
+  });
+
+  test("creation reports denied permissions without update wording", () => {
+    expect(createWorkerUpdateError({ code: "42501" }, mock(() => undefined), "create").message).toBe("No tienes permisos para crear trabajadores.");
   });
 
   test("normalizes absent optional diagnostic fields to null", () => {

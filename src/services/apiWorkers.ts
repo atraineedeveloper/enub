@@ -1,9 +1,8 @@
-import type { CreateEditWorkerOptions, SustenancePlazaInput, DateOfAdmissionInput } from "../types/workerMutation";
+import type { CreateEditWorkerOptions, SustenancePlazaInput } from "../types/workerMutation";
 import supabase from "./supabase";
-import type { Database, Json } from "../types/supabase";
+import type { Json } from "../types/supabase";
 import { createWorkerUpdateError } from "./workerUpdateErrors";
-
-type WorkerUpdate = Database["public"]["Tables"]["workers"]["Update"];
+import { validateWorkerRelations } from "./workerRelationValidation";
 
 const PROFILE_PICTURES_BUCKET = "profile_pictures";
 const ALLOWED_SUSTENANCE_TYPES = new Set(["Estatal", "Federal"]);
@@ -80,69 +79,6 @@ function validateSustenancePlazas(
     if (!ALLOWED_SUSTENANCE_TYPES.has(sustenancePlaza.sustenance)) {
       throw new Error("El sostenimiento debe ser Estatal o Federal");
     }
-  }
-}
-
-async function replaceWorkerDateOfAdmissions(
-  workerId: number,
-  dateOfAdmissions: DateOfAdmissionInput[] = []
-) {
-  const { error: deleteError } = await supabase
-    .from("date_of_admissions")
-    .delete()
-    .eq("worker_id", workerId);
-
-  if (deleteError) {
-    console.error(deleteError);
-    throw new Error("Las fechas de admisión no pudieron actualizarse");
-  }
-
-  if (!dateOfAdmissions.length) return;
-
-  const rowsToInsert = dateOfAdmissions.map((d) => ({
-    type: d.type || null,
-    date_of_admission: d.date_of_admission || null,
-    worker_id: workerId,
-  }));
-
-  const { error: insertError } = await supabase
-    .from("date_of_admissions")
-    .insert(rowsToInsert);
-
-  if (insertError) {
-    console.error(insertError);
-    throw new Error("Las fechas de admisión no pudieron actualizarse");
-  }
-}
-
-async function replaceWorkerSustenancePlazas(
-  workerId: number,
-  sustenancePlazas: { sustenance: string; payment_key: string; plaza: string }[] = []
-) {
-  const { error: deleteError } = await supabase
-    .from("sustenance_plazas")
-    .delete()
-    .eq("worker_id", workerId);
-
-  if (deleteError) {
-    console.error(deleteError);
-    throw new Error("Las plazas no pudieron actualizarse");
-  }
-
-  if (!sustenancePlazas.length) return;
-
-  const rowsToInsert = sustenancePlazas.map((plaza) => ({
-    ...plaza,
-    worker_id: workerId,
-  }));
-
-  const { error: insertError } = await supabase
-    .from("sustenance_plazas")
-    .insert(rowsToInsert);
-
-  if (insertError) {
-    console.error(insertError);
-    throw new Error("Las plazas no pudieron actualizarse");
   }
 }
 
@@ -328,6 +264,8 @@ export async function createEditWorkers(
     validateSustenancePlazas(normalizedSustenancePlazas);
   }
 
+  const normalizedAdmissions = validateWorkerRelations(sustenancePlazas, dateOfAdmissions);
+
   let uploadedProfilePicture: string | null = null;
   const workerToSave: Record<string, unknown> = { ...newWorker };
 
@@ -348,19 +286,23 @@ export async function createEditWorkers(
           p_date_of_admissions:
             dateOfAdmissions === undefined
               ? undefined
-              : (dateOfAdmissions as Json),
+              : (normalizedAdmissions as Json),
         })
         .single()
     : supabase
-        .from("workers")
-        .insert([workerToSave as WorkerUpdate])
-        .select()
+        .rpc("create_worker_with_relations", {
+          p_worker: workerToSave as Json,
+          p_sustenance_plazas: normalizedSustenancePlazas,
+          p_date_of_admissions: (normalizedAdmissions ?? []) as Json,
+        })
         .single();
 
   const { data, error } = await query;
 
   if (error) {
-    if (uploadedProfilePicture) {
+    // A transport failure may arrive after a successful database commit.
+    // Only remove the new file for a definite SQL rejection.
+    if (uploadedProfilePicture && /^[0-9A-Z]{5}$/.test(error.code ?? "") && !error.code.startsWith("08") && !error.code.startsWith("PGRST")) {
       try {
         await removeProfilePicture(uploadedProfilePicture);
       } catch (cleanupError) {
@@ -368,15 +310,7 @@ export async function createEditWorkers(
       }
     }
 
-    if (id) throw createWorkerUpdateError(error);
-
-    console.error(error);
-    throw new Error("El registro no pudo ser actualizado");
-  }
-
-  if (!id) {
-    await replaceWorkerSustenancePlazas(data.id, normalizedSustenancePlazas);
-    await replaceWorkerDateOfAdmissions(data.id, dateOfAdmissions ?? []);
+    throw createWorkerUpdateError(error, console.error, id ? "update" : "create");
   }
 
   const shouldDeleteCurrentProfilePicture =

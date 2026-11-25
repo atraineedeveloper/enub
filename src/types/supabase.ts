@@ -782,6 +782,38 @@ export type Database = {
         Returns: string
       }
       unlink_worker_account: { Args: { worker_id: number }; Returns: undefined }
+      create_worker_with_relations: {
+        Args: {
+          p_date_of_admissions?: Json
+          p_sustenance_plazas?: Json
+          p_worker: Json
+        }
+        Returns: {
+          city: string | null
+          created_at: string
+          email: string | null
+          function_performed: string | null
+          id: number
+          name: string | null
+          neighborhood: string | null
+          observations: string | null
+          phone: string | null
+          post_code: string | null
+          profile_picture: string | null
+          RFC: string | null
+          specialty: string | null
+          state: string | null
+          status: number | null
+          street: string | null
+          type_worker: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "workers"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       update_worker_with_relations: {
         Args: {
           p_date_of_admissions?: Json
