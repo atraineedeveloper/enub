@@ -1,3 +1,4 @@
+SET LOCAL lock_timeout = '5s';
 -- Candidate for a CLI-generated standalone migration. Execute only after review.
 -- Locks prevent ordinary concurrent inserts while computing restart targets.
 LOCK TABLE public.workers, public.sustenance_plazas, public.date_of_admissions, public.subjects IN ACCESS EXCLUSIVE MODE;

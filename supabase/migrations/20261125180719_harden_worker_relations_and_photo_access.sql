@@ -1,3 +1,4 @@
+SET LOCAL lock_timeout = '5s';
 -- Atomic administrative worker editing. NULL relation arguments preserve the
 -- current rows, [] clears them, and a non-empty array replaces them.
 CREATE OR REPLACE FUNCTION "public"."update_worker_with_relations"(

@@ -1,3 +1,4 @@
+SET LOCAL lock_timeout = '5s';
 -- Candidate for separate CLI-generated migration; not active until validated.
 CREATE POLICY "Staff and admin can insert workers"
 ON public.workers FOR INSERT TO authenticated
