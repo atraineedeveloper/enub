@@ -1,0 +1,94 @@
+name: ENUB encrypted backup
+on:
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: Backup scope
+        type: choice
+        options: [database, full]
+        default: database
+  schedule:
+    - cron: '0 8 * * *'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: enub-production-backup
+  cancel-in-progress: false
+jobs:
+  backup:
+    if: github.ref == 'refs/heads/main' && vars.ENUB_BACKUP_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DB_URL: ${{ secrets.ENUB_BACKUP_DB_URL }}
+      RECIPIENT: ${{ vars.ENUB_BACKUP_AGE_RECIPIENT }}
+      BACKUP_SUPABASE_URL: ${{ vars.ENUB_BACKUP_SUPABASE_URL }}
+      BACKUP_SUPABASE_SERVICE_KEY: ${{ secrets.ENUB_BACKUP_STORAGE_KEY }}
+      KIND: ${{ inputs.kind || 'database' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v2
+        with:
+          version: 2.113.0
+          github-token: ${{ github.token }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.5'
+      - name: Install encryption tool
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq age
+      - name: Validate settings and determine scope
+        run: |
+          set -euo pipefail
+          test -n "$DB_URL"
+          [[ "$RECIPIENT" =~ ^age1[0-9a-z]+$ ]]
+          if [[ "$GITHUB_EVENT_NAME" == schedule && "$(date -u +%u)" == 7 ]]; then KIND=full; fi
+          if [[ "$KIND" == full ]]; then
+            test -n "$BACKUP_SUPABASE_URL"
+            test -n "$BACKUP_SUPABASE_SERVICE_KEY"
+          fi
+          echo "KIND=$KIND" >> "$GITHUB_ENV"
+      - name: Export database (read-only)
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$RUNNER_TEMP/enub-plain/db" "$RUNNER_TEMP/enub-encrypted"
+          cd "$RUNNER_TEMP/enub-plain/db"
+          supabase db dump --help > /dev/null
+          supabase db dump --db-url "$DB_URL" -f roles.sql --role-only
+          supabase db dump --db-url "$DB_URL" -f schema.sql
+          supabase db dump --db-url "$DB_URL" -f data.sql --use-copy --data-only -x storage.buckets_vectors -x storage.vector_indexes
+          supabase db dump --db-url "$DB_URL" -f history_data.sql --use-copy --data-only --schema supabase_migrations
+          for f in roles.sql schema.sql data.sql history_data.sql; do test -s "$f"; done
+      - name: Install pinned repository dependencies for Storage
+        if: env.KIND == 'full'
+        run: bun install --frozen-lockfile
+      - name: Export Storage files
+        if: env.KIND == 'full'
+        run: node scripts/backup/storage.mjs "$RUNNER_TEMP/enub-plain/storage"
+      - name: Encrypt archive and remove plaintext
+        run: |
+          set -euo pipefail
+          bash scripts/backup/package.sh "$RUNNER_TEMP/enub-plain" "$RUNNER_TEMP/enub-encrypted/backup.tar.gz.age" "$RECIPIENT"
+          rm -rf "$RUNNER_TEMP/enub-plain"
+          cd "$RUNNER_TEMP/enub-encrypted"
+          sha256sum backup.tar.gz.age > backup.tar.gz.age.sha256
+      - name: Enforce repository backup artifact budget
+        run: |
+          set -euo pipefail
+          used=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.expired == false and (.name | startswith("enub-backup-"))) | .size_in_bytes' | awk '{s+=$1} END {printf "%.0f",s}')
+          new=$(stat -c %s "$RUNNER_TEMP/enub-encrypted/backup.tar.gz.age")
+          echo "Existing encrypted backups: $used bytes; new encrypted archive: $new bytes"
+          (( used + new + 1048576 <= 350000000 )) || { echo "Backup budget exceeded; download older backups before removing them."; exit 1; }
+      - name: Upload encrypted backup only
+        uses: actions/upload-artifact@v4
+        with:
+          name: enub-backup-${{ env.KIND }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/enub-encrypted/
+          retention-days: ${{ env.KIND == 'full' && 21 || 14 }}
+          compression-level: 0
+          if-no-files-found: error
+      - name: Remove temporary files
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/enub-plain" "$RUNNER_TEMP/enub-encrypted"
