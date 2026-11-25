@@ -17,3 +17,8 @@
 
 - [x] Audit 18 public owned ID sequences against max IDs: three confirmed behind; subjects sequence requires explicit last_value/is_called check. Remaining 14 not behind in snapshot.
 - [x] Fix unused import reported by CI 45657004563; typecheck passed, lint initially failed. Re-run required.
+
+- [x] Confirm fourth drift: subjects sequence 1/not called vs max 147; extend unapplied repair migration to all four tables.
+- [x] Read-only photo inventory: 0 missing referenced photos, 2 unreferenced objects, 0 unassigned relations. Do not delete without provenance review.
+- [x] Prepare SQL RPC relation checks and restrict legacy photo mutation policies to staff/admin; retain reads. Add seven pgTAP assertions and isolated CLI-generated migration workflow.
+- [ ] Verify hardening workflow and storage behavioral authorization; promote generated migration, validate sequence repair with imported-ID fixture.
