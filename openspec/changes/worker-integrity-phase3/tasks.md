@@ -10,3 +10,7 @@
 
 - [x] Frontend and existing database CI passed in 45655806592.
 - [x] Added isolated candidate workflow: CLI-generated migrations, local database lint and pgTAP atomic creation/rollback/authorization assertions. Candidate results pending.
+
+- [x] Candidate CI 45656359969: generated both migration names via CLI, applied on isolated database; full pgTAP and lint passed. General CI 45656359694: 57 test files passed.
+- [x] Promote exact validated candidate SQL to tracked migration paths; add pgTAP to standard suite; connect frontend to atomic RPC and type contract.
+- [ ] Validate final integrated migrations/frontend, inspect all other identity allocators, verify backup and approve production separately. Preview must not be used to create workers against a DB without the RPC.

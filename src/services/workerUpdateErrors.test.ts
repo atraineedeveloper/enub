@@ -34,6 +34,10 @@ describe("worker update error reporting", () => {
     expect(createWorkerUpdateError({ code: "" }, mock(() => undefined)).message).toContain("No se pudo confirmar");
   });
 
+  test("creation reports denied permissions without update wording", () => {
+    expect(createWorkerUpdateError({ code: "42501" }, mock(() => undefined), "create").message).toBe("No tienes permisos para crear trabajadores.");
+  });
+
   test("normalizes absent optional diagnostic fields to null", () => {
     expect(
       getSupabaseErrorDiagnostic({ message: "network request failed" })
