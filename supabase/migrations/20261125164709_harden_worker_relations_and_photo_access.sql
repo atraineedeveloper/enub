@@ -138,3 +138,11 @@ USING (bucket_id = 'profile_pictures' AND (SELECT public.current_app_role()) IN 
 WITH CHECK (bucket_id = 'profile_pictures' AND (SELECT public.current_app_role()) IN ('staff','admin'));
 CREATE POLICY "Staff admin delete worker photos" ON storage.objects FOR DELETE TO authenticated
 USING (bucket_id = 'profile_pictures' AND (SELECT public.current_app_role()) IN ('staff','admin'));
+
+-- Match the existing production authenticated-read behavior explicitly, because
+-- the local baseline omits the historical profile-picture SELECT policies.
+-- This does not change public bucket visibility or grant anonymous listing.
+DROP POLICY IF EXISTS "Allow delete pictures 1pmf6kr_1" ON storage.objects;
+DROP POLICY IF EXISTS "Allow update pictures 1pmf6kr_1" ON storage.objects;
+CREATE POLICY "Authenticated read worker photos" ON storage.objects FOR SELECT TO authenticated
+USING (bucket_id = 'profile_pictures');

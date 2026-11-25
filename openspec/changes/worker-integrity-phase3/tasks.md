@@ -29,3 +29,7 @@
 
 - [x] CI 45658214975: frontend 57 files and identity repair fixture passed; direct SQL DELETE of Storage objects rejected by Storage engine, not a policy regression. Replace direct-delete success expectation with structural policy assertion and explicit engine denial test; actual DELETE via Storage API remains a deployment smoke test.
 - [x] Read remote migration history: latest 20261109232145 prevent_duplicate_school_groups is not in current repository migration inventory. Do not push or repair history blindly; reconcile this migration before rollout. No remote changes.
+
+- [x] CI 45658935372: 57 frontend files and sequence fixture pass; photo SELECT and staff UPDATE fail in local database. Local baseline lacks legacy SELECT policies present in production. Explicitly recreate existing authenticated-read behavior in pending migration, without changing public bucket setting.
+- [x] Restore exact historical 20261109232145 migration from remote history to repository; do not reapply remotely.
+- [ ] Verify new full CI; Storage API deletion smoke test and backup approval remain required.
