@@ -2,6 +2,7 @@ import type { CreateEditWorkerOptions, SustenancePlazaInput, DateOfAdmissionInpu
 import supabase from "./supabase";
 import type { Database, Json } from "../types/supabase";
 import { createWorkerUpdateError } from "./workerUpdateErrors";
+import { validateWorkerRelations } from "./workerRelationValidation";
 
 type WorkerUpdate = Database["public"]["Tables"]["workers"]["Update"];
 
@@ -328,6 +329,8 @@ export async function createEditWorkers(
     validateSustenancePlazas(normalizedSustenancePlazas);
   }
 
+  const normalizedAdmissions = validateWorkerRelations(sustenancePlazas, dateOfAdmissions);
+
   let uploadedProfilePicture: string | null = null;
   const workerToSave: Record<string, unknown> = { ...newWorker };
 
@@ -348,7 +351,7 @@ export async function createEditWorkers(
           p_date_of_admissions:
             dateOfAdmissions === undefined
               ? undefined
-              : (dateOfAdmissions as Json),
+              : (normalizedAdmissions as Json),
         })
         .single()
     : supabase
@@ -360,7 +363,9 @@ export async function createEditWorkers(
   const { data, error } = await query;
 
   if (error) {
-    if (uploadedProfilePicture) {
+    // A transport failure may arrive after a successful database commit.
+    // Only remove the new file for a definite SQL rejection.
+    if (uploadedProfilePicture && /^[0-9A-Z]{5}$/.test(error.code ?? "") && !error.code.startsWith("08") && !error.code.startsWith("PGRST")) {
       try {
         await removeProfilePicture(uploadedProfilePicture);
       } catch (cleanupError) {
@@ -376,7 +381,7 @@ export async function createEditWorkers(
 
   if (!id) {
     await replaceWorkerSustenancePlazas(data.id, normalizedSustenancePlazas);
-    await replaceWorkerDateOfAdmissions(data.id, dateOfAdmissions ?? []);
+    await replaceWorkerDateOfAdmissions(data.id, normalizedAdmissions ?? []);
   }
 
   const shouldDeleteCurrentProfilePicture =

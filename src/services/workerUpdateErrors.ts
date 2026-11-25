@@ -23,6 +23,15 @@ export function createWorkerUpdateError(
   error: SupabaseErrorDetails,
   log: DiagnosticLogger = console.error
 ) {
-  log("Supabase worker update failed", getSupabaseErrorDiagnostic(error));
-  return new Error(WORKER_UPDATE_ERROR_MESSAGE, { cause: error });
+  // Avoid logging database details which can contain worker data.
+  log("Supabase worker update failed", { code: error?.code ?? null });
+  let message = WORKER_UPDATE_ERROR_MESSAGE;
+  if (error?.code === "23505") {
+    message = "Conflicto de identificadores o datos duplicados. Contacta al administrador; la actualización fue rechazada.";
+  } else if (error?.code === "42501" || error?.code === "WUP01") {
+    message = "No tienes permisos para actualizar este trabajador.";
+  } else if (!error?.code || error.code.startsWith("08") || error.code.startsWith("PGRST")) {
+    message = "No se pudo confirmar el resultado. Verifica el expediente antes de volver a guardar.";
+  }
+  return new Error(message, { cause: error });
 }
