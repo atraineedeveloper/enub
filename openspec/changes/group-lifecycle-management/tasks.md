@@ -41,3 +41,9 @@ Detailed implementation contract: database-and-schedules.md. Institutional limit
 - CI run 45886977157 at c29e703: typecheck, lint, frontend test, build, architecture inventory and performance audit succeeded. Dependency audit job completed (report-only, not proof of no vulnerabilities). Existing DB job was still running at initial inspection.
 - Added 16 candidate pgTAP assertions and branch-only CI step applying both SQL candidates in a single transaction to localhost PostgreSQL, linting and running candidate tests. No candidate results yet. Need additional referenced-group, worker, direct bypass, audit rollback and two-session concurrency tests; reconcile existing seed (privileged insert without auth actor), legacy grants tests and generated types before promoting migration.
 - Candidate CI does not replace definitive migration and full regression. Tasks remain unchecked pending integrated verification. No production writes.
+
+## Concurrency QA checkpoint
+- Run 45887185604 passed all jobs; job 140140701307 explicitly reported 16/16 candidate pgTAP tests passed and SQL lint without blocking errors (three pre-existing warnings).
+- Expanded candidate suite to 28 assertions at 102a15e1; run 45887460463 frontend succeeded, database candidate step not yet complete at inspection.
+- Added concurrency-candidate.sh and wired it into disposable local CI: two actual psql sessions, observed blocking via pg_blocking_pids, release first transaction, assert expected GRP03/GRP02/GRP01 and final row states. Results pending; not yet verified. No production writes.
+- Remaining release gates: reconcile seed and legacy permission tests, generate migration via CLI, rerun full suite, verify generated types, backup coverage and isolated restore, manual UI/PDF regression. Formal checklist remains 3/11.
