@@ -85,7 +85,7 @@ function ScheduleDashboard() {
         g.year_of_admission,
         currentSemester?.semester
       );
-      return grade >= 1 && grade <= 8;
+      return (grade >= 1 && grade <= 8) || (scheduleAssignments ?? []).some(a => a.group_id === g.id);
     })
     .sort((a, b) => {
       const gradeA = calculateSemesterGroupForSemester(
@@ -102,7 +102,7 @@ function ScheduleDashboard() {
         (a.letter ?? "").localeCompare(b.letter ?? "", "es") ||
         a.id - b.id
       );
-    }), [groups, currentSemester?.semester]);
+    }), [groups, currentSemester?.semester, scheduleAssignments]);
   const sortedCurrentWorkers = useMemo(() => sortWorkersBySurname((workers ?? []).filter((w) => w.status === 1)), [workers]);
 
   if (!isValidSemesterId) {
