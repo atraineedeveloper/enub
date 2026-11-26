@@ -20,3 +20,8 @@ Detailed implementation contract: database-and-schedules.md. Institutional limit
 - Schema candidate committed: `schema-candidate.sql` (additive columns, preflight, constraints, private audit table and supporting indexes).
 - Production index inspection confirmed no index beginning with schedule_assignments.group_id.
 - Local session has no Supabase CLI, Docker or psql; candidate is not yet a CLI-generated migration or executed SQL. Keep task 4 unchecked until migration generated and tested in isolated CI. Do not deploy candidate separately from lifecycle guards.
+
+## Lifecycle implementation checkpoint
+- `lifecycle-candidate.sql` committed: private privileged helper, invoker RPC wrappers, creation normalization/audit, version checks, role checks, historical dependency protection, schedule lock guard and bounded admin audit read.
+- Production grant inspection confirms authenticated table-level SELECT/INSERT only; service_role has broader grants. Candidate narrows authenticated insert to identity columns. Review service-role/direct maintenance paths and existing SQL fixture compatibility before release: creation audit currently requires an authenticated staff/admin actor, and privileged maintenance UPDATE/DELETE is not audited by the RPC implementation. Verify effective privileges, API schema exposure, isolation, backup coverage of private schema, and concurrent transactions. Do not claim all mutation paths covered until verified and hardened as needed.
+- Tasks 4 and 5 remain unchecked pending CLI migration generation and isolated validation. No production execution.
