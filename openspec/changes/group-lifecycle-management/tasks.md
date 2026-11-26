@@ -36,3 +36,8 @@ Detailed implementation contract: database-and-schedules.md. Institutional limit
 - Added GroupActionForm and GroupAudit, role-gated row actions and audit entry point, administrative/academic filters, protected form version snapshot, audit cache invalidation and user-scoped audit pagination.
 - Schedule selectors reject archived targets for new assignments, historical referenced groups remain visible, empty-slot creation hidden for archived groups; SQL error GRP03 mapped to Spanish.
 - CI for commit 1561ba7 was pending on inspection (run 45886598633). No successful integrated CI, browser accessibility checks, or PDF regression tests confirmed. Keep UI task unchecked until validated. No migration or production writes.
+
+## QA checkpoint
+- CI run 45886977157 at c29e703: typecheck, lint, frontend test, build, architecture inventory and performance audit succeeded. Dependency audit job completed (report-only, not proof of no vulnerabilities). Existing DB job was still running at initial inspection.
+- Added 16 candidate pgTAP assertions and branch-only CI step applying both SQL candidates in a single transaction to localhost PostgreSQL, linting and running candidate tests. No candidate results yet. Need additional referenced-group, worker, direct bypass, audit rollback and two-session concurrency tests; reconcile existing seed (privileged insert without auth actor), legacy grants tests and generated types before promoting migration.
+- Candidate CI does not replace definitive migration and full regression. Tasks remain unchecked pending integrated verification. No production writes.
