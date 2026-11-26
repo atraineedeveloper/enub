@@ -112,3 +112,4 @@ jobs:
           # Run candidate-specific tests only; legacy grant expectations and seed
           # behavior must be reconciled before promoting the migration.
           supabase test db supabase/tests/database/group-lifecycle-candidate.test.sql --local
+          bash "$candidate/concurrency-candidate.sh"
