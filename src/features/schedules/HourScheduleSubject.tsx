@@ -37,6 +37,7 @@ interface HourScheduleSubjectProps {
   semesterId?: string;
   groupId: string;
   groupLabel: string;
+  archived?: boolean;
 }
 
 function HourScheduleSubject({
@@ -46,6 +47,7 @@ function HourScheduleSubject({
   semesterId,
   groupId,
   groupLabel,
+  archived = false,
 }: HourScheduleSubjectProps) {
   const { isDeleting, deleteScheduleAssignment } =
     useDeleteScheduleAssignment();
@@ -101,6 +103,8 @@ function HourScheduleSubject({
       </ScheduleEntryContent>
     );
   }
+
+  if (archived) return null;
 
   const blockLabel = getBlockByStartTime(startTime)?.label ?? startTime;
   const addLabel = groupLabel
