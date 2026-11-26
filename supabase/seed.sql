@@ -143,15 +143,17 @@ SET
     "study_program_id" = EXCLUDED."study_program_id",
     "degree_id" = EXCLUDED."degree_id";
 
-INSERT INTO "public"."groups" ("id", "year_of_admission", "letter", "degree_id")
-VALUES
-    (1, 2026, 'A', 1),
-    (2, 2026, 'B', 2)
-ON CONFLICT ("id") DO UPDATE
-SET
-    "year_of_admission" = EXCLUDED."year_of_admission",
-    "letter" = EXCLUDED."letter",
-    "degree_id" = EXCLUDED."degree_id";
+-- Local fixture creates groups through the same authenticated path as ENUB.
+-- Do not spoof an actor in production; this UUID is the local seeded admin.
+BEGIN;
+SET LOCAL ROLE authenticated;
+SET LOCAL "request.jwt.claim.sub" = '11111111-1111-1111-1111-111111111111';
+INSERT INTO public.groups(year_of_admission,letter,degree_id)
+SELECT v.admission_year,v.letter,v.degree_id
+FROM (VALUES (2026,'A',1),(2026,'B',2)) v(admission_year,letter,degree_id)
+WHERE NOT EXISTS (SELECT 1 FROM public.groups g WHERE g.year_of_admission=v.admission_year AND g.letter=v.letter AND g.degree_id=v.degree_id)
+ORDER BY v.letter;
+COMMIT;
 
 INSERT INTO "public"."workers" (
     "id",
