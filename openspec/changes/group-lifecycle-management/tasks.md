@@ -31,3 +31,8 @@ Detailed implementation contract: database-and-schedules.md. Institutional limit
 - Explicit identity allowlist, normalized letter, safe positive integer checks, version and reason validation, safe Spanish errors and RPC bindings.
 - Types remain provisional until isolated migration and regeneration; existing typed group fixtures may need updates. Verify scalar composite RPC return shape, PostgREST behavior and full TypeScript CI; no test run claimed yet. Keep task 6 unchecked until validated.
 - No production changes. Next: inspect CI, repair compile issues if present, then implement role-aware UI and historical schedule filtering.
+
+## UI and schedule checkpoint
+- Added GroupActionForm and GroupAudit, role-gated row actions and audit entry point, administrative/academic filters, protected form version snapshot, audit cache invalidation and user-scoped audit pagination.
+- Schedule selectors reject archived targets for new assignments, historical referenced groups remain visible, empty-slot creation hidden for archived groups; SQL error GRP03 mapped to Spanish.
+- CI for commit 1561ba7 was pending on inspection (run 45886598633). No successful integrated CI, browser accessibility checks, or PDF regression tests confirmed. Keep UI task unchecked until validated. No migration or production writes.
