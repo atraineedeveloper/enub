@@ -47,3 +47,8 @@ Detailed implementation contract: database-and-schedules.md. Institutional limit
 - Expanded candidate suite to 28 assertions at 102a15e1; run 45887460463 frontend succeeded, database candidate step not yet complete at inspection.
 - Added concurrency-candidate.sh and wired it into disposable local CI: two actual psql sessions, observed blocking via pg_blocking_pids, release first transaction, assert expected GRP03/GRP02/GRP01 and final row states. Results pending; not yet verified. No production writes.
 - Remaining release gates: reconcile seed and legacy permission tests, generate migration via CLI, rerun full suite, verify generated types, backup coverage and isolated restore, manual UI/PDF regression. Formal checklist remains 3/11.
+
+## Migration promotion checkpoint
+- Run 45887600753 verified all CI jobs, 28/28 candidate pgTAP assertions and 3/3 observed two-session races (job 140142107347). Candidate SQL lint succeeded.
+- Local seed now preserves group IDs 1 and 2 with the seeded admin claim for the audit trigger; legacy catalog test recognizes column-level INSERT grants after migration. Both changes pending integrated validation.
+- CI now generates an actual timestamped SQL candidate using pinned Supabase CLI migration new, concatenates validated SQL, computes SHA-256 and uploads it as a seven-day artifact. Generation and subsequent commit/reset verification remain pending. No production application or restore performed. Formal checklist remains 3/11 until final migration and generated contracts validated.
