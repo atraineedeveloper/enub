@@ -97,3 +97,18 @@ jobs:
 
       - name: Run pgTAP database tests
         run: supabase test db --local
+
+      # Candidate validation only, on the disposable runner database.
+      - name: Validate group lifecycle candidate
+        if: github.event_name == 'pull_request' && github.head_ref == 'feat/group-lifecycle-management'
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          candidate=openspec/changes/group-lifecycle-management
+          psql -X -h 127.0.0.1 -p 54322 -U postgres -d postgres -v ON_ERROR_STOP=1 --single-transaction -f "$candidate/schema-candidate.sql" -f "$candidate/lifecycle-candidate.sql"
+          supabase db lint --local --schema public,group_admin_private --fail-on error
+          cp "$candidate/lifecycle-candidate.test.sql" supabase/tests/database/group-lifecycle-candidate.test.sql
+          # Run candidate-specific tests only; legacy grant expectations and seed
+          # behavior must be reconciled before promoting the migration.
+          supabase test db supabase/tests/database/group-lifecycle-candidate.test.sql --local
