@@ -19,6 +19,7 @@ export default function GroupActionForm({ group, action, onCloseModal }: { group
   const [year, setYear] = useState(String(group.year_of_admission ?? ""));
   const [letter, setLetter] = useState(group.letter ?? "");
   const [degree, setDegree] = useState(String(group.degree_id ?? ""));
+  const [initialVersion] = useState(group.version);
   const [reason, setReason] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -26,14 +27,14 @@ export default function GroupActionForm({ group, action, onCloseModal }: { group
   const mutation = useMutation({
     retry: false,
     mutationFn: async () => {
-      const target = { id: group.id, version: group.version };
+      const target = { id: group.id, version: initialVersion };
       if (action === "edit") return updateGroup(target, { year_of_admission: year, letter, degree_id: degree });
       if (action === "archive") return archiveGroup(target, reason);
       if (action === "restore") return restoreGroup(target, reason);
       return deleteGroup(target, reason);
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["groups"] });
+      await Promise.all([queryClient.invalidateQueries({ queryKey: ["groups"] }), queryClient.invalidateQueries({ queryKey: ["group-audit"] })]);
       toast.success("Operación realizada correctamente.");
       onCloseModal?.();
     },
