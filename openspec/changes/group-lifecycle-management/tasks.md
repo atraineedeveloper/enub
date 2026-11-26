@@ -25,3 +25,9 @@ Detailed implementation contract: database-and-schedules.md. Institutional limit
 - `lifecycle-candidate.sql` committed: private privileged helper, invoker RPC wrappers, creation normalization/audit, version checks, role checks, historical dependency protection, schedule lock guard and bounded admin audit read.
 - Production grant inspection confirms authenticated table-level SELECT/INSERT only; service_role has broader grants. Candidate narrows authenticated insert to identity columns. Review service-role/direct maintenance paths and existing SQL fixture compatibility before release: creation audit currently requires an authenticated staff/admin actor, and privileged maintenance UPDATE/DELETE is not audited by the RPC implementation. Verify effective privileges, API schema exposure, isolation, backup coverage of private schema, and concurrent transactions. Do not claim all mutation paths covered until verified and hardened as needed.
 - Tasks 4 and 5 remain unchecked pending CLI migration generation and isolated validation. No production execution.
+
+## TypeScript checkpoint
+- Added groupValidation.ts, groupErrors.ts, groupValidation.test.ts; updated apiGroups.ts and provisional generated-contract types in src/types/supabase.ts.
+- Explicit identity allowlist, normalized letter, safe positive integer checks, version and reason validation, safe Spanish errors and RPC bindings.
+- Types remain provisional until isolated migration and regeneration; existing typed group fixtures may need updates. Verify scalar composite RPC return shape, PostgREST behavior and full TypeScript CI; no test run claimed yet. Keep task 6 unchecked until validated.
+- No production changes. Next: inspect CI, repair compile issues if present, then implement role-aware UI and historical schedule filtering.
