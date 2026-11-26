@@ -10,6 +10,7 @@ interface RowScholarScheduleProps {
   semesterId?: string;
   groupId: string;
   groupLabel: string;
+  archived?: boolean;
 }
 
 function RowScholarSchedule({
@@ -17,6 +18,7 @@ function RowScholarSchedule({
   semesterId,
   groupId,
   groupLabel,
+  archived = false,
 }: RowScholarScheduleProps) {
   return (
     <>
@@ -37,6 +39,7 @@ function RowScholarSchedule({
               semesterId={semesterId}
               groupId={groupId}
               groupLabel={groupLabel}
+              archived={archived}
             />
           )
         }
@@ -54,6 +57,7 @@ function RowScholarSchedule({
             semesterId={semesterId}
             groupId={groupId}
             groupLabel={groupLabel}
+              archived={archived}
           />
         )}
       />
@@ -68,6 +72,7 @@ function RowScholarSchedule({
             semesterId={semesterId}
             groupId={groupId}
             groupLabel={groupLabel}
+              archived={archived}
           />
         )}
       />
@@ -84,6 +89,7 @@ function RowScholarSchedule({
             semesterId={semesterId}
             groupId={groupId}
             groupLabel={groupLabel}
+              archived={archived}
           />
         )}
       />

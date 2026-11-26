@@ -139,6 +139,11 @@ function CreateEditScholarSchedule({
       return;
     }
 
+    const targetGroup = groups.find(group => group.id === Number(data.group_id));
+    if (!targetGroup || (targetGroup.archived_at && !(isEditSession && Number(editValues.group_id) === targetGroup.id && Number(editValues.semester_id) === resolvedSemesterId))) {
+      toast.error("No se permiten nuevas asignaciones a grupos archivados o inexistentes.");
+      return;
+    }
     data.semester_id = resolvedSemesterId;
 
     const block = getBlockByStartTime(data.start_time as string);
@@ -229,7 +234,7 @@ function CreateEditScholarSchedule({
           })}
         >
           <option value="">Seleccione...</option>
-          {groups.map((group) => (
+          {groups.filter(group => !group.archived_at || (isEditSession && group.id === Number(editValues.group_id))).map((group) => (
             <option key={group.id} value={group.id}>
               {calculateSemesterGroupForSemester(group.year_of_admission, semesterCode)}°{" "}
               &quot;{group.letter}&quot; - {group.degrees!.code}

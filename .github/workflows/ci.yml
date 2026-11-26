@@ -93,7 +93,26 @@ jobs:
           [[ "${server_version}" == 17.* ]]
 
       - name: Lint application database schemas
-        run: supabase db lint --local --schema public,private --fail-on error
+        run: supabase db lint --local --schema public,private,group_admin_private --fail-on error
 
       - name: Run pgTAP database tests
         run: supabase test db --local
+
+      - name: Verify promoted migration integrity
+        run: |
+          echo "ddde6e3498237cfc792f6147a0a0fa668eb6114526064d7b8c412d28f1b260f6  supabase/migrations/20261126201604_group_lifecycle_management.sql" | sha256sum -c -
+      - name: Run group lifecycle concurrent transactions
+        run: bash openspec/changes/group-lifecycle-management/concurrency-candidate.sh
+      - name: Rehearse synthetic audit backup and restore
+        run: bash openspec/changes/group-lifecycle-management/restore-rehearsal.sh
+      - name: Generate local schema types for review
+        run: |
+          mkdir -p /tmp/group-schema-output
+          supabase gen types typescript --local --schema public,graphql_public > /tmp/group-schema-output/supabase.ts
+      - name: Publish generated schema types
+        uses: actions/upload-artifact@v4
+        with:
+          name: group-lifecycle-schema-types
+          path: /tmp/group-schema-output/supabase.ts
+          retention-days: 7
+          if-no-files-found: error

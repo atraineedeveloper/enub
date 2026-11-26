@@ -73,7 +73,7 @@ function ShowScholarSchedule({
         {groups.map((group) => (
           <option key={group.id} value={group.id}>
             {calculateSemesterGroupForSemester(group.year_of_admission, semesterCode)}°{" "}
-            &quot;{group.letter}&quot; - {group.degrees!.code}
+            &quot;{group.letter}&quot; - {group.degrees!.code}{group.archived_at ? " (Archivado)" : ""}
           </option>
         ))}
       </Select>
@@ -105,6 +105,7 @@ function ShowScholarSchedule({
               semesterId={semesterId}
               groupId={selectedGroupId}
               groupLabel={selectedGroupLabel}
+              archived={!!selectedGroup?.archived_at}
             />
           )}
         </tbody>

@@ -52,7 +52,7 @@ SELECT ok(
 
 SELECT ok(
   has_table_privilege('authenticated', 'public.groups', 'SELECT')
-  AND has_table_privilege('authenticated', 'public.groups', 'INSERT')
+  AND (CASE WHEN to_regnamespace('group_admin_private') IS NULL THEN has_table_privilege('authenticated', 'public.groups', 'INSERT') ELSE NOT has_table_privilege('authenticated', 'public.groups', 'INSERT') AND has_column_privilege('authenticated', 'public.groups', 'year_of_admission', 'INSERT') AND has_column_privilege('authenticated', 'public.groups', 'letter', 'INSERT') AND has_column_privilege('authenticated', 'public.groups', 'degree_id', 'INSERT') AND NOT has_column_privilege('authenticated', 'public.groups', 'id', 'INSERT') END)
   AND NOT has_table_privilege('authenticated', 'public.groups', 'UPDATE')
   AND NOT has_table_privilege('authenticated', 'public.groups', 'DELETE'),
   'authenticated groups grants match the application contract'

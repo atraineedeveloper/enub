@@ -89,25 +89,37 @@ export type Database = {
       }
       groups: {
         Row: {
+          archived_at: string | null
+          archived_by: string | null
+          updated_at: string
+          version: number
           created_at: string
-          degree_id: number | null
+          degree_id: number
           id: number
-          letter: string | null
-          year_of_admission: number | null
+          letter: string
+          year_of_admission: number
         }
         Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
+          updated_at?: string
+          version?: number
           created_at?: string
-          degree_id?: number | null
+          degree_id: number
           id?: number
-          letter?: string | null
-          year_of_admission?: number | null
+          letter: string
+          year_of_admission: number
         }
         Update: {
+          archived_at?: string | null
+          archived_by?: string | null
+          updated_at?: string
+          version?: number
           created_at?: string
-          degree_id?: number | null
+          degree_id?: number
           id?: number
-          letter?: string | null
-          year_of_admission?: number | null
+          letter?: string
+          year_of_admission?: number
         }
         Relationships: [
           {
@@ -698,6 +710,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      update_group: {
+        Args: { p_id: number; p_version: number; p_year: number; p_letter: string; p_degree: number }
+        Returns: Database["public"]["Tables"]["groups"]["Row"]
+      }
+      archive_group: {
+        Args: { p_id: number; p_version: number; p_reason: string }
+        Returns: Database["public"]["Tables"]["groups"]["Row"]
+      }
+      restore_group: {
+        Args: { p_id: number; p_version: number; p_reason: string }
+        Returns: Database["public"]["Tables"]["groups"]["Row"]
+      }
+      delete_group: {
+        Args: { p_id: number; p_version: number; p_reason: string }
+        Returns: Database["public"]["Tables"]["groups"]["Row"]
+      }
+      get_group_audit: {
+        Args: { p_id?: number | null; p_before?: number | null; p_limit?: number }
+        Returns: { id: number; group_id: number; actor_id: string; action: string; occurred_at: string; before_state: Json | null; after_state: Json | null; reason: string | null }[]
+      }
       _replace_schedule_ownership_select_policy: {
         Args: {
           admin_staff_policy_name: string

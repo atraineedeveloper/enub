@@ -143,15 +143,15 @@ SET
     "study_program_id" = EXCLUDED."study_program_id",
     "degree_id" = EXCLUDED."degree_id";
 
-INSERT INTO "public"."groups" ("id", "year_of_admission", "letter", "degree_id")
-VALUES
-    (1, 2026, 'A', 1),
-    (2, 2026, 'B', 2)
-ON CONFLICT ("id") DO UPDATE
-SET
-    "year_of_admission" = EXCLUDED."year_of_admission",
-    "letter" = EXCLUDED."letter",
-    "degree_id" = EXCLUDED."degree_id";
+-- Local-only fixture: preserve reserved IDs referenced by other seed rows.
+-- Set the seeded admin actor for the audit trigger; keep the migration
+-- owner's explicit-ID access only in this local seed file.
+BEGIN;
+SET LOCAL "request.jwt.claim.sub" = '11111111-1111-1111-1111-111111111111';
+INSERT INTO public.groups(id,year_of_admission,letter,degree_id)
+VALUES (1,2026,'A',1),(2,2026,'B',2)
+ON CONFLICT (id) DO NOTHING;
+COMMIT;
 
 INSERT INTO "public"."workers" (
     "id",
