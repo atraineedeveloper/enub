@@ -15,3 +15,8 @@
 Progress counts completed checklist items, not elapsed time or estimated effort. No production writes performed.
 
 Detailed implementation contract: database-and-schedules.md. Institutional limits and concurrency behavior remain verification gates, not proven implementation.
+
+## Implementation checkpoint
+- Schema candidate committed: `schema-candidate.sql` (additive columns, preflight, constraints, private audit table and supporting indexes).
+- Production index inspection confirmed no index beginning with schedule_assignments.group_id.
+- Local session has no Supabase CLI, Docker or psql; candidate is not yet a CLI-generated migration or executed SQL. Keep task 4 unchecked until migration generated and tested in isolated CI. Do not deploy candidate separately from lifecycle guards.
