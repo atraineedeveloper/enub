@@ -103,6 +103,8 @@ jobs:
           echo "ddde6e3498237cfc792f6147a0a0fa668eb6114526064d7b8c412d28f1b260f6  supabase/migrations/20261126200616_group_lifecycle_management.sql" | sha256sum -c -
       - name: Run group lifecycle concurrent transactions
         run: bash openspec/changes/group-lifecycle-management/concurrency-candidate.sh
+      - name: Rehearse synthetic audit backup and restore
+        run: bash openspec/changes/group-lifecycle-management/restore-rehearsal.sh
       - name: Generate local schema types for review
         run: |
           mkdir -p /tmp/group-schema-output
