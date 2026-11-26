@@ -31,6 +31,7 @@ export async function createScheduleAssignments(
     .insert([newScheduleAssignment as ScheduleAssignmentInsert]);
 
   if (error) {
+    if (error.code === "GRP03") throw new Error("El grupo está archivado. Actualiza la información antes de continuar.");
     console.error(error);
     throw new Error("Hubo un error al crear el registro");
   }
@@ -68,6 +69,7 @@ export async function createEditScheduleAssignments(
   const { data, error } = await query.select().single();
 
   if (error) {
+    if (error.code === "GRP03") throw new Error("El grupo está archivado. Actualiza la información antes de continuar.");
     console.error(error);
     throw new Error("El registro no pudo ser actualizado");
   }
