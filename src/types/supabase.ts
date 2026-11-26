@@ -94,10 +94,10 @@ export type Database = {
           updated_at: string
           version: number
           created_at: string
-          degree_id: number | null
+          degree_id: number
           id: number
-          letter: string | null
-          year_of_admission: number | null
+          letter: string
+          year_of_admission: number
         }
         Insert: {
           archived_at?: string | null
@@ -105,10 +105,10 @@ export type Database = {
           updated_at?: string
           version?: number
           created_at?: string
-          degree_id?: number | null
+          degree_id: number
           id?: number
-          letter?: string | null
-          year_of_admission?: number | null
+          letter: string
+          year_of_admission: number
         }
         Update: {
           archived_at?: string | null
@@ -116,10 +116,10 @@ export type Database = {
           updated_at?: string
           version?: number
           created_at?: string
-          degree_id?: number | null
+          degree_id?: number
           id?: number
-          letter?: string | null
-          year_of_admission?: number | null
+          letter?: string
+          year_of_admission?: number
         }
         Relationships: [
           {
