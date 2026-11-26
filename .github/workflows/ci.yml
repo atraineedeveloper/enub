@@ -93,46 +93,24 @@ jobs:
           [[ "${server_version}" == 17.* ]]
 
       - name: Lint application database schemas
-        run: supabase db lint --local --schema public,private --fail-on error
+        run: supabase db lint --local --schema public,private,group_admin_private --fail-on error
 
       - name: Run pgTAP database tests
         run: supabase test db --local
 
-      # Candidate validation only, on the disposable runner database.
-      - name: Validate group lifecycle candidate
-        if: github.event_name == 'pull_request' && github.head_ref == 'feat/group-lifecycle-management'
-        env:
-          PGPASSWORD: postgres
+      - name: Verify promoted migration integrity
         run: |
-          set -euo pipefail
-          candidate=openspec/changes/group-lifecycle-management
-          psql -X -h 127.0.0.1 -p 54322 -U postgres -d postgres -v ON_ERROR_STOP=1 --single-transaction -f "$candidate/schema-candidate.sql" -f "$candidate/lifecycle-candidate.sql"
-          supabase db lint --local --schema public,group_admin_private --fail-on error
-          cp "$candidate/lifecycle-candidate.test.sql" supabase/tests/database/group-lifecycle-candidate.test.sql
-          # Run candidate-specific tests only; legacy grant expectations and seed
-          # behavior must be reconciled before promoting the migration.
-          supabase test db supabase/tests/database/group-lifecycle-candidate.test.sql --local
-          bash "$candidate/concurrency-candidate.sh"
-
-      - name: Generate migration candidate with Supabase CLI
-        if: github.event_name == 'pull_request' && github.head_ref == 'feat/group-lifecycle-management'
+          echo "ddde6e3498237cfc792f6147a0a0fa668eb6114526064d7b8c412d28f1b260f6  supabase/migrations/20261126200616_group_lifecycle_management.sql" | sha256sum -c -
+      - name: Run group lifecycle concurrent transactions
+        run: bash openspec/changes/group-lifecycle-management/concurrency-candidate.sh
+      - name: Generate local schema types for review
         run: |
-          set -euo pipefail
-          candidate=openspec/changes/group-lifecycle-management
-          supabase migration new group_lifecycle_management
-          shopt -s nullglob
-          files=(supabase/migrations/*_group_lifecycle_management.sql)
-          [[ ${#files[@]} == 1 ]]
-          cat "$candidate/schema-candidate.sql" "$candidate/lifecycle-candidate.sql" > "${files[0]}"
-          mkdir -p /tmp/group-migration-output
-          cp "${files[0]}" /tmp/group-migration-output/
-          basename "${files[0]}"
-          sha256sum "${files[0]}"
-      - name: Publish generated migration candidate
-        if: github.event_name == 'pull_request' && github.head_ref == 'feat/group-lifecycle-management'
+          mkdir -p /tmp/group-schema-output
+          supabase gen types typescript --local --schema public,graphql_public > /tmp/group-schema-output/supabase.ts
+      - name: Publish generated schema types
         uses: actions/upload-artifact@v4
         with:
-          name: group-lifecycle-migration
-          path: /tmp/group-migration-output/*.sql
+          name: group-lifecycle-schema-types
+          path: /tmp/group-schema-output/supabase.ts
           retention-days: 7
           if-no-files-found: error
